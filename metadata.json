@@ -1,0 +1,6 @@
+{
+  "name": "Reading the Signals",
+  "description": "A private AI-powered reflection journal with secure Firestore isolation and multi-turn reflection partner.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

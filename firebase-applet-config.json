@@ -1,0 +1,12 @@
+{
+  "projectId": "govprep-v3",
+  "appId": "1:64960261938:web:8e62e220ae5f9c1158312b",
+  "apiKey": "AIzaSyAkE_uNvhnqIEUkZLPwVkOdZOgjp4Ju6Fo",
+  "authDomain": "govprep-v3.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-readingthesignal-15c72f10-00f5-4c77-9363-cdd03a67fe6e",
+  "storageBucket": "govprep-v3.firebasestorage.app",
+  "messagingSenderId": "64960261938",
+  "measurementId": "",
+  "oAuthClientId": "64960261938-plb9l356n9hdjroao5ufises6kaluhc8.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
+}

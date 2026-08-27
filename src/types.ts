@@ -28,6 +28,20 @@ export interface CrossEntryAnalysisResult {
   patterns: CrossEntryPattern[];
 }
 
+export interface CrossEntryContradiction {
+  observation: string;
+  evidenceCount: number;
+  supportingEntries: PatternSupportingEntry[];
+  explanation: string;
+  clarifyingQuestion: string;
+}
+
+export interface CrossEntryContradictionResult {
+  hasSufficientEvidence: boolean;
+  message?: string;
+  contradictions: CrossEntryContradiction[];
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';

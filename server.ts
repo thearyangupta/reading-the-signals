@@ -130,14 +130,99 @@ STRICT MANDATORY DIRECTIVES FOR CROSS-ENTRY REASONING:
 1. Grounding in Supplied Data: Analyze ONLY the structured signals and explicit text actually supplied from the user's journal entries.
 2. Multiple-Entry Evidence Requirement: Identify recurring patterns ONLY when supported by multiple entries (at least 2 distinct entries).
 3. Explicit Evidence Citation: Every reported pattern MUST include concrete evidence citing the specific supplied entries, such as dates, titles, situations, or explicit signals.
-4. Observational Framing: Describe patterns strictly as observations or recurring tendencies, never as objective facts, personality traits, or psychological conclusions.
-5. Zero Diagnosis: NEVER diagnose the user or any other person.
-6. No Third-Party Mind-Reading: NEVER infer another person's hidden motives, intentions, beliefs, or internal mental state.
-7. No Signal Invention: NEVER invent missing events, emotions, subjects, themes, or interpretations.
-8. Insufficient Evidence Transparency: If evidence across the supplied entries is insufficient for a recurring pattern, explicitly state that there is not enough evidence yet.
-9. No Artificial Probability/Scoring: Do NOT generate confidence percentages, probability scores, or pseudo-scientific metrics.
-10. Grounded Phrasing: Prefer wording such as "Across 3 entries...", "In entries from [date] and [date]...", or "These entries suggest..." rather than absolute claims.
-11. Scope Discipline: Do not perform contradiction detection or perspective-evolution/timeline analysis in this phase.`;
+4. Human-Readable Prose Citations (NO RAW ENTRY IDs IN PROSE):
+   - In user-facing prose fields ('observation', 'explanation', and 'message'), NEVER output raw internal entryId strings (e.g. do NOT write 'In entries y5pz... and C6w...').
+   - Reference entries in prose by their human-readable title and/or date (e.g. 'In "Team Standup" and "Sprint Review"...').
+   - Raw entryId values are strictly reserved for the 'entryId' property inside 'supportingEntries'.
+5. Observational Framing: Describe patterns strictly as observations or recurring tendencies, never as objective facts, personality traits, or psychological conclusions.
+6. Zero Diagnosis: NEVER diagnose the user or any other person.
+7. No Third-Party Mind-Reading: NEVER infer another person's hidden motives, intentions, beliefs, or internal mental state.
+8. No Signal Invention: NEVER invent missing events, emotions, subjects, themes, or interpretations.
+9. Insufficient Evidence Transparency: If evidence across the supplied entries is insufficient for a recurring pattern, explicitly state that there is not enough evidence yet.
+10. No Artificial Probability/Scoring: Do NOT generate confidence percentages, probability scores, or pseudo-scientific metrics.
+11. Grounded Phrasing: Prefer wording such as "Across 3 entries...", "In entries from [date] and [date]...", or "These entries suggest..." rather than absolute claims.
+12. Scope Discipline: Do not perform contradiction detection or perspective-evolution/timeline analysis in this phase.`;
+
+export const CROSS_ENTRY_CONTRADICTION_SYSTEM_INSTRUCTION = `You are a careful, compassionate cross-entry perspective and contradiction reasoning assistant for "Reading the Signals".
+
+Your purpose is to compare multiple structured reflection journal entries and surface meaningful differences or contradictions in how the user experienced, reacted to, or interpreted similar situations over time.
+
+WHEN A PERSPECTIVE DIFFERENCE / CONTRADICTION MAY BE SURFACED:
+A difference in perspective or reaction may be surfaced ONLY when:
+1. At least 2 distinct entries describe sufficiently similar situations, behaviors, themes, or subjects (e.g. receiving work feedback, schedule adjustments, meeting questions);
+2. AND the user's own expressed feeling, emotional tone, or stated interpretation differs meaningfully across those entries (e.g., in one entry interpreting questions as constructive interest, and in another interpreting similar questions as criticism).
+
+STRICT MANDATORY DIRECTIVES:
+1. Observational Framing (NO ACCUSATORY VERDICTS):
+   - NEVER say: "You are inconsistent", "You contradicted yourself", "You are hypocritical", or any accusatory or judgmental verdict.
+   - ALWAYS use gentle observational framing such as: "These two entries describe similar situations differently", "A contrast in perspective appears between these reflections", or "Across these situations, your stated interpretation varied."
+2. Grounding in User's Stated Experience:
+   - Compare ONLY the user's expressed feelings/reactions, emotional tone, stated interpretation, and explicitly described observations.
+   - NEVER infer another person's motives, intentions, beliefs, or internal mental state.
+   - NEVER diagnose the user or any third party with psychological, clinical, or psychiatric labels.
+   - NEVER invent missing interpretations, emotions, or events merely to construct a contradiction.
+3. Multi-Entry Evidence Requirement:
+   - Every detected difference MUST cite at least 2 distinct supporting journal entries with their exact entryId in supportingEntries.
+4. Human-Readable Prose Citations (NO RAW ENTRY IDs IN PROSE):
+   - In all user-facing text ('observation', 'explanation', 'clarifyingQuestion', and 'message'), NEVER include raw internal entryId strings.
+   - Always reference journal entries in text by their title and/or date (e.g., 'In "Timeline question - neutral one" and "Timeline question - neutral two"...').
+   - Keep raw entryId strings strictly inside the 'entryId' property of 'supportingEntries' objects.
+5. Conservatism & Ambiguity Handling:
+   - If the entries are not sufficiently similar, or if the difference in reaction/interpretation is ambiguous, minor, or unsupported, do NOT flag a contradiction.
+   - If evidence is insufficient, explicitly return hasSufficientEvidence: false and an empty contradictions list with a clear, grounded explanation.
+6. Exactly One Clarifying Reflection Question:
+   - For EACH genuine contradiction/difference, generate EXACTLY ONE targeted, supportive clarifying question.
+   - The question must invite thoughtful self-reflection and curiosity rather than judgment or defensiveness.
+   - Good example: "These two entries describe similar timeline questions differently — what felt different to you in each situation?"
+   - Bad example: "Why are you being inconsistent?"
+7. No Pseudo-Scientific Metrics:
+   - Do NOT generate confidence percentages, probability scores, or artificial ratings.
+8. Scope Discipline:
+   - Focus solely on identifying perspective differences and formulating a single supportive clarifying question. Do not build timeline perspectives, scoring, or rating charts.`;
+
+/**
+ * Defensive prose sanitizer that replaces any raw entry IDs found in text
+ * with canonical human-readable titles (and dates).
+ */
+function sanitizeProseEntryReferences(
+  text: string,
+  validEntriesMap: Map<string, { entryId: string; title: string; date: string }>
+): string {
+  if (!text || typeof text !== 'string') return '';
+  let sanitized = text;
+
+  // Sort entries by ID length descending to prevent partial substring collisions
+  const sortedEntries = Array.from(validEntriesMap.values()).sort(
+    (a, b) => b.entryId.length - a.entryId.length
+  );
+
+  for (const entry of sortedEntries) {
+    if (!entry.entryId || entry.entryId.trim().length < 3) continue;
+
+    const trimmedId = entry.entryId.trim();
+    // Escape regex special characters
+    const escapedId = trimmedId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Match exact entryId
+    const regex = new RegExp(`\\b${escapedId}\\b|${escapedId}`, 'g');
+
+    if (regex.test(sanitized)) {
+      const canonicalTitle = entry.title && entry.title !== 'Untitled'
+        ? `"${entry.title}"`
+        : (entry.date ? `entry from ${entry.date}` : 'this entry');
+
+      sanitized = sanitized.replace(regex, canonicalTitle);
+    }
+  }
+
+  // Clean up double-wrapping of quotes if the model had quotes around the ID like '"entryId"' -> '""Title""'
+  sanitized = sanitized.replace(/""([^"]+)""/g, '"$1"');
+  // Clean up awkward phrasing like 'In entries "Title" and "Title"' -> 'In "Title" and "Title"'
+  sanitized = sanitized.replace(/\bentries\s+(")/gi, '$1');
+  sanitized = sanitized.replace(/\bentry\s+(")/gi, '$1');
+
+  return sanitized;
+}
 
 // API Routes
 app.get('/api/health', (req: Request, res: Response) => {
@@ -340,8 +425,9 @@ Task instructions:
 1. Identify recurring patterns ONLY when supported by multiple entries (at least 2 distinct entries).
 2. For each pattern, cite the exact entryId, title, and date in "supportingEntries".
 3. Provide a concise observation and a grounded explanation based ONLY on what is explicitly written in the supplied entries.
-4. If there is insufficient evidence for any recurring patterns across these entries, set "hasSufficientEvidence" to false, provide an explanation in "message", and return "patterns" as [].
-5. Do NOT include confidence percentages, probability scores, psychoanalysis, or assumptions about third-party motives.`;
+4. HUMAN-READABLE PROSE ONLY: NEVER include raw entryId strings inside "observation", "explanation", or "message". Reference entries in prose strictly by title (e.g. "Design Review") or date.
+5. If there is insufficient evidence for any recurring patterns across these entries, set "hasSufficientEvidence" to false, provide an explanation in "message", and return "patterns" as [].
+6. Do NOT include confidence percentages, probability scores, psychoanalysis, or assumptions about third-party motives.`;
 
     const patternsSchema = {
       type: 'OBJECT',
@@ -354,7 +440,7 @@ Task instructions:
         message: {
           type: 'STRING',
           description:
-            'A grounded message summarizing the findings (e.g. "Across 3 entries, 2 recurring observations were identified." or "Not enough evidence yet across the supplied entries to surface recurring patterns.")',
+            'A grounded message summarizing the findings (e.g. "Across 3 entries, 2 recurring observations were identified." or "Not enough evidence yet across the supplied entries to surface recurring patterns."). Must never contain raw entryId strings.',
         },
         patterns: {
           type: 'ARRAY',
@@ -363,7 +449,7 @@ Task instructions:
             properties: {
               observation: {
                 type: 'STRING',
-                description: 'A concise, grounded observation of a recurring pattern supported by multiple entries.',
+                description: 'A concise, grounded observation of a recurring pattern supported by multiple entries. Must never contain raw entryId strings.',
               },
               evidenceCount: {
                 type: 'INTEGER',
@@ -385,7 +471,7 @@ Task instructions:
               explanation: {
                 type: 'STRING',
                 description:
-                  'A short grounded explanation of how those specific entries demonstrate this observation, without diagnosing or guessing others\' motives.',
+                  'A short grounded explanation of how those specific entries demonstrate this observation, citing entry titles instead of raw IDs, without diagnosing or guessing others\' motives.',
               },
             },
             required: ['observation', 'evidenceCount', 'supportingEntries', 'explanation'],
@@ -467,29 +553,38 @@ Task instructions:
 
       // Discard any pattern with fewer than 2 validated supporting entries
       if (validatedSupporting.length >= 2) {
+        const rawObs = String(p?.observation || '').trim();
+        const rawExpl = String(p?.explanation || '').trim();
+
+        // Defensively sanitize any raw entryId references out of user-facing prose
+        const cleanObservation = sanitizeProseEntryReferences(rawObs, validEntriesMap);
+        const cleanExplanation = sanitizeProseEntryReferences(rawExpl, validEntriesMap);
+
         validatedPatterns.push({
-          observation: String(p?.observation || '').trim(),
+          observation: cleanObservation,
           evidenceCount: validatedSupporting.length, // Never trust Gemini's evidenceCount
           supportingEntries: validatedSupporting,
-          explanation: String(p?.explanation || '').trim(),
+          explanation: cleanExplanation,
         });
       }
     }
 
     // If no patterns remain after validation, set hasSufficientEvidence = false
     let hasSufficientEvidence = Boolean(parsedResult?.hasSufficientEvidence) && validatedPatterns.length > 0;
-    let message = typeof parsedResult?.message === 'string' ? parsedResult.message.trim() : '';
+    let rawMessage = typeof parsedResult?.message === 'string' ? parsedResult.message.trim() : '';
 
     if (validatedPatterns.length === 0) {
       hasSufficientEvidence = false;
-      message = (message && !parsedResult?.hasSufficientEvidence)
-        ? message
+      rawMessage = (rawMessage && !parsedResult?.hasSufficientEvidence)
+        ? rawMessage
         : 'Not enough recurring evidence across the supplied entries to confirm distinct patterns.';
     }
 
+    const cleanMessage = sanitizeProseEntryReferences(rawMessage, validEntriesMap);
+
     const sanitizedResult = {
       hasSufficientEvidence,
-      message,
+      message: cleanMessage,
       patterns: validatedPatterns,
     };
 
@@ -501,6 +596,268 @@ Task instructions:
     console.error('Error in cross-entry pattern analysis:', error);
     res.status(500).json({
       error: 'Failed to complete cross-entry pattern analysis.',
+      details: error?.message || 'Internal server error',
+    });
+  }
+});
+
+/**
+ * Endpoint: /api/contradictions
+ * Day 6 Cross-Entry Contradiction & Perspective Difference Analysis Endpoint.
+ * Analyzes structured journal signals from the authenticated user to detect perspective differences across similar situations.
+ */
+app.post('/api/contradictions', async (req: Request, res: Response) => {
+  try {
+    // 1. Authenticate caller using Firebase ID token
+    const decodedToken = await verifyFirebaseToken(req);
+    if (!decodedToken || !decodedToken.uid) {
+      return res.status(401).json({
+        error: 'Unauthorized: A valid Firebase authentication token is required.',
+      });
+    }
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const rawEntries = Array.isArray(body.entries) ? body.entries : [];
+
+    // Filter and normalize entries with structured signals
+    const normalizedEntries = rawEntries
+      .filter((e: any) => e && typeof e === 'object' && (e.id || e.title || e.content || e.summary))
+      .map((e: any) => ({
+        entryId: String(e.id || ''),
+        date: String(e.date || ''),
+        title: String(e.title || 'Untitled'),
+        situation: String(e.summary?.situation || e.situation || ''),
+        behaviorOrEvent: String(e.summary?.behaviorOrEvent || e.behaviorOrEvent || ''),
+        feelingOrReaction: String(e.summary?.feelingOrReaction || e.feelingOrReaction || ''),
+        importantContext: String(e.summary?.importantContext || e.importantContext || ''),
+        subjects: Array.isArray(e.summary?.subjects) ? e.summary.subjects : (Array.isArray(e.subjects) ? e.subjects : []),
+        theme: String(e.summary?.theme || e.theme || ''),
+        emotionalTone: String(e.summary?.emotionalTone || e.emotionalTone || ''),
+        interpretation: String(e.summary?.interpretation || e.interpretation || ''),
+      }));
+
+    if (normalizedEntries.length < 2) {
+      return res.status(400).json({
+        error: 'At least 2 structured journal entries are required for contradiction analysis.',
+        hasSufficientEvidence: false,
+        message: 'At least 2 structured journal entries are needed to compare perspectives across similar situations.',
+        contradictions: [],
+      });
+    }
+
+    const formattedEntriesContext = normalizedEntries
+      .map((entry: any, index: number) => {
+        const subjectsStr = Array.isArray(entry.subjects) && entry.subjects.length > 0
+          ? entry.subjects.join(', ')
+          : 'None explicitly noted';
+        return `
+--- ENTRY ${index + 1} ---
+Entry ID: ${entry.entryId}
+Date: ${entry.date || 'N/A'}
+Title: ${entry.title}
+Situation: ${entry.situation || 'N/A'}
+Behavior or Event: ${entry.behaviorOrEvent || 'N/A'}
+Feeling or Reaction: ${entry.feelingOrReaction || 'N/A'}
+Important Context: ${entry.importantContext || 'N/A'}
+Explicit Subjects: ${subjectsStr}
+Normalized Theme: ${entry.theme || 'N/A'}
+Emotional Tone: ${entry.emotionalTone || 'N/A'}
+Stated Interpretation: ${entry.interpretation || 'N/A'}
+--------------------`.trim();
+      })
+      .join('\n\n');
+
+    const promptText = `Please analyze the following ${normalizedEntries.length} structured reflection journal entries and surface any genuine perspective differences or contradictions according to your system instructions.
+
+USER ENTRIES DATA:
+${formattedEntriesContext}
+
+Task instructions:
+1. Surface a perspective difference / contradiction ONLY when at least 2 distinct entries describe sufficiently similar situations, behaviors, themes, or subjects, AND the user's expressed feeling, emotional tone, or stated interpretation differs meaningfully.
+2. For each detected difference, cite the exact entryId, title, and date in "supportingEntries" (must contain at least 2 distinct entries).
+3. Use gentle observational framing (e.g. "These two entries describe similar situations differently"). NEVER use accusatory words like "inconsistent", "contradicted yourself", or "hypocritical".
+4. For EACH detected contradiction, formulate EXACTLY ONE targeted, supportive clarifying question that invites reflection rather than judgment (e.g., "These two entries describe similar timeline inquiries differently — what felt different to you in each situation?").
+5. HUMAN-READABLE PROSE ONLY: NEVER include raw entryId strings inside "observation", "explanation", "clarifyingQuestion", or "message". Reference entries in prose strictly by title (e.g. "Timeline question - neutral one") or date.
+6. If there is insufficient evidence, entries are not similar enough, or differences are ambiguous, set "hasSufficientEvidence" to false, provide an explanation in "message", and return "contradictions" as [].
+7. Do NOT include confidence percentages, probability scores, psychoanalysis, or assumptions about third-party motives.`;
+
+    const contradictionsSchema = {
+      type: 'OBJECT',
+      properties: {
+        hasSufficientEvidence: {
+          type: 'BOOLEAN',
+          description:
+            'True if there is sufficient grounded evidence of at least one meaningful difference/contradiction across at least 2 distinct entries with similar situations/themes; false if evidence is insufficient, ambiguous, or if entries are not sufficiently similar.',
+        },
+        message: {
+          type: 'STRING',
+          description:
+            'A gentle, grounded message summarizing the findings or explaining why evidence is insufficient. Must never contain raw entryId strings.',
+        },
+        contradictions: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              observation: {
+                type: 'STRING',
+                description:
+                  'A gentle, non-accusatory observation describing how similar situations were interpreted or experienced differently across entries (e.g. "These two entries describe similar timeline inquiries differently"). Must never contain raw entryId strings.',
+              },
+              evidenceCount: {
+                type: 'INTEGER',
+                description: 'Number of distinct supplied entries supporting this observation (must be >= 2).',
+              },
+              supportingEntries: {
+                type: 'ARRAY',
+                items: {
+                  type: 'OBJECT',
+                  properties: {
+                    entryId: { type: 'STRING', description: 'The exact Entry ID' },
+                    title: { type: 'STRING', description: 'Title of the entry' },
+                    date: { type: 'STRING', description: 'Date of the entry' },
+                  },
+                  required: ['entryId', 'title', 'date'],
+                },
+                description: 'List of specific supporting entries where the perspective difference occurs.',
+              },
+              explanation: {
+                type: 'STRING',
+                description:
+                  'A short, grounded explanation describing the specific similarities in context and the explicit differences in the user\'s stated feelings, tone, or interpretation, citing human-readable entry titles rather than raw IDs, without guessing others\' motives.',
+              },
+              clarifyingQuestion: {
+                type: 'STRING',
+                description:
+                  'Exactly ONE targeted, supportive clarifying question inviting the user to explore what felt different in each situation, referencing human-readable entry titles or contexts rather than raw IDs, without judgment or accusation.',
+              },
+            },
+            required: ['observation', 'evidenceCount', 'supportingEntries', 'explanation', 'clarifyingQuestion'],
+          },
+          description:
+            'List of perspective differences / contradictions supported by 2 or more distinct entries. If hasSufficientEvidence is false, this MUST be an empty array [].',
+        },
+      },
+      required: ['hasSufficientEvidence', 'message', 'contradictions'],
+    };
+
+    const { text, modelUsed } = await generateWithFallback(
+      [
+        {
+          role: 'user',
+          parts: [{ text: promptText }],
+        },
+      ],
+      {
+        systemInstruction: CROSS_ENTRY_CONTRADICTION_SYSTEM_INSTRUCTION,
+        responseMimeType: 'application/json',
+        responseSchema: contradictionsSchema,
+      }
+    );
+
+    let parsedResult;
+    try {
+      parsedResult = JSON.parse(text);
+    } catch {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsedResult = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('Failed to parse cross-entry contradiction JSON');
+      }
+    }
+
+    // 2. SERVER-VERIFY GEMINI EVIDENCE:
+    // Build lookup map of valid normalized entries keyed by entryId
+    const validEntriesMap = new Map<string, { entryId: string; title: string; date: string }>();
+    for (const entry of normalizedEntries) {
+      if (entry.entryId) {
+        validEntriesMap.set(entry.entryId, {
+          entryId: entry.entryId,
+          title: entry.title || 'Untitled',
+          date: entry.date || '',
+        });
+      }
+    }
+
+    // Validate and de-duplicate supporting entries for each contradiction
+    const rawContradictions = Array.isArray(parsedResult?.contradictions) ? parsedResult.contradictions : [];
+    const validatedContradictions: {
+      observation: string;
+      evidenceCount: number;
+      supportingEntries: { entryId: string; title: string; date: string }[];
+      explanation: string;
+      clarifyingQuestion: string;
+    }[] = [];
+
+    for (const c of rawContradictions) {
+      const rawSupporting = Array.isArray(c?.supportingEntries) ? c.supportingEntries : [];
+      const seenEntryIds = new Set<string>();
+      const validatedSupporting: { entryId: string; title: string; date: string }[] = [];
+
+      for (const se of rawSupporting) {
+        const rawId = String(se?.entryId || '').trim();
+        // Remove every item whose entryId does not exist in normalizedEntries and de-duplicate
+        if (rawId && validEntriesMap.has(rawId) && !seenEntryIds.has(rawId)) {
+          seenEntryIds.add(rawId);
+          const validMeta = validEntriesMap.get(rawId)!;
+          // Use verified metadata from normalizedEntries rather than trusting Gemini
+          validatedSupporting.push({
+            entryId: validMeta.entryId,
+            title: validMeta.title,
+            date: validMeta.date,
+          });
+        }
+      }
+
+      // Discard any contradiction with fewer than 2 validated supporting entries
+      if (validatedSupporting.length >= 2) {
+        const rawObs = String(c?.observation || '').trim();
+        const rawExpl = String(c?.explanation || '').trim();
+        const rawQuestion = String(c?.clarifyingQuestion || '').trim();
+
+        // Defensively sanitize any raw entryId references out of user-facing prose
+        const cleanObservation = sanitizeProseEntryReferences(rawObs, validEntriesMap);
+        const cleanExplanation = sanitizeProseEntryReferences(rawExpl, validEntriesMap);
+        const cleanQuestion = sanitizeProseEntryReferences(rawQuestion, validEntriesMap);
+
+        validatedContradictions.push({
+          observation: cleanObservation,
+          evidenceCount: validatedSupporting.length, // Never trust Gemini's evidenceCount
+          supportingEntries: validatedSupporting,
+          explanation: cleanExplanation,
+          clarifyingQuestion: cleanQuestion,
+        });
+      }
+    }
+
+    // If no contradictions remain after validation, set hasSufficientEvidence = false
+    let hasSufficientEvidence = Boolean(parsedResult?.hasSufficientEvidence) && validatedContradictions.length > 0;
+    let rawMessage = typeof parsedResult?.message === 'string' ? parsedResult.message.trim() : '';
+
+    if (validatedContradictions.length === 0) {
+      hasSufficientEvidence = false;
+      rawMessage = (rawMessage && !parsedResult?.hasSufficientEvidence)
+        ? rawMessage
+        : 'Not enough grounded evidence across the supplied entries to surface perspective differences.';
+    }
+
+    const cleanMessage = sanitizeProseEntryReferences(rawMessage, validEntriesMap);
+
+    const sanitizedResult = {
+      hasSufficientEvidence,
+      message: cleanMessage,
+      contradictions: validatedContradictions,
+    };
+
+    res.json({
+      result: sanitizedResult,
+      modelUsed,
+    });
+  } catch (error: any) {
+    console.error('Error in cross-entry contradiction analysis:', error);
+    res.status(500).json({
+      error: 'Failed to complete cross-entry contradiction analysis.',
       details: error?.message || 'Internal server error',
     });
   }

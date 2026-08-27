@@ -3,6 +3,29 @@ export interface StructuredSummary {
   behaviorOrEvent: string;
   feelingOrReaction: string;
   importantContext: string;
+  subjects?: string[];
+  theme?: string;
+  emotionalTone?: string;
+  interpretation?: string;
+}
+
+export interface PatternSupportingEntry {
+  entryId: string;
+  title: string;
+  date: string;
+}
+
+export interface CrossEntryPattern {
+  observation: string;
+  evidenceCount: number;
+  supportingEntries: PatternSupportingEntry[];
+  explanation: string;
+}
+
+export interface CrossEntryAnalysisResult {
+  hasSufficientEvidence: boolean;
+  message?: string;
+  patterns: CrossEntryPattern[];
 }
 
 export interface ChatMessage {

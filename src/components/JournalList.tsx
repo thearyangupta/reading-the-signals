@@ -37,8 +37,12 @@ export const JournalList: React.FC<JournalListProps> = ({
         e.situation?.toLowerCase().includes(q) ||
         e.behaviorOrEvent?.toLowerCase().includes(q) ||
         e.feelingOrReaction?.toLowerCase().includes(q) ||
-        e.summary?.situation.toLowerCase().includes(q) ||
-        e.summary?.feelingOrReaction.toLowerCase().includes(q)
+        e.summary?.situation?.toLowerCase().includes(q) ||
+        e.summary?.feelingOrReaction?.toLowerCase().includes(q) ||
+        e.summary?.theme?.toLowerCase().includes(q) ||
+        e.summary?.emotionalTone?.toLowerCase().includes(q) ||
+        e.summary?.interpretation?.toLowerCase().includes(q) ||
+        e.summary?.subjects?.some((s) => s.toLowerCase().includes(q))
     );
   }, [entries, searchQuery]);
 

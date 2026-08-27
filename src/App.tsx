@@ -7,6 +7,7 @@ import { AuthView } from './components/AuthView';
 import { JournalList } from './components/JournalList';
 import { JournalEditor } from './components/JournalEditor';
 import { EntryDetailModal } from './components/EntryDetailModal';
+import { PatternAnalysisSection } from './components/PatternAnalysisSection';
 import { Sparkles, Shield, AlertCircle } from 'lucide-react';
 
 export default function App() {
@@ -179,6 +180,14 @@ export default function App() {
               onSelectEntry={(entry) => setSelectedEntry(entry)}
               onNewEntry={handleOpenNewEntry}
             />
+
+            {/* Day 5: Cross-Entry Recurring Pattern Analysis Section */}
+            {!entriesLoading && entries.length > 0 && (
+              <PatternAnalysisSection
+                entries={entries}
+                onSelectEntry={(entry) => setSelectedEntry(entry)}
+              />
+            )}
           </div>
         )}
       </main>

@@ -14,6 +14,10 @@ import {
   Edit3,
   Loader2,
   RefreshCw,
+  Tag,
+  Smile,
+  Compass,
+  Users,
 } from 'lucide-react';
 
 interface EntryDetailModalProps {
@@ -236,6 +240,61 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
                     </div>
                     <p className="text-stone-800 pl-5 leading-relaxed">{entry.summary.importantContext}</p>
                   </div>
+
+                  {/* Extended Foundation Fields: Theme & Emotional Tone */}
+                  {(entry.summary.theme || entry.summary.emotionalTone) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {entry.summary.theme && (
+                        <div className="bg-amber-50/50 p-2.5 rounded-lg border border-amber-200/60">
+                          <div className="flex items-center space-x-1.5 text-amber-800 font-medium mb-1">
+                            <Tag className="w-3.5 h-3.5 text-amber-600" />
+                            <span>5. Theme</span>
+                          </div>
+                          <p className="text-stone-800 pl-5 leading-relaxed font-medium">{entry.summary.theme}</p>
+                        </div>
+                      )}
+                      {entry.summary.emotionalTone && (
+                        <div className="bg-rose-50/40 p-2.5 rounded-lg border border-rose-200/60">
+                          <div className="flex items-center space-x-1.5 text-rose-800 font-medium mb-1">
+                            <Smile className="w-3.5 h-3.5 text-rose-500" />
+                            <span>6. Emotional Tone</span>
+                          </div>
+                          <p className="text-stone-800 pl-5 leading-relaxed">{entry.summary.emotionalTone}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Extended Foundation Field: Interpretation */}
+                  {entry.summary.interpretation && (
+                    <div className="bg-stone-50/70 p-2.5 rounded-lg border border-stone-100">
+                      <div className="flex items-center space-x-1.5 text-stone-600 font-medium mb-1">
+                        <Compass className="w-3.5 h-3.5 text-stone-500" />
+                        <span>7. User Stated Interpretation</span>
+                      </div>
+                      <p className="text-stone-800 pl-5 leading-relaxed italic">{entry.summary.interpretation}</p>
+                    </div>
+                  )}
+
+                  {/* Extended Foundation Field: Subjects */}
+                  {Array.isArray(entry.summary.subjects) && entry.summary.subjects.length > 0 && (
+                    <div className="bg-stone-50/70 p-2.5 rounded-lg border border-stone-100">
+                      <div className="flex items-center space-x-1.5 text-stone-600 font-medium mb-1.5">
+                        <Users className="w-3.5 h-3.5 text-stone-500" />
+                        <span>8. Explicit Subjects & Entities</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 pl-5">
+                        {entry.summary.subjects.map((sub, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center text-[11px] font-medium bg-white text-stone-700 border border-stone-200 px-2 py-0.5 rounded-md"
+                          >
+                            {sub}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-6 px-4 bg-stone-50/60 rounded-lg border border-dashed border-stone-200 text-stone-500 text-xs">

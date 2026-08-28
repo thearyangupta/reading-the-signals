@@ -180,6 +180,51 @@ STRICT MANDATORY DIRECTIVES:
 8. Scope Discipline:
    - Focus solely on identifying perspective differences and formulating a single supportive clarifying question. Do not build timeline perspectives, scoring, or rating charts.`;
 
+export const SIGNAL_TIMELINE_SYSTEM_INSTRUCTION = `You are a careful, grounded Signal Timeline analysis assistant for "Reading the Signals".
+
+Your purpose is to analyze the authenticated user's dated structured reflection journal entries across time and identify meaningful longitudinal changes in the USER'S explicitly expressed:
+- perspective
+- emotional reaction or tone
+- interpretation
+- focus (e.g., shift from focusing on another person's behavior to focusing on the user's own reaction, boundaries, or choices).
+
+STRICT MANDATORY DIRECTIVES FOR SIGNAL TIMELINE REASONING:
+1. Strict Grounding in Supplied Dated Entries:
+   - Analyze ONLY the structured signals, dates, and explicit text supplied from the user's own journal entries.
+   - Never invent missing emotions, interpretations, events, subjects, motives, or perspective changes.
+2. Meaningful Temporal Change (NOT A Chronological List):
+   - The Signal Timeline is NOT simply a chronological listing of journal entries.
+   - A timeline shift/node exists ONLY when the supplied evidence supports a meaningful change in perspective, emotional reaction, interpretation, or focus between earlier and later entries (e.g. hopeful -> anxious, pressured -> calm, external blame -> internal agency/boundaries).
+   - Do NOT create a timeline node merely because an entry has a different date.
+3. Preserve Chronology & Multi-Entry Support:
+   - Every reported shift must identify the specific supporting entries establishing the earlier state ('earlier_state') and later state ('later_state').
+   - Earlier and later states MUST be strictly determined from the actual dates of the supplied entries.
+   - Every shift must be supported by at least 2 distinct dated entries.
+4. Human-Readable Prose Citations (NO RAW ENTRY IDs IN PROSE):
+   - In all user-facing text ('observation', 'earlierState', 'laterState', 'explanation', 'message'), NEVER output raw internal entryId strings (e.g. do NOT write 'In entries y5pz... and C6w...').
+   - Reference entries in prose strictly by their human-readable title and/or date (e.g. 'In "Sprint Review" (2025-02-10) and "Team Planning" (2025-02-24)...').
+   - Raw entryId values are strictly reserved for the 'entryId' property inside 'supportingEntries'.
+5. Gentle Observational Language:
+   - Use observational language such as:
+     * "Across these entries..."
+     * "Your reflection appears to shift from..."
+     * "In the earlier entry from [date]..."
+     * "By the later reflection from [date]..."
+   - AVOID absolute or diagnostic language such as:
+     * "You realized..."
+     * "You always..."
+     * "You finally understood..."
+     * "This proves..."
+     unless the user's own entry explicitly used those exact words.
+6. Zero Diagnosis & Zero Third-Party Mind-Reading:
+   - NEVER diagnose the user or any other person.
+   - NEVER infer another person's hidden motives, intentions, beliefs, emotions, or mental state.
+   - Focus exclusively on reflecting the user's own recorded thoughts and stated responses over time.
+7. No Pseudo-Scientific Metrics:
+   - NEVER generate confidence percentages, probability scores, psychological metrics, or progress ratings.
+8. Insufficient Evidence Transparency:
+   - If the supplied entries do not provide enough grounded evidence for a genuine change over time, or if reflections are steady without a clear shift, explicitly state that there is not enough evidence yet with hasSufficientEvidence: false and an empty shifts array.`;
+
 /**
  * Defensive prose sanitizer that replaces any raw entry IDs found in text
  * with canonical human-readable titles (and dates).
@@ -858,6 +903,257 @@ Task instructions:
     console.error('Error in cross-entry contradiction analysis:', error);
     res.status(500).json({
       error: 'Failed to complete cross-entry contradiction analysis.',
+      details: error?.message || 'Internal server error',
+    });
+  }
+});
+
+/**
+ * Endpoint: /api/timeline
+ * Signal Timeline — Grounded Cross-Entry Perspective Change Reasoning
+ */
+app.post('/api/timeline', async (req: Request, res: Response) => {
+  try {
+    const token = await verifyFirebaseToken(req);
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized. Valid Firebase ID token is required.' });
+    }
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const rawEntries = Array.isArray(body.entries) ? body.entries : [];
+
+    // Map and sanitize incoming entry signals
+    const validEntriesMap = new Map<string, { entryId: string; title: string; date: string }>();
+    const normalizedEntries: any[] = [];
+
+    for (const entry of rawEntries) {
+      if (entry && typeof entry === 'object' && entry.id && typeof entry.id === 'string') {
+        const cleanId = String(entry.id).trim();
+        const cleanTitle = (typeof entry.title === 'string' && entry.title.trim()) ? entry.title.trim() : 'Untitled Entry';
+        const cleanDate = (typeof entry.date === 'string' && entry.date.trim()) ? entry.date.trim() : 'Undated';
+
+        validEntriesMap.set(cleanId, {
+          entryId: cleanId,
+          title: cleanTitle,
+          date: cleanDate,
+        });
+
+        normalizedEntries.push({
+          id: cleanId,
+          date: cleanDate,
+          title: cleanTitle,
+          situation: String(entry.situation || '').trim(),
+          behaviorOrEvent: String(entry.behaviorOrEvent || '').trim(),
+          feelingOrReaction: String(entry.feelingOrReaction || '').trim(),
+          importantContext: String(entry.importantContext || '').trim(),
+          subjects: Array.isArray(entry.subjects) ? entry.subjects : [],
+          theme: String(entry.theme || '').trim(),
+          emotionalTone: String(entry.emotionalTone || '').trim(),
+          interpretation: String(entry.interpretation || '').trim(),
+        });
+      }
+    }
+
+    if (normalizedEntries.length < 2) {
+      return res.json({
+        result: {
+          hasSufficientEvidence: false,
+          message: 'At least 2 dated reflection entries are required to analyze changes in perspective over time.',
+          shifts: [],
+        },
+        modelUsed: 'none',
+      });
+    }
+
+    // Sort chronologically by date ascending
+    normalizedEntries.sort((a, b) => {
+      const timeA = new Date(a.date).getTime() || 0;
+      const timeB = new Date(b.date).getTime() || 0;
+      return timeA - timeB;
+    });
+
+    const prompt = `Analyze the following chronologically ordered dated reflection journal entries for genuine longitudinal changes in the user's expressed perspective, emotional reaction or tone, interpretation, or focus.
+
+STRICT GROUNDING DIRECTIVES:
+1. Identify meaningful longitudinal changes in perspective, emotional reaction, interpretation, or focus over time.
+2. DO NOT simply list journal entries chronologically. A timeline node exists ONLY when the supplied evidence supports a genuine shift between earlier and later states.
+3. Ground every shift strictly in the supplied text. Never invent missing emotions, interpretations, events, or third-party motives.
+4. Never diagnose the user or anyone else. Never generate probability or psychological scores.
+5. In all user-facing text fields ('observation', 'earlierState', 'laterState', 'explanation', and 'message'), NEVER use raw internal entryId strings. Refer to entries strictly by their human-readable title and/or date.
+6. Reserve raw entryId strings solely for the 'entryId' field inside 'supportingEntries'.
+7. For each shift, assign roles to supporting entries ('earlier_state', 'later_state', or 'context') based on actual chronological order.
+8. If the entries do not exhibit a clear shift over time, return hasSufficientEvidence: false with an empty shifts list.
+
+Chronologically Ordered Entries:
+${JSON.stringify(normalizedEntries, null, 2)}`;
+
+    const timelineSchema = {
+      type: 'OBJECT',
+      properties: {
+        hasSufficientEvidence: { type: 'BOOLEAN' },
+        message: { type: 'STRING' },
+        shifts: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              shiftType: {
+                type: 'STRING',
+                enum: ['perspective', 'emotional_reaction', 'interpretation', 'focus'],
+              },
+              earlierState: { type: 'STRING' },
+              laterState: { type: 'STRING' },
+              observation: { type: 'STRING' },
+              explanation: { type: 'STRING' },
+              supportingEntries: {
+                type: 'ARRAY',
+                items: {
+                  type: 'OBJECT',
+                  properties: {
+                    entryId: { type: 'STRING' },
+                    title: { type: 'STRING' },
+                    date: { type: 'STRING' },
+                    roleInShift: {
+                      type: 'STRING',
+                      enum: ['earlier_state', 'later_state', 'context'],
+                    },
+                  },
+                  required: ['entryId', 'title', 'date'],
+                },
+              },
+            },
+            required: [
+              'shiftType',
+              'earlierState',
+              'laterState',
+              'observation',
+              'explanation',
+              'supportingEntries',
+            ],
+          },
+        },
+      },
+      required: ['hasSufficientEvidence', 'message', 'shifts'],
+    };
+
+    const { text, modelUsed } = await generateWithFallback(prompt, {
+      systemInstruction: SIGNAL_TIMELINE_SYSTEM_INSTRUCTION,
+      responseMimeType: 'application/json',
+      responseSchema: timelineSchema,
+    });
+
+    let parsedResult: any = null;
+    try {
+      parsedResult = JSON.parse(text);
+    } catch (parseErr) {
+      console.error('Failed to parse Gemini timeline response JSON:', parseErr, text);
+      return res.status(500).json({
+        error: 'Failed to parse AI timeline response.',
+        details: text,
+      });
+    }
+
+    // Deterministic validation & sanitization
+    const validatedShifts: any[] = [];
+
+    if (Array.isArray(parsedResult?.shifts)) {
+      for (const shift of parsedResult.shifts) {
+        if (!shift || typeof shift !== 'object') continue;
+
+        const rawType = String(shift.shiftType || 'perspective').toLowerCase().trim();
+        const validShiftTypes = ['perspective', 'emotional_reaction', 'interpretation', 'focus'];
+        const shiftType = validShiftTypes.includes(rawType) ? rawType : 'perspective';
+
+        const rawEarlierState = typeof shift.earlierState === 'string' ? shift.earlierState.trim() : '';
+        const rawLaterState = typeof shift.laterState === 'string' ? shift.laterState.trim() : '';
+        const rawObs = typeof shift.observation === 'string' ? shift.observation.trim() : '';
+        const rawExpl = typeof shift.explanation === 'string' ? shift.explanation.trim() : '';
+
+        if (!rawEarlierState || !rawLaterState || !rawObs || !rawExpl) continue;
+
+        const rawSupporting = Array.isArray(shift.supportingEntries) ? shift.supportingEntries : [];
+        const validatedSupporting: any[] = [];
+        const seenEntryIds = new Set<string>();
+
+        for (const se of rawSupporting) {
+          if (!se || typeof se !== 'object' || !se.entryId) continue;
+          const entryId = String(se.entryId).trim();
+          if (validEntriesMap.has(entryId) && !seenEntryIds.has(entryId)) {
+            seenEntryIds.add(entryId);
+            const canonical = validEntriesMap.get(entryId)!;
+            const rawRole = String(se.roleInShift || '').toLowerCase().trim();
+            const roleInShift = ['earlier_state', 'later_state', 'context'].includes(rawRole)
+              ? rawRole
+              : 'context';
+
+            validatedSupporting.push({
+              entryId: canonical.entryId,
+              title: canonical.title,
+              date: canonical.date,
+              roleInShift,
+            });
+          }
+        }
+
+        // Each shift must be supported by at least 2 distinct entries
+        if (validatedSupporting.length < 2) continue;
+
+        // Sort supporting entries chronologically
+        validatedSupporting.sort((a, b) => {
+          const timeA = new Date(a.date).getTime() || 0;
+          const timeB = new Date(b.date).getTime() || 0;
+          return timeA - timeB;
+        });
+
+        const earlierDate = validatedSupporting[0]?.date;
+        const laterDate = validatedSupporting[validatedSupporting.length - 1]?.date;
+
+        // Clean prose fields to remove any leaked raw entry IDs
+        const cleanEarlierState = sanitizeProseEntryReferences(rawEarlierState, validEntriesMap);
+        const cleanLaterState = sanitizeProseEntryReferences(rawLaterState, validEntriesMap);
+        const cleanObservation = sanitizeProseEntryReferences(rawObs, validEntriesMap);
+        const cleanExplanation = sanitizeProseEntryReferences(rawExpl, validEntriesMap);
+
+        validatedShifts.push({
+          shiftType,
+          earlierState: cleanEarlierState,
+          laterState: cleanLaterState,
+          observation: cleanObservation,
+          explanation: cleanExplanation,
+          evidenceCount: validatedSupporting.length,
+          supportingEntries: validatedSupporting,
+          earlierDate,
+          laterDate,
+        });
+      }
+    }
+
+    let hasSufficientEvidence = Boolean(parsedResult?.hasSufficientEvidence) && validatedShifts.length > 0;
+    let rawMessage = typeof parsedResult?.message === 'string' ? parsedResult.message.trim() : '';
+
+    if (validatedShifts.length === 0) {
+      hasSufficientEvidence = false;
+      rawMessage = (rawMessage && !parsedResult?.hasSufficientEvidence)
+        ? rawMessage
+        : 'Not enough grounded evidence across the supplied entries to establish a perspective change over time.';
+    }
+
+    const cleanMessage = sanitizeProseEntryReferences(rawMessage, validEntriesMap);
+
+    const sanitizedResult = {
+      hasSufficientEvidence,
+      message: cleanMessage,
+      shifts: validatedShifts,
+    };
+
+    res.json({
+      result: sanitizedResult,
+      modelUsed,
+    });
+  } catch (error: any) {
+    console.error('Error in Signal Timeline analysis:', error);
+    res.status(500).json({
+      error: 'Failed to complete Signal Timeline analysis.',
       details: error?.message || 'Internal server error',
     });
   }

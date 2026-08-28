@@ -5,6 +5,8 @@ import {
   CrossEntryPattern,
   CrossEntryContradictionResult,
   CrossEntryContradiction,
+  SignalTimelineResult,
+  SignalTimelineShift,
 } from '../types';
 import { auth } from '../lib/firebase';
 import {
@@ -22,6 +24,10 @@ import {
   Compass,
   HelpCircle,
   Split,
+  Milestone,
+  ArrowRight,
+  Clock,
+  TrendingUp,
 } from 'lucide-react';
 
 interface PatternAnalysisSectionProps {
@@ -33,7 +39,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   entries,
   onSelectEntry,
 }) => {
-  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions'>('patterns');
+  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions' | 'timeline'>('patterns');
 
   // Day 5 Patterns State
   const [patternsResult, setPatternsResult] = useState<CrossEntryAnalysisResult | null>(null);
@@ -44,6 +50,11 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   const [contradictionsResult, setContradictionsResult] = useState<CrossEntryContradictionResult | null>(null);
   const [loadingContradictions, setLoadingContradictions] = useState(false);
   const [contradictionsError, setContradictionsError] = useState<string | null>(null);
+
+  // Signal Timeline State
+  const [timelineResult, setTimelineResult] = useState<SignalTimelineResult | null>(null);
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
 
   // Filter entries that have a structured summary
   const structuredEntries = entries.filter((e) => Boolean(e.summary));
@@ -148,10 +159,75 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
     }
   };
 
+  const handleAnalyzeTimeline = async () => {
+    if (structuredEntries.length < 2) return;
+
+    setLoadingTimeline(true);
+    setTimelineError(null);
+
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('Please sign in to analyze the signal timeline.');
+      }
+      const idToken = await currentUser.getIdToken();
+
+      const payloadEntries = structuredEntries.map((e) => ({
+        id: e.id,
+        date: e.date,
+        title: e.title,
+        situation: e.summary?.situation || e.situation || '',
+        behaviorOrEvent: e.summary?.behaviorOrEvent || e.behaviorOrEvent || '',
+        feelingOrReaction: e.summary?.feelingOrReaction || e.feelingOrReaction || '',
+        importantContext: e.summary?.importantContext || e.importantContext || '',
+        subjects: Array.isArray(e.summary?.subjects) ? e.summary.subjects : [],
+        theme: e.summary?.theme || '',
+        emotionalTone: e.summary?.emotionalTone || '',
+        interpretation: e.summary?.interpretation || '',
+      }));
+
+      const res = await fetch('/api/timeline', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ entries: payloadEntries }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to analyze signal timeline.');
+      }
+
+      setTimelineResult(data.result);
+    } catch (err: any) {
+      console.error('Signal timeline error:', err);
+      setTimelineError(err?.message || 'Unable to complete signal timeline reasoning.');
+    } finally {
+      setLoadingTimeline(false);
+    }
+  };
+
   const handleOpenSupportingEntry = (entryId: string) => {
     const target = entries.find((e) => e.id === entryId);
     if (target) {
       onSelectEntry(target);
+    }
+  };
+
+  const formatShiftTypeLabel = (type: string) => {
+    switch (type) {
+      case 'perspective':
+        return 'Perspective Shift';
+      case 'emotional_reaction':
+        return 'Emotional Tone Shift';
+      case 'interpretation':
+        return 'Interpretation Shift';
+      case 'focus':
+        return 'Focus & Agency Shift';
+      default:
+        return 'Perspective Shift';
     }
   };
 
@@ -174,7 +250,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         </div>
 
         {/* Tab Toggle */}
-        <div className="flex items-center p-1 bg-stone-100/80 rounded-xl border border-stone-200/60 shrink-0 self-start sm:self-auto">
+        <div className="flex items-center p-1 bg-stone-100/80 rounded-xl border border-stone-200/60 shrink-0 self-start sm:self-auto flex-wrap gap-1">
           <button
             id="tab-recurring-patterns-btn"
             onClick={() => setActiveTab('patterns')}
@@ -199,6 +275,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             <Split className="w-3.5 h-3.5 text-amber-700" />
             <span>Perspective Differences</span>
           </button>
+          <button
+            id="tab-signal-timeline-btn"
+            onClick={() => setActiveTab('timeline')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+              activeTab === 'timeline'
+                ? 'bg-white text-stone-900 shadow-2xs'
+                : 'text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            <Milestone className="w-3.5 h-3.5 text-amber-800" />
+            <span>Signal Timeline</span>
+          </button>
         </div>
       </div>
 
@@ -212,7 +300,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         </div>
         <span className="text-[11px] text-stone-400">
           {structuredEntries.length >= 2
-            ? '✓ Eligible for multi-entry comparative reasoning'
+            ? '✓ Eligible for multi-entry comparative & timeline reasoning'
             : 'At least 2 structured summaries required'}
         </span>
       </div>
@@ -556,6 +644,221 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               </h4>
               <p className="text-[11px] text-stone-500 max-w-md mx-auto leading-relaxed">
                 When you have multiple reflections with structured summaries, the system can gently surface subtle variations in how you interpreted similar situations.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: SIGNAL TIMELINE (PERSPECTIVE CHANGE OVER TIME) */}
+      {activeTab === 'timeline' && (
+        <div id="signal-timeline-tab-content" className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FCFCFA] p-3.5 rounded-xl border border-stone-200/70">
+            <div>
+              <h4 className="text-xs font-serif font-bold text-stone-900">
+                Grounded Signal Timeline
+              </h4>
+              <p className="text-[11px] text-stone-500">
+                Identifies genuine changes in your perspective, emotional reaction, interpretation, or focus between earlier and later reflections.
+              </p>
+            </div>
+            <button
+              id="analyze-signal-timeline-btn"
+              onClick={handleAnalyzeTimeline}
+              disabled={loadingTimeline || structuredEntries.length < 2}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-medium transition-all shadow-xs cursor-pointer shrink-0 ${
+                structuredEntries.length < 2
+                  ? 'bg-stone-100 text-stone-400 border border-stone-200/60 cursor-not-allowed'
+                  : 'bg-stone-900 hover:bg-stone-800 text-white active:scale-98'
+              }`}
+            >
+              {loadingTimeline ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-300" />
+                  <span>Reasoning Across Timeline...</span>
+                </>
+              ) : timelineResult ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Re-Analyze Timeline</span>
+                </>
+              ) : (
+                <>
+                  <Milestone className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Analyze Timeline Shifts ({structuredEntries.length} entries)</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Timeline Error State */}
+          {timelineError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start justify-between gap-2">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Timeline Reasoning Error</p>
+                  <p className="text-red-600 mt-0.5">{timelineError}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleAnalyzeTimeline}
+                className="text-red-700 hover:text-red-900 font-medium underline text-xs cursor-pointer shrink-0"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Timeline Content */}
+          {loadingTimeline ? (
+            <div className="py-12 text-center space-y-3">
+              <Loader2 className="w-7 h-7 animate-spin text-stone-600 mx-auto" />
+              <p className="text-xs text-stone-600 font-medium font-serif">
+                Tracing perspective and reaction shifts across your dated reflections...
+              </p>
+              <p className="text-[11px] text-stone-400 max-w-sm mx-auto">
+                Validating chronological progression and identifying grounded transitions across your journal entries.
+              </p>
+            </div>
+          ) : timelineResult ? (
+            <div className="space-y-4">
+              {timelineResult.message && (
+                <div className="text-xs text-stone-700 bg-stone-50 p-3 rounded-xl border border-stone-200/70 flex items-start space-x-2">
+                  <Info className="w-4 h-4 text-stone-600 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">{timelineResult.message}</p>
+                </div>
+              )}
+
+              {!timelineResult.hasSufficientEvidence || timelineResult.shifts.length === 0 ? (
+                <div className="text-center py-8 px-4 bg-stone-50/60 rounded-xl border border-stone-200/80 space-y-2">
+                  <CheckCircle2 className="w-6 h-6 text-stone-400 mx-auto" />
+                  <h4 className="text-xs font-serif font-semibold text-stone-700">
+                    No Longitudinal Perspective Shifts Detected
+                  </h4>
+                  <p className="text-[11px] text-stone-500 max-w-md mx-auto leading-relaxed">
+                    Across your dated journal reflections, your expressed perspective, tone, and focus remain steady, or additional dated entries are needed before an observable transition over time can be grounded.
+                  </p>
+                </div>
+              ) : (
+                <div className="relative space-y-6 before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-stone-200 before:hidden sm:before:block">
+                  {timelineResult.shifts.map((shift: SignalTimelineShift, idx: number) => (
+                    <div
+                      key={idx}
+                      id={`timeline-shift-card-${idx}`}
+                      className="relative bg-[#FCFCFA] border border-stone-200/90 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4 hover:border-stone-300 transition-colors"
+                    >
+                      {/* Node Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                            <span className="text-[11px] font-semibold text-amber-900 bg-amber-100/80 border border-amber-200/70 px-2 py-0.5 rounded-md">
+                              {formatShiftTypeLabel(shift.shiftType)}
+                            </span>
+                            <span className="text-[11px] font-medium text-stone-600 bg-stone-100 px-2 py-0.5 rounded-md flex items-center space-x-1">
+                              <Clock className="w-3 h-3 text-stone-400" />
+                              <span>
+                                {shift.earlierDate && shift.laterDate
+                                  ? `${shift.earlierDate} → ${shift.laterDate}`
+                                  : `Across ${shift.evidenceCount} entries`}
+                              </span>
+                            </span>
+                          </div>
+                          <h4 className="text-sm sm:text-base font-semibold text-stone-900 pt-1 font-serif">
+                            {shift.observation}
+                          </h4>
+                        </div>
+                      </div>
+
+                      {/* Visual Temporal Shift Comparison Cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        {/* Earlier State */}
+                        <div className="bg-stone-50/90 border border-stone-200/80 rounded-xl p-3.5 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-stone-500 bg-stone-200/70 px-1.5 py-0.5 rounded">
+                              Earlier Reflection State
+                            </span>
+                            {shift.earlierDate && (
+                              <span className="text-[10px] text-stone-400 font-mono">
+                                {shift.earlierDate}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-stone-800 leading-relaxed font-medium">
+                            {shift.earlierState}
+                          </p>
+                        </div>
+
+                        {/* Later State */}
+                        <div className="bg-amber-50/40 border border-amber-200/70 rounded-xl p-3.5 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded flex items-center space-x-1">
+                              <TrendingUp className="w-3 h-3 text-amber-700 inline" />
+                              <span>Later Reflection State</span>
+                            </span>
+                            {shift.laterDate && (
+                              <span className="text-[10px] text-stone-400 font-mono">
+                                {shift.laterDate}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-stone-900 leading-relaxed font-medium">
+                            {shift.laterState}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Grounded Evidence Explanation */}
+                      <div className="bg-white p-3.5 rounded-xl border border-stone-150 text-xs text-stone-700 leading-relaxed">
+                        <span className="font-medium text-stone-900 mr-1.5">Grounded Evidence:</span>
+                        {shift.explanation}
+                      </div>
+
+                      {/* Supporting Journal Entries */}
+                      {Array.isArray(shift.supportingEntries) && shift.supportingEntries.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          <p className="text-[11px] font-medium text-stone-500 flex items-center space-x-1">
+                            <FileText className="w-3 h-3 text-stone-400" />
+                            <span>Supporting Timeline Entries:</span>
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {shift.supportingEntries.map((se, sIdx) => (
+                              <button
+                                key={sIdx}
+                                onClick={() => handleOpenSupportingEntry(se.entryId)}
+                                className="inline-flex items-center space-x-1.5 text-xs bg-white hover:bg-stone-100 border border-stone-200 text-stone-800 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer group shadow-2xs"
+                                title="Click to view entry details"
+                              >
+                                <Calendar className="w-3 h-3 text-stone-400 group-hover:text-stone-600" />
+                                <span className="font-medium truncate max-w-[150px] sm:max-w-[200px]">
+                                  {se.title}
+                                </span>
+                                {se.date && <span className="text-[10px] text-stone-400">({se.date})</span>}
+                                {se.roleInShift === 'earlier_state' && (
+                                  <span className="text-[9px] bg-stone-100 text-stone-500 px-1 rounded">Earlier</span>
+                                )}
+                                {se.roleInShift === 'later_state' && (
+                                  <span className="text-[9px] bg-amber-100 text-amber-800 px-1 rounded">Later</span>
+                                )}
+                                <ChevronRight className="w-3 h-3 text-stone-300 group-hover:text-stone-600" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-stone-50/50 border border-dashed border-stone-200 rounded-xl p-6 text-center space-y-2">
+              <Milestone className="w-5 h-5 text-amber-700/70 mx-auto" />
+              <h4 className="text-xs font-serif font-semibold text-stone-800">
+                Explore Longitudinal Perspective Shifts
+              </h4>
+              <p className="text-[11px] text-stone-500 max-w-md mx-auto leading-relaxed">
+                When you record structured journal entries across time, the timeline engine detects meaningful transitions in your expressed feelings, interpretations, or internal focus.
               </p>
             </div>
           )}

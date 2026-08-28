@@ -42,6 +42,37 @@ export interface CrossEntryContradictionResult {
   contradictions: CrossEntryContradiction[];
 }
 
+export type TimelineShiftType =
+  | 'perspective'
+  | 'emotional_reaction'
+  | 'interpretation'
+  | 'focus';
+
+export interface TimelineSupportingEntry {
+  entryId: string;
+  title: string;
+  date: string;
+  roleInShift?: 'earlier_state' | 'later_state' | 'context' | string;
+}
+
+export interface SignalTimelineShift {
+  shiftType: TimelineShiftType;
+  earlierState: string;
+  laterState: string;
+  observation: string;
+  explanation: string;
+  evidenceCount: number;
+  supportingEntries: TimelineSupportingEntry[];
+  earlierDate?: string;
+  laterDate?: string;
+}
+
+export interface SignalTimelineResult {
+  hasSufficientEvidence: boolean;
+  message?: string;
+  shifts: SignalTimelineShift[];
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';

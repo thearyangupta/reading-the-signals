@@ -216,9 +216,23 @@ STRICT MANDATORY DIRECTIVES FOR SIGNAL TIMELINE REASONING:
      * "You finally understood..."
      * "This proves..."
      unless the user's own entry explicitly used those exact words.
-6. Zero Diagnosis & Zero Third-Party Mind-Reading:
-   - NEVER diagnose the user or any other person.
+6. Strict Distinction Between Observable Behavior and User Interpretation (Zero Third-Party Mind-Reading):
+   - Clearly distinguish between:
+     (1) observable third-party behavior (e.g. asking timeline questions)
+     (2) the user's stated interpretation of that behavior (e.g. experiencing it as scrutiny vs. viewing it as routine check-ins)
+     (3) actual third-party motives, intentions, beliefs, or mental states, which must NEVER be claimed or implied.
+   - For interpretation shifts, prefer grounded wording such as:
+     * "Your interpretation of timeline questions appears to shift from experiencing them as scrutiny to viewing them as routine check-ins."
+   - NEVER use framing such as:
+     * "the intent behind..."
+     * "their motive..."
+     * "what they meant..."
+     * "they wanted..."
+     * "they believed..."
+     * "their intention was..."
+     unless such wording is explicitly describing the USER'S OWN stated interpretation, with clear attribution (e.g. "The user interpreted the question as...").
    - NEVER infer another person's hidden motives, intentions, beliefs, emotions, or mental state.
+   - NEVER diagnose the user or any other person.
    - Focus exclusively on reflecting the user's own recorded thoughts and stated responses over time.
 7. No Pseudo-Scientific Metrics:
    - NEVER generate confidence percentages, probability scores, psychological metrics, or progress ratings.
@@ -977,7 +991,7 @@ app.post('/api/timeline', async (req: Request, res: Response) => {
 STRICT GROUNDING DIRECTIVES:
 1. Identify meaningful longitudinal changes in perspective, emotional reaction, interpretation, or focus over time.
 2. DO NOT simply list journal entries chronologically. A timeline node exists ONLY when the supplied evidence supports a genuine shift between earlier and later states.
-3. Ground every shift strictly in the supplied text. Never invent missing emotions, interpretations, events, or third-party motives.
+3. Ground every shift strictly in the supplied text. Clearly distinguish observable third-party behavior from the user's stated interpretation. Never claim or imply third-party motives, intentions, beliefs, or mental states (do NOT use phrases like 'the intent behind...', 'their motive...', 'what they meant...', 'they wanted...'). For interpretation shifts, use grounded wording like 'Your interpretation of [observable event] appears to shift from experiencing it as [X] to viewing it as [Y]'.
 4. Never diagnose the user or anyone else. Never generate probability or psychological scores.
 5. In all user-facing text fields ('observation', 'earlierState', 'laterState', 'explanation', and 'message'), NEVER use raw internal entryId strings. Refer to entries strictly by their human-readable title and/or date.
 6. Reserve raw entryId strings solely for the 'entryId' field inside 'supportingEntries'.

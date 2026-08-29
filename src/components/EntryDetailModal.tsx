@@ -23,6 +23,7 @@ import {
 interface EntryDetailModalProps {
   userId: string;
   entry: JournalEntry;
+  isDemoMode?: boolean;
   onClose: () => void;
   onEdit: (entry: JournalEntry) => void;
   onDelete: (entryId: string) => void;
@@ -32,6 +33,7 @@ interface EntryDetailModalProps {
 export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
   userId,
   entry,
+  isDemoMode = false,
   onClose,
   onEdit,
   onDelete,
@@ -41,6 +43,8 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isDemoEntry = isDemoMode || entry.id.startsWith('demo-') || userId === 'demo-user';
 
   const handleGenerateSummary = async () => {
     try {
@@ -60,14 +64,16 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
         }),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error('Failed to generate structured summary.');
+        throw new Error(data.details ? `${data.error || 'Error'}: ${data.details}` : (data.error || 'Failed to generate structured summary.'));
       }
 
-      const data = await res.json();
       if (data.summary) {
         const updatedEntry = { ...entry, summary: data.summary };
-        await updateJournalEntry(userId, entry.id, { summary: data.summary });
+        if (!isDemoEntry) {
+          await updateJournalEntry(userId, entry.id, { summary: data.summary });
+        }
         onUpdate(updatedEntry);
       }
     } catch (err: any) {
@@ -79,6 +85,7 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
   };
 
   const handleDeleteEntry = async () => {
+    if (isDemoEntry) return;
     try {
       setDeleting(true);
       await deleteJournalEntry(userId, entry.id);
@@ -112,44 +119,54 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
           </div>
 
           <div className="flex items-center space-x-1.5">
-            <button
-              id="edit-entry-button"
-              onClick={() => onEdit(entry)}
-              className="p-2 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
-              title="Edit Entry"
-            >
-              <Edit3 className="w-4 h-4" />
-            </button>
+            {!isDemoEntry && (
+              <>
+                <button
+                  id="edit-entry-button"
+                  onClick={() => onEdit(entry)}
+                  className="p-2 text-stone-500 hover:text-stone-800 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
+                  title="Edit Entry"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
 
-            {confirmDelete ? (
-              <div className="flex items-center space-x-1 bg-red-50 p-1 rounded-lg border border-red-200">
-                <button
-                  id="confirm-delete-button"
-                  onClick={handleDeleteEntry}
-                  disabled={deleting}
-                  className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded font-medium cursor-pointer"
-                >
-                  {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
-                </button>
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="px-1.5 py-1 text-xs text-stone-500 hover:text-stone-800 cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                id="delete-entry-button"
-                onClick={() => setConfirmDelete(true)}
-                className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                title="Delete Entry"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                {confirmDelete ? (
+                  <div className="flex items-center space-x-1 bg-red-50 p-1 rounded-lg border border-red-200">
+                    <button
+                      id="confirm-delete-button"
+                      onClick={handleDeleteEntry}
+                      disabled={deleting}
+                      className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded font-medium cursor-pointer"
+                    >
+                      {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(false)}
+                      className="px-1.5 py-1 text-xs text-stone-500 hover:text-stone-800 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    id="delete-entry-button"
+                    onClick={() => setConfirmDelete(true)}
+                    className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                    title="Delete Entry"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+
+                <div className="h-4 w-px bg-stone-200 mx-1" />
+              </>
             )}
 
-            <div className="h-4 w-px bg-stone-200 mx-1" />
+            {isDemoEntry && (
+              <span className="text-[11px] font-medium text-amber-850 bg-amber-100/80 border border-amber-200 px-2 py-0.5 rounded-md mr-1">
+                Sample Reflection
+              </span>
+            )}
 
             <button
               onClick={onClose}
@@ -324,6 +341,7 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
             <ReflectionChat
               userId={userId}
               entry={entry}
+              isDemoMode={isDemoEntry}
               onEntryUpdated={onUpdate}
             />
           </div>

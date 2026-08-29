@@ -77,6 +77,7 @@ async function generateWithFallback(
 ): Promise<{ text: string; modelUsed: string }> {
   const ai = getAiClient();
   let lastError: any = null;
+  let isRateLimited = false;
 
   for (const modelName of FALLBACK_MODELS) {
     try {
@@ -103,8 +104,23 @@ async function generateWithFallback(
     } catch (err: any) {
       console.warn(`[Gemini Fallback] Model ${modelName} failed:`, err?.message || err);
       lastError = err;
+      const errMsg = String(err?.message || '');
+      const errStatus = String(err?.status || '');
+      if (
+        errMsg.includes('429') ||
+        errMsg.includes('RESOURCE_EXHAUSTED') ||
+        errMsg.includes('quota') ||
+        errStatus === 'RESOURCE_EXHAUSTED' ||
+        err?.code === 429
+      ) {
+        isRateLimited = true;
+      }
       // Continue to next model in the fallback ladder
     }
+  }
+
+  if (isRateLimited) {
+    throw new Error('Gemini API rate limit or quota exceeded across models. Please wait a few seconds and try again.');
   }
 
   throw new Error(`All fallback models failed. Last error: ${lastError?.message || 'Unknown error'}`);
@@ -182,7 +198,7 @@ STRICT MANDATORY DIRECTIVES:
 
 export const SIGNAL_TIMELINE_SYSTEM_INSTRUCTION = `You are a careful, grounded Signal Timeline analysis assistant for "Reading the Signals".
 
-Your purpose is to analyze the authenticated user's dated structured reflection journal entries across time and identify meaningful longitudinal changes in the USER'S explicitly expressed:
+Your purpose is to analyze how the user's documented self-reflections and interpretations shifted over time. Never label emotional disorders or pass clinical judgment. Identify meaningful longitudinal changes in the USER'S explicitly expressed:
 - perspective
 - emotional reaction or tone
 - interpretation
@@ -586,6 +602,7 @@ Task instructions:
     const validatedPatterns: {
       observation: string;
       evidenceCount: number;
+      evidenceStrength: 'thin' | 'emerging' | 'strong';
       supportingEntries: { entryId: string; title: string; date: string }[];
       explanation: string;
     }[] = [];
@@ -619,9 +636,14 @@ Task instructions:
         const cleanObservation = sanitizeProseEntryReferences(rawObs, validEntriesMap);
         const cleanExplanation = sanitizeProseEntryReferences(rawExpl, validEntriesMap);
 
+        const count = validatedSupporting.length;
+        const evidenceStrength: 'thin' | 'emerging' | 'strong' =
+          count === 2 ? 'thin' : count === 3 ? 'emerging' : 'strong';
+
         validatedPatterns.push({
           observation: cleanObservation,
-          evidenceCount: validatedSupporting.length, // Never trust Gemini's evidenceCount
+          evidenceCount: count, // Never trust Gemini's evidenceCount
+          evidenceStrength,
           supportingEntries: validatedSupporting,
           explanation: cleanExplanation,
         });

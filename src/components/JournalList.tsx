@@ -15,6 +15,8 @@ import {
 interface JournalListProps {
   entries: JournalEntry[];
   loading: boolean;
+  isDemoMode?: boolean;
+  onSeeSample?: () => void;
   onSelectEntry: (entry: JournalEntry) => void;
   onNewEntry: () => void;
 }
@@ -22,6 +24,8 @@ interface JournalListProps {
 export const JournalList: React.FC<JournalListProps> = ({
   entries,
   loading,
+  isDemoMode = false,
+  onSeeSample,
   onSelectEntry,
   onNewEntry,
 }) => {
@@ -74,15 +78,18 @@ export const JournalList: React.FC<JournalListProps> = ({
         <div className="flex items-center space-x-2 text-xs text-stone-500 justify-between sm:justify-end">
           <span>
             {filteredEntries.length} {filteredEntries.length === 1 ? 'reflection' : 'reflections'}
+            {isDemoMode && <span className="ml-1.5 text-amber-800 bg-amber-100/70 border border-amber-200/80 px-1.5 py-0.5 rounded text-[10px] font-medium">Sample Data</span>}
           </span>
-          <button
-            id="create-reflection-quick-btn"
-            onClick={onNewEntry}
-            className="flex items-center space-x-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium py-2 px-3 rounded-lg transition-all shadow-xs cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Write Reflection</span>
-          </button>
+          {!isDemoMode && (
+            <button
+              id="create-reflection-quick-btn"
+              onClick={onNewEntry}
+              className="flex items-center space-x-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium py-2 px-3 rounded-lg transition-all shadow-xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Write Reflection</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -101,14 +108,29 @@ export const JournalList: React.FC<JournalListProps> = ({
               : 'Take a quiet moment to record a situation, examine how you responded, and explore your observations.'}
           </p>
 
-          <button
-            id="start-first-reflection-button"
-            onClick={onNewEntry}
-            className="inline-flex items-center space-x-2 bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-medium py-2.5 px-4 rounded-xl transition-all shadow-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Start a Reflection</span>
-          </button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+            {!isDemoMode && (
+              <button
+                id="start-first-reflection-button"
+                onClick={onNewEntry}
+                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-medium py-2.5 px-4 rounded-xl transition-all shadow-xs cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Start a Reflection</span>
+              </button>
+            )}
+
+            {!isDemoMode && onSeeSample && (
+              <button
+                id="see-sample-button-empty-state"
+                onClick={onSeeSample}
+                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-amber-50 hover:bg-amber-100/80 text-amber-900 border border-amber-200/80 text-xs sm:text-sm font-medium py-2.5 px-4 rounded-xl transition-all shadow-2xs cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                <span>See 9 Sample Reflections</span>
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         /* Journal Grid */

@@ -15,9 +15,12 @@ export interface PatternSupportingEntry {
   date: string;
 }
 
+export type EvidenceStrength = 'thin' | 'emerging' | 'strong';
+
 export interface CrossEntryPattern {
   observation: string;
   evidenceCount: number;
+  evidenceStrength?: EvidenceStrength;
   supportingEntries: PatternSupportingEntry[];
   explanation: string;
 }

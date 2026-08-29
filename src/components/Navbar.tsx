@@ -4,11 +4,21 @@ import { Sparkles, Plus, LogOut, ShieldCheck, User } from 'lucide-react';
 
 interface NavbarProps {
   user: UserProfile | null;
+  isDemoMode?: boolean;
+  onSeeSample?: () => void;
+  onExitDemo?: () => void;
   onNewEntry: () => void;
   onSignOut: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ user, onNewEntry, onSignOut }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  user,
+  isDemoMode = false,
+  onSeeSample,
+  onExitDemo,
+  onNewEntry,
+  onSignOut,
+}) => {
   return (
     <header className="sticky top-0 z-30 bg-[#FDFBF7]/90 backdrop-blur-md border-b border-stone-200/80 transition-colors">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -21,8 +31,8 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onNewEntry, onSignOut }) =
             <h1 className="text-base sm:text-lg font-semibold tracking-tight text-stone-900 font-serif">
               Reading the Signals
             </h1>
-            <p className="text-xs text-stone-500 font-normal hidden sm:block">
-              Private AI-Powered Reflection Journal
+            <p className="text-xs text-stone-500 font-normal">
+              Private Reflection Journal
             </p>
           </div>
         </div>
@@ -30,14 +40,37 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onNewEntry, onSignOut }) =
         {/* User controls */}
         {user ? (
           <div className="flex items-center space-x-2 sm:space-x-3">
-            <button
-              id="new-reflection-button"
-              onClick={onNewEntry}
-              className="flex items-center space-x-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-medium py-2 px-3.5 rounded-lg transition-all shadow-xs active:scale-[0.98] cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Reflection</span>
-            </button>
+            {isDemoMode ? (
+              <button
+                id="exit-demo-button-navbar"
+                onClick={onExitDemo}
+                className="flex items-center space-x-1.5 bg-amber-100 hover:bg-amber-200/80 text-amber-900 border border-amber-300/80 text-xs sm:text-sm font-medium py-2 px-3.5 rounded-lg transition-all shadow-2xs cursor-pointer"
+              >
+                <span>Exit Demo</span>
+              </button>
+            ) : (
+              <>
+                {onSeeSample && (
+                  <button
+                    id="see-sample-button-navbar"
+                    onClick={onSeeSample}
+                    className="flex items-center space-x-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200 text-xs sm:text-sm font-medium py-2 px-3 rounded-lg transition-all shadow-2xs cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>See a sample</span>
+                  </button>
+                )}
+
+                <button
+                  id="new-reflection-button"
+                  onClick={onNewEntry}
+                  className="flex items-center space-x-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-medium py-2 px-3.5 rounded-lg transition-all shadow-xs active:scale-[0.98] cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Reflection</span>
+                </button>
+              </>
+            )}
 
             <div className="h-5 w-px bg-stone-200 mx-1 hidden sm:block" />
 

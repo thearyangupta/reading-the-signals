@@ -28,6 +28,10 @@ import {
   ArrowRight,
   Clock,
   TrendingUp,
+  Filter,
+  CheckSquare,
+  Square,
+  X,
 } from 'lucide-react';
 
 interface PatternAnalysisSectionProps {
@@ -59,8 +63,49 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   // Filter entries that have a structured summary
   const structuredEntries = entries.filter((e) => Boolean(e.summary));
 
+  // Analysis Scope State (Shared across all 3 tabs)
+  const [scopeMode, setScopeMode] = useState<'all' | 'selected'>('all');
+  const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
+  const [isScopeModalOpen, setIsScopeModalOpen] = useState(false);
+
+  // Active target entries for analysis based on scope
+  const targetEntries =
+    scopeMode === 'all'
+      ? structuredEntries
+      : structuredEntries.filter((e) => selectedEntryIds.includes(e.id));
+
+  const isScopeValid = targetEntries.length >= 2;
+
+  // Scope handlers
+  const handleToggleEntrySelection = (id: string) => {
+    setSelectedEntryIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllScope = () => {
+    setSelectedEntryIds(structuredEntries.map((e) => e.id));
+  };
+
+  const handleClearScopeSelection = () => {
+    setSelectedEntryIds([]);
+  };
+
+  const handleResetToAll = () => {
+    setScopeMode('all');
+    setIsScopeModalOpen(false);
+  };
+
+  const handleSwitchToSelectedScope = () => {
+    if (selectedEntryIds.length === 0) {
+      setSelectedEntryIds(structuredEntries.map((e) => e.id));
+    }
+    setScopeMode('selected');
+    setIsScopeModalOpen(true);
+  };
+
   const handleAnalyzePatterns = async () => {
-    if (structuredEntries.length < 2) return;
+    if (targetEntries.length < 2) return;
 
     setLoadingPatterns(true);
     setPatternsError(null);
@@ -72,7 +117,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       }
       const idToken = await currentUser.getIdToken();
 
-      const payloadEntries = structuredEntries.map((e) => ({
+      const payloadEntries = targetEntries.map((e) => ({
         id: e.id,
         date: e.date,
         title: e.title,
@@ -97,7 +142,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to surface recurring patterns.');
+        throw new Error(data.details ? `${data.error || 'Error'}: ${data.details}` : (data.error || 'Failed to surface recurring patterns.'));
       }
 
       setPatternsResult(data.result);
@@ -110,7 +155,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   };
 
   const handleAnalyzeContradictions = async () => {
-    if (structuredEntries.length < 2) return;
+    if (targetEntries.length < 2) return;
 
     setLoadingContradictions(true);
     setContradictionsError(null);
@@ -122,7 +167,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       }
       const idToken = await currentUser.getIdToken();
 
-      const payloadEntries = structuredEntries.map((e) => ({
+      const payloadEntries = targetEntries.map((e) => ({
         id: e.id,
         date: e.date,
         title: e.title,
@@ -147,7 +192,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to analyze perspective differences.');
+        throw new Error(data.details ? `${data.error || 'Error'}: ${data.details}` : (data.error || 'Failed to analyze perspective differences.'));
       }
 
       setContradictionsResult(data.result);
@@ -160,7 +205,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   };
 
   const handleAnalyzeTimeline = async () => {
-    if (structuredEntries.length < 2) return;
+    if (targetEntries.length < 2) return;
 
     setLoadingTimeline(true);
     setTimelineError(null);
@@ -172,7 +217,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       }
       const idToken = await currentUser.getIdToken();
 
-      const payloadEntries = structuredEntries.map((e) => ({
+      const payloadEntries = targetEntries.map((e) => ({
         id: e.id,
         date: e.date,
         title: e.title,
@@ -197,7 +242,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to analyze signal timeline.');
+        throw new Error(data.details ? `${data.error || 'Error'}: ${data.details}` : (data.error || 'Failed to analyze signal timeline.'));
       }
 
       setTimelineResult(data.result);
@@ -290,20 +335,192 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         </div>
       </div>
 
-      {/* Structured Signal Eligibility Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs bg-stone-50/80 px-3.5 py-2.5 rounded-xl border border-stone-200/60">
-        <div className="flex items-center space-x-2 text-stone-600">
+      {/* Structured Signal Eligibility & Analysis Scope Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-stone-50/90 px-3.5 py-3 rounded-xl border border-stone-200/70 shadow-2xs">
+        <div className="flex items-center space-x-2 text-stone-600 flex-wrap gap-y-1">
           <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>
             <strong>{structuredEntries.length}</strong> of {entries.length} {entries.length === 1 ? 'entry' : 'entries'} have structured summaries.
           </span>
+          <span className="text-stone-300 hidden sm:inline">•</span>
+          <span className="text-[11px] text-stone-500">
+            Analyzing: <strong className="text-stone-800">{targetEntries.length} {targetEntries.length === 1 ? 'entry' : 'entries'}</strong> ({scopeMode === 'all' ? 'All eligible' : 'Custom selection'})
+          </span>
         </div>
-        <span className="text-[11px] text-stone-400">
-          {structuredEntries.length >= 2
-            ? '✓ Eligible for multi-entry comparative & timeline reasoning'
-            : 'At least 2 structured summaries required'}
-        </span>
+
+        {/* Scope Selector Control */}
+        <div className="flex items-center space-x-2 shrink-0 self-start sm:self-auto">
+          <div className="inline-flex rounded-lg bg-stone-200/70 p-0.5 border border-stone-300/60">
+            <button
+              id="scope-all-btn"
+              onClick={handleResetToAll}
+              className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all cursor-pointer ${
+                scopeMode === 'all'
+                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              All entries ({structuredEntries.length})
+            </button>
+            <button
+              id="scope-selected-btn"
+              onClick={handleSwitchToSelectedScope}
+              className={`flex items-center space-x-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all cursor-pointer ${
+                scopeMode === 'selected'
+                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Filter className="w-3 h-3 text-amber-700" />
+              <span>Selected ({selectedEntryIds.length})</span>
+            </button>
+          </div>
+
+          {scopeMode === 'selected' && (
+            <button
+              id="open-scope-selector-modal-btn"
+              onClick={() => setIsScopeModalOpen(true)}
+              className="text-[11px] text-amber-850 hover:text-amber-950 font-medium underline underline-offset-2 cursor-pointer"
+            >
+              Edit scope
+            </button>
+          )}
+        </div>
       </div>
+
+      {!isScopeValid && (
+        <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-850 flex items-center justify-between gap-2">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+            <span>
+              Select at least 2 reflections for cross-entry reasoning ({targetEntries.length} currently selected).
+            </span>
+          </div>
+          {scopeMode === 'selected' && (
+            <button
+              onClick={() => setIsScopeModalOpen(true)}
+              className="text-amber-900 font-semibold underline text-xs cursor-pointer shrink-0"
+            >
+              Select Reflections
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Scope Selection Modal */}
+      {isScopeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white w-full max-w-lg rounded-2xl border border-stone-200 shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/60">
+              <div className="flex items-center space-x-2">
+                <Filter className="w-4 h-4 text-amber-700" />
+                <h3 className="font-serif font-bold text-stone-900 text-sm">
+                  Select Reflections for Cross-Entry Analysis
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsScopeModalOpen(false)}
+                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between text-xs text-stone-600">
+              <span>
+                Selected: <strong className="text-stone-900">{selectedEntryIds.length}</strong> of {structuredEntries.length} reflections
+              </span>
+              <div className="space-x-2">
+                <button
+                  onClick={handleSelectAllScope}
+                  className="text-amber-800 hover:text-amber-950 font-medium underline text-[11px] cursor-pointer"
+                >
+                  Select All
+                </button>
+                <span className="text-stone-300">|</span>
+                <button
+                  onClick={handleClearScopeSelection}
+                  className="text-stone-500 hover:text-stone-800 underline text-[11px] cursor-pointer"
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-2 divide-y divide-stone-100">
+              {structuredEntries.length === 0 ? (
+                <div className="py-6 text-center text-xs text-stone-400">
+                  No structured reflections available yet.
+                </div>
+              ) : (
+                structuredEntries.map((entry) => {
+                  const isChecked = selectedEntryIds.includes(entry.id);
+                  return (
+                    <label
+                      key={entry.id}
+                      className="flex items-start space-x-3 pt-2.5 pb-1 cursor-pointer hover:bg-stone-50/80 p-2 rounded-xl transition-colors group"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleEntrySelection(entry.id)}
+                        className="mt-0.5 rounded border-stone-300 text-amber-700 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-medium text-stone-900 truncate group-hover:text-amber-950">
+                            {entry.title || 'Untitled Reflection'}
+                          </p>
+                          <span className="text-[10px] text-stone-400 shrink-0 font-mono">
+                            {entry.date}
+                          </span>
+                        </div>
+                        {entry.summary?.theme && (
+                          <p className="text-[11px] text-stone-500 truncate mt-0.5">
+                            Theme: {entry.summary.theme}
+                          </p>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="p-3.5 border-t border-stone-100 bg-stone-50 flex items-center justify-between">
+              <span className="text-[11px] text-stone-500">
+                {selectedEntryIds.length < 2 ? (
+                  <span className="text-amber-700 font-medium">Require at least 2 reflections</span>
+                ) : (
+                  <span className="text-emerald-700 font-medium">✓ Ready for cross-entry analysis</span>
+                )}
+              </span>
+              <div className="space-x-2">
+                <button
+                  onClick={() => {
+                    setScopeMode('all');
+                    setIsScopeModalOpen(false);
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs text-stone-600 hover:text-stone-800 bg-white border border-stone-200 cursor-pointer"
+                >
+                  Reset to All
+                </button>
+                <button
+                  onClick={() => setIsScopeModalOpen(false)}
+                  disabled={selectedEntryIds.length < 2}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-medium text-white transition-all cursor-pointer ${
+                    selectedEntryIds.length < 2
+                      ? 'bg-stone-300 cursor-not-allowed'
+                      : 'bg-stone-900 hover:bg-stone-800'
+                  }`}
+                >
+                  Apply Scope ({selectedEntryIds.length})
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TAB 1: RECURRING PATTERNS (DAY 5) */}
       {activeTab === 'patterns' && (
@@ -314,15 +531,15 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                 Pattern Observations
               </h4>
               <p className="text-[11px] text-stone-500">
-                Surfaces recurring situations, themes, and reactions across $\ge 2$ entries.
+                Behavior and reaction patterns across multiple reflections.
               </p>
             </div>
             <button
               id="analyze-cross-entry-patterns-btn"
               onClick={handleAnalyzePatterns}
-              disabled={loadingPatterns || structuredEntries.length < 2}
+              disabled={loadingPatterns || !isScopeValid}
               className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-medium transition-all shadow-xs cursor-pointer shrink-0 ${
-                structuredEntries.length < 2
+                !isScopeValid
                   ? 'bg-stone-100 text-stone-400 border border-stone-200/60 cursor-not-allowed'
                   : 'bg-stone-900 hover:bg-stone-800 text-white active:scale-98'
               }`}
@@ -335,12 +552,12 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               ) : patternsResult ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Re-Analyze Patterns</span>
+                  <span>Re-Analyze Patterns ({targetEntries.length})</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Surface Patterns ({structuredEntries.length} entries)</span>
+                  <span>Surface Patterns ({targetEntries.length} {targetEntries.length === 1 ? 'entry' : 'entries'})</span>
                 </>
               )}
             </button>
@@ -405,19 +622,41 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                     >
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                         <div className="space-y-1">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                             <span className="text-[11px] font-semibold text-amber-800 bg-amber-100/70 border border-amber-200/60 px-2 py-0.5 rounded-md">
                               Observation {idx + 1}
                             </span>
                             <span className="text-[11px] font-medium text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md">
                               Supported across {pat.evidenceCount} {pat.evidenceCount === 1 ? 'entry' : 'entries'}
                             </span>
+                            {(pat.evidenceStrength === 'thin' || pat.evidenceCount === 2) && (
+                              <span className="text-[11px] font-medium text-amber-800 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md">
+                                Thin evidence
+                              </span>
+                            )}
+                            {(pat.evidenceStrength === 'emerging' || pat.evidenceCount === 3) && (
+                              <span className="text-[11px] font-medium text-stone-700 bg-stone-100 border border-stone-200/70 px-2 py-0.5 rounded-md">
+                                Emerging evidence
+                              </span>
+                            )}
+                            {(pat.evidenceStrength === 'strong' || pat.evidenceCount >= 4) && (
+                              <span className="text-[11px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md">
+                                Strong evidence
+                              </span>
+                            )}
                           </div>
                           <h4 className="text-sm font-semibold text-stone-900 pt-0.5">
                             {pat.observation}
                           </h4>
                         </div>
                       </div>
+
+                      {(pat.evidenceStrength === 'thin' || pat.evidenceCount === 2) && (
+                        <div className="text-[11px] text-amber-850 bg-amber-50/60 border border-amber-200/60 px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5">
+                          <Info className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                          <span>Early signal — supported by only 2 journal entries.</span>
+                        </div>
+                      )}
 
                       <div className="bg-white p-3 rounded-lg border border-stone-100 text-xs text-stone-700 leading-relaxed">
                         <span className="font-medium text-stone-900 mr-1.5">Grounded Evidence:</span>
@@ -477,15 +716,15 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                 Grounded Perspective Differences
               </h4>
               <p className="text-[11px] text-stone-500">
-                Surfaces variations in your stated feeling, emotional tone, or interpretation across similar situations.
+                Contrasting perspectives across different moments.
               </p>
             </div>
             <button
               id="analyze-cross-entry-contradictions-btn"
               onClick={handleAnalyzeContradictions}
-              disabled={loadingContradictions || structuredEntries.length < 2}
+              disabled={loadingContradictions || !isScopeValid}
               className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-medium transition-all shadow-xs cursor-pointer shrink-0 ${
-                structuredEntries.length < 2
+                !isScopeValid
                   ? 'bg-stone-100 text-stone-400 border border-stone-200/60 cursor-not-allowed'
                   : 'bg-stone-900 hover:bg-stone-800 text-white active:scale-98'
               }`}
@@ -498,12 +737,12 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               ) : contradictionsResult ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Re-Analyze Differences</span>
+                  <span>Re-Analyze Differences ({targetEntries.length})</span>
                 </>
               ) : (
                 <>
                   <Split className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Explore Differences ({structuredEntries.length} entries)</span>
+                  <span>Explore Differences ({targetEntries.length} {targetEntries.length === 1 ? 'entry' : 'entries'})</span>
                 </>
               )}
             </button>
@@ -659,15 +898,15 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                 Grounded Signal Timeline
               </h4>
               <p className="text-[11px] text-stone-500">
-                Identifies genuine changes in your perspective, emotional reaction, interpretation, or focus between earlier and later reflections.
+                Changes in personal observations and interpretations over time.
               </p>
             </div>
             <button
               id="analyze-signal-timeline-btn"
               onClick={handleAnalyzeTimeline}
-              disabled={loadingTimeline || structuredEntries.length < 2}
+              disabled={loadingTimeline || !isScopeValid}
               className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-medium transition-all shadow-xs cursor-pointer shrink-0 ${
-                structuredEntries.length < 2
+                !isScopeValid
                   ? 'bg-stone-100 text-stone-400 border border-stone-200/60 cursor-not-allowed'
                   : 'bg-stone-900 hover:bg-stone-800 text-white active:scale-98'
               }`}
@@ -680,12 +919,12 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               ) : timelineResult ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Re-Analyze Timeline</span>
+                  <span>Re-Analyze Timeline ({targetEntries.length})</span>
                 </>
               ) : (
                 <>
                   <Milestone className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Analyze Timeline Shifts ({structuredEntries.length} entries)</span>
+                  <span>Analyze Timeline Shifts ({targetEntries.length} {targetEntries.length === 1 ? 'entry' : 'entries'})</span>
                 </>
               )}
             </button>

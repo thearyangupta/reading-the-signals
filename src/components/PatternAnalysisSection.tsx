@@ -7,10 +7,12 @@ import {
   CrossEntryContradiction,
   SignalTimelineResult,
   SignalTimelineShift,
+  AskJournalResult,
 } from '../types';
 import { auth } from '../lib/firebase';
 import { ReflectionWrapped } from './ReflectionWrapped';
 import { ThenVsNowComparison } from './ThenVsNowComparison';
+import { AskMyJournal } from './AskMyJournal';
 import {
   Layers,
   Sparkles,
@@ -34,6 +36,7 @@ import {
   CheckSquare,
   Square,
   X,
+  MessageSquareQuote,
 } from 'lucide-react';
 
 interface PatternAnalysisSectionProps {
@@ -45,7 +48,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   entries,
   onSelectEntry,
 }) => {
-  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions' | 'timeline' | 'wrapped' | 'then_now'>('patterns');
+  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions' | 'timeline' | 'wrapped' | 'then_now' | 'ask_journal'>('patterns');
 
   // Day 5 Patterns State
   const [patternsResult, setPatternsResult] = useState<CrossEntryAnalysisResult | null>(null);
@@ -62,12 +65,20 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   const [loadingTimeline, setLoadingTimeline] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
 
+  // Ask My Journal State
+  const [askJournalQuestion, setAskJournalQuestion] = useState<string>('');
+  const [askJournalResult, setAskJournalResult] = useState<AskJournalResult | null>(null);
+  const [loadingAskJournal, setLoadingAskJournal] = useState(false);
+  const [askJournalError, setAskJournalError] = useState<string | null>(null);
+  const askRequestIdRef = useRef<number>(0);
+
   // Filter entries that have a structured summary
   const structuredEntries = entries.filter((e) => Boolean(e.summary));
 
-  // Analysis Scope State (Shared across all 3 tabs)
+  // Analysis Scope State (Shared across tabs)
   const [scopeMode, setScopeMode] = useState<'all' | 'selected'>('all');
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
+  const [draftSelectedEntryIds, setDraftSelectedEntryIds] = useState<string[]>([]);
   const [isScopeModalOpen, setIsScopeModalOpen] = useState(false);
 
   // Active target entries for analysis based on scope
@@ -76,38 +87,56 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       ? structuredEntries
       : structuredEntries.filter((e) => selectedEntryIds.includes(e.id));
 
-  const isScopeValid = targetEntries.length >= 2;
+  // Multi-entry reasoning requirement for patterns, contradictions, and timeline
+  const isMultiEntryScopeValid = targetEntries.length >= 2;
 
   // Deterministic effective scope key based on exact sorted target entry IDs
   const currentScopeKey = JSON.stringify(targetEntries.map((e) => e.id).sort());
   const prevScopeKeyRef = useRef<string>(currentScopeKey);
 
-  // Invalidate analysis results and errors whenever the effective target entry set changes
+  // Invalidate analysis results, errors, and in-flight requests whenever the effective target entry set changes
   useEffect(() => {
     if (prevScopeKeyRef.current !== currentScopeKey) {
       prevScopeKeyRef.current = currentScopeKey;
+      askRequestIdRef.current += 1;
       setPatternsResult(null);
       setContradictionsResult(null);
       setTimelineResult(null);
+      setAskJournalResult(null);
       setPatternsError(null);
       setContradictionsError(null);
       setTimelineError(null);
+      setAskJournalError(null);
+      setLoadingAskJournal(false);
     }
   }, [currentScopeKey]);
 
   // Scope handlers
-  const handleToggleEntrySelection = (id: string) => {
-    setSelectedEntryIds((prev) =>
+  const handleOpenScopeModal = () => {
+    if (scopeMode === 'selected' && selectedEntryIds.length > 0) {
+      setDraftSelectedEntryIds([...selectedEntryIds]);
+    } else {
+      setDraftSelectedEntryIds(
+        selectedEntryIds.length > 0
+          ? [...selectedEntryIds]
+          : structuredEntries.map((e) => e.id)
+      );
+    }
+    setIsScopeModalOpen(true);
+  };
+
+  const handleToggleDraftSelection = (id: string) => {
+    setDraftSelectedEntryIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
-  const handleSelectAllScope = () => {
-    setSelectedEntryIds(structuredEntries.map((e) => e.id));
+  const handleSelectAllDraftScope = () => {
+    setDraftSelectedEntryIds(structuredEntries.map((e) => e.id));
   };
 
-  const handleClearScopeSelection = () => {
-    setSelectedEntryIds([]);
+  const handleClearDraftScopeSelection = () => {
+    setDraftSelectedEntryIds([]);
   };
 
   const handleResetToAll = () => {
@@ -116,11 +145,26 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   };
 
   const handleSwitchToSelectedScope = () => {
-    if (selectedEntryIds.length === 0) {
-      setSelectedEntryIds(structuredEntries.map((e) => e.id));
+    if (scopeMode === 'all') {
+      if (selectedEntryIds.length > 0) {
+        setScopeMode('selected');
+      } else {
+        handleOpenScopeModal();
+      }
+    } else {
+      handleOpenScopeModal();
     }
+  };
+
+  const handleApplyScope = () => {
+    if (draftSelectedEntryIds.length === 0) return;
+    setSelectedEntryIds([...draftSelectedEntryIds]);
     setScopeMode('selected');
-    setIsScopeModalOpen(true);
+    setIsScopeModalOpen(false);
+  };
+
+  const handleCloseScopeModal = () => {
+    setIsScopeModalOpen(false);
   };
 
   const handleAnalyzePatterns = async () => {
@@ -249,7 +293,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        throw new Error('Please sign in to analyze the signal timeline.');
+        throw new Error('Please sign in to analyze signal timeline.');
       }
       const idToken = await currentUser.getIdToken();
 
@@ -297,6 +341,74 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
     }
   };
 
+  const handleAskJournal = async () => {
+    if (targetEntries.length === 0) {
+      setAskJournalError('Ask My Journal requires at least 1 structured reflection in the active scope.');
+      return;
+    }
+    const trimmedQuestion = askJournalQuestion.trim();
+    if (trimmedQuestion.length < 3) {
+      setAskJournalError('Please enter a question with at least 3 characters.');
+      return;
+    }
+    if (trimmedQuestion.length > 500) {
+      setAskJournalError('Question exceeds maximum length of 500 characters.');
+      return;
+    }
+
+    const requestScopeKey = currentScopeKey;
+    const currentRequestId = ++askRequestIdRef.current;
+
+    setLoadingAskJournal(true);
+    setAskJournalError(null);
+
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('Please sign in to ask questions about your reflections.');
+      }
+      const idToken = await currentUser.getIdToken();
+
+      const payloadEntries = targetEntries.map((e) => ({
+        id: e.id,
+        date: e.date,
+        title: e.title,
+        summary: e.summary,
+      }));
+
+      const res = await fetch('/api/ask-journal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          question: trimmedQuestion,
+          entries: payloadEntries,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.details ? `${data.error || 'Error'}: ${data.details}` : (data.error || 'Failed to process journal question.'));
+      }
+
+      // Race-protection: only commit result if active scope key has not changed and requestId is latest
+      if (prevScopeKeyRef.current === requestScopeKey && askRequestIdRef.current === currentRequestId) {
+        setAskJournalResult(data.result);
+      }
+    } catch (err: any) {
+      console.error('Ask My Journal error:', err);
+      if (prevScopeKeyRef.current === requestScopeKey && askRequestIdRef.current === currentRequestId) {
+        setAskJournalError(err?.message || 'Unable to process question across journal entries.');
+      }
+    } finally {
+      if (prevScopeKeyRef.current === requestScopeKey && askRequestIdRef.current === currentRequestId) {
+        setLoadingAskJournal(false);
+      }
+    }
+  };
+
   const handleOpenSupportingEntry = (entryId: string) => {
     const target = entries.find((e) => e.id === entryId);
     if (target) {
@@ -322,8 +434,8 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   return (
     <div id="cross-entry-analysis-section" className="bg-white border border-stone-200/90 rounded-2xl p-5 sm:p-7 shadow-xs space-y-6">
       {/* Top Header with Navigation Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 pb-4">
-        <div className="space-y-1">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-stone-100 pb-4">
+        <div className="space-y-1 min-w-0 max-w-xl">
           <div className="flex items-center space-x-2">
             <div className="p-1.5 bg-amber-50 rounded-lg text-amber-800 border border-amber-200/50">
               <Layers className="w-4 h-4 text-amber-700" />
@@ -332,73 +444,87 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               Cross-Entry Signal Reasoning
             </h3>
           </div>
-          <p className="text-xs text-stone-500 max-w-xl leading-relaxed">
+          <p className="text-xs text-stone-500 leading-relaxed">
             Multi-entry reasoning grounded strictly in your explicit structured reflections without speculative judgment or third-party assumptions.
           </p>
         </div>
 
-        {/* Tab Toggle */}
-        <div className="flex items-center p-1 bg-stone-100/80 rounded-xl border border-stone-200/60 shrink-0 self-start sm:self-auto flex-wrap gap-1">
-          <button
-            id="tab-recurring-patterns-btn"
-            onClick={() => setActiveTab('patterns')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              activeTab === 'patterns'
-                ? 'bg-white text-stone-900 shadow-2xs'
-                : 'text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-            <span>Recurring Patterns</span>
-          </button>
-          <button
-            id="tab-perspective-differences-btn"
-            onClick={() => setActiveTab('contradictions')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              activeTab === 'contradictions'
-                ? 'bg-white text-stone-900 shadow-2xs'
-                : 'text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            <Split className="w-3.5 h-3.5 text-amber-700" />
-            <span>Perspective Differences</span>
-          </button>
-          <button
-            id="tab-signal-timeline-btn"
-            onClick={() => setActiveTab('timeline')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              activeTab === 'timeline'
-                ? 'bg-white text-stone-900 shadow-2xs'
-                : 'text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            <Milestone className="w-3.5 h-3.5 text-amber-800" />
-            <span>Signal Timeline</span>
-          </button>
-          <button
-            id="tab-reflection-wrapped-btn"
-            onClick={() => setActiveTab('wrapped')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              activeTab === 'wrapped'
-                ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                : 'text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            <Compass className="w-3.5 h-3.5 text-amber-900" />
-            <span>Reflection Wrapped</span>
-          </button>
-          <button
-            id="tab-then-vs-now-btn"
-            onClick={() => setActiveTab('then_now')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              activeTab === 'then_now'
-                ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                : 'text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5 text-amber-800" />
-            <span>Then vs Now</span>
-          </button>
+        {/* Tab Toggle - Responsive multi-row wrap / grid layout */}
+        <div className="p-1 bg-stone-100/80 rounded-xl border border-stone-200/60 w-full xl:w-auto overflow-hidden">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:flex xl:flex-wrap gap-1 w-full">
+            <button
+              id="tab-recurring-patterns-btn"
+              onClick={() => setActiveTab('patterns')}
+              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'patterns'
+                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>Recurring Patterns</span>
+            </button>
+            <button
+              id="tab-perspective-differences-btn"
+              onClick={() => setActiveTab('contradictions')}
+              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'contradictions'
+                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
+              }`}
+            >
+              <Split className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+              <span>Perspective Differences</span>
+            </button>
+            <button
+              id="tab-signal-timeline-btn"
+              onClick={() => setActiveTab('timeline')}
+              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'timeline'
+                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
+              }`}
+            >
+              <Milestone className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+              <span>Signal Timeline</span>
+            </button>
+            <button
+              id="tab-reflection-wrapped-btn"
+              onClick={() => setActiveTab('wrapped')}
+              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'wrapped'
+                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5 text-amber-900 shrink-0" />
+              <span>Reflection Wrapped</span>
+            </button>
+            <button
+              id="tab-then-vs-now-btn"
+              onClick={() => setActiveTab('then_now')}
+              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'then_now'
+                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+              <span>Then vs Now</span>
+            </button>
+            <button
+              id="tab-ask-my-journal-btn"
+              onClick={() => setActiveTab('ask_journal')}
+              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'ask_journal'
+                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
+              }`}
+            >
+              <MessageSquareQuote className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+              <span>Ask My Journal</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -446,8 +572,8 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           {scopeMode === 'selected' && (
             <button
               id="open-scope-selector-modal-btn"
-              onClick={() => setIsScopeModalOpen(true)}
-              className="text-[11px] text-amber-850 hover:text-amber-950 font-medium underline underline-offset-2 cursor-pointer"
+              onClick={handleOpenScopeModal}
+              className="text-[11px] text-amber-800 hover:text-amber-950 font-medium underline underline-offset-2 cursor-pointer"
             >
               Edit scope
             </button>
@@ -455,17 +581,38 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         </div>
       </div>
 
-      {!isScopeValid && (
-        <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-850 flex items-center justify-between gap-2">
+      {targetEntries.length < 2 && activeTab !== 'ask_journal' && (
+        <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
             <span>
-              Select at least 2 reflections for cross-entry reasoning ({targetEntries.length} currently selected).
+              {targetEntries.length === 0
+                ? 'Select at least 1 reflection to analyze in active scope.'
+                : `Cross-entry reasoning requires at least 2 reflections (${targetEntries.length} currently selected).`}
             </span>
           </div>
           {scopeMode === 'selected' && (
             <button
-              onClick={() => setIsScopeModalOpen(true)}
+              onClick={handleOpenScopeModal}
+              className="text-amber-900 font-semibold underline text-xs cursor-pointer shrink-0"
+            >
+              Select Reflections
+            </button>
+          )}
+        </div>
+      )}
+
+      {targetEntries.length === 0 && activeTab === 'ask_journal' && (
+        <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between gap-2">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+            <span>
+              Select at least 1 reflection to ask questions about your journal.
+            </span>
+          </div>
+          {scopeMode === 'selected' && (
+            <button
+              onClick={handleOpenScopeModal}
               className="text-amber-900 font-semibold underline text-xs cursor-pointer shrink-0"
             >
               Select Reflections
@@ -486,7 +633,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                 </h3>
               </div>
               <button
-                onClick={() => setIsScopeModalOpen(false)}
+                onClick={handleCloseScopeModal}
                 className="p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -495,18 +642,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
             <div className="p-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between text-xs text-stone-600">
               <span>
-                Selected: <strong className="text-stone-900">{selectedEntryIds.length}</strong> of {structuredEntries.length} reflections
+                Selected: <strong className="text-stone-900">{draftSelectedEntryIds.length}</strong> of {structuredEntries.length} reflections
               </span>
               <div className="space-x-2">
                 <button
-                  onClick={handleSelectAllScope}
+                  onClick={handleSelectAllDraftScope}
                   className="text-amber-800 hover:text-amber-950 font-medium underline text-[11px] cursor-pointer"
                 >
                   Select All
                 </button>
                 <span className="text-stone-300">|</span>
                 <button
-                  onClick={handleClearScopeSelection}
+                  onClick={handleClearDraftScopeSelection}
                   className="text-stone-500 hover:text-stone-800 underline text-[11px] cursor-pointer"
                 >
                   Clear All
@@ -521,7 +668,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                 </div>
               ) : (
                 structuredEntries.map((entry) => {
-                  const isChecked = selectedEntryIds.includes(entry.id);
+                  const isChecked = draftSelectedEntryIds.includes(entry.id);
                   return (
                     <label
                       key={entry.id}
@@ -530,7 +677,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        onChange={() => handleToggleEntrySelection(entry.id)}
+                        onChange={() => handleToggleDraftSelection(entry.id)}
                         className="mt-0.5 rounded border-stone-300 text-amber-700 focus:ring-amber-500 w-4 h-4 cursor-pointer"
                       />
                       <div className="flex-1 min-w-0">
@@ -556,32 +703,32 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
             <div className="p-3.5 border-t border-stone-100 bg-stone-50 flex items-center justify-between">
               <span className="text-[11px] text-stone-500">
-                {selectedEntryIds.length < 2 ? (
-                  <span className="text-amber-700 font-medium">Require at least 2 reflections</span>
+                {draftSelectedEntryIds.length === 0 ? (
+                  <span className="text-amber-700 font-medium">Select at least 1 reflection</span>
+                ) : draftSelectedEntryIds.length === 1 ? (
+                  <span className="text-emerald-700 font-medium">✓ 1 reflection selected</span>
                 ) : (
-                  <span className="text-emerald-700 font-medium">✓ Ready for cross-entry analysis</span>
+                  <span className="text-emerald-700 font-medium">✓ Ready for cross-entry analysis ({draftSelectedEntryIds.length})</span>
                 )}
               </span>
               <div className="space-x-2">
                 <button
-                  onClick={() => {
-                    setScopeMode('all');
-                    setIsScopeModalOpen(false);
-                  }}
+                  onClick={handleResetToAll}
                   className="px-3 py-1.5 rounded-lg text-xs text-stone-600 hover:text-stone-800 bg-white border border-stone-200 cursor-pointer"
                 >
                   Reset to All
                 </button>
                 <button
-                  onClick={() => setIsScopeModalOpen(false)}
-                  disabled={selectedEntryIds.length < 2}
+                  id="apply-scope-modal-btn"
+                  onClick={handleApplyScope}
+                  disabled={draftSelectedEntryIds.length === 0}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-medium text-white transition-all cursor-pointer ${
-                    selectedEntryIds.length < 2
+                    draftSelectedEntryIds.length === 0
                       ? 'bg-stone-300 cursor-not-allowed'
                       : 'bg-stone-900 hover:bg-stone-800'
                   }`}
                 >
-                  Apply Scope ({selectedEntryIds.length})
+                  Apply Scope ({draftSelectedEntryIds.length})
                 </button>
               </div>
             </div>
@@ -604,9 +751,9 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             <button
               id="analyze-cross-entry-patterns-btn"
               onClick={handleAnalyzePatterns}
-              disabled={loadingPatterns || !isScopeValid}
+              disabled={loadingPatterns || !isMultiEntryScopeValid}
               className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-medium transition-all shadow-xs cursor-pointer shrink-0 ${
-                !isScopeValid
+                !isMultiEntryScopeValid
                   ? 'bg-stone-100 text-stone-400 border border-stone-200/60 cursor-not-allowed'
                   : 'bg-stone-900 hover:bg-stone-800 text-white active:scale-98'
               }`}
@@ -789,9 +936,9 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             <button
               id="analyze-cross-entry-contradictions-btn"
               onClick={handleAnalyzeContradictions}
-              disabled={loadingContradictions || !isScopeValid}
+              disabled={loadingContradictions || !isMultiEntryScopeValid}
               className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-medium transition-all shadow-xs cursor-pointer shrink-0 ${
-                !isScopeValid
+                !isMultiEntryScopeValid
                   ? 'bg-stone-100 text-stone-400 border border-stone-200/60 cursor-not-allowed'
                   : 'bg-stone-900 hover:bg-stone-800 text-white active:scale-98'
               }`}
@@ -971,9 +1118,9 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             <button
               id="analyze-signal-timeline-btn"
               onClick={handleAnalyzeTimeline}
-              disabled={loadingTimeline || !isScopeValid}
+              disabled={loadingTimeline || !isMultiEntryScopeValid}
               className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-medium transition-all shadow-xs cursor-pointer shrink-0 ${
-                !isScopeValid
+                !isMultiEntryScopeValid
                   ? 'bg-stone-100 text-stone-400 border border-stone-200/60 cursor-not-allowed'
                   : 'bg-stone-900 hover:bg-stone-800 text-white active:scale-98'
               }`}
@@ -1192,6 +1339,20 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           timelineResult={timelineResult}
           loadingTimeline={loadingTimeline}
           onAnalyzeTimeline={handleAnalyzeTimeline}
+          onSelectEntry={onSelectEntry}
+        />
+      )}
+
+      {/* Ask My Journal View */}
+      {activeTab === 'ask_journal' && (
+        <AskMyJournal
+          targetEntries={targetEntries}
+          question={askJournalQuestion}
+          onQuestionChange={setAskJournalQuestion}
+          onAskQuestion={handleAskJournal}
+          result={askJournalResult}
+          loading={loadingAskJournal}
+          error={askJournalError}
           onSelectEntry={onSelectEntry}
         />
       )}

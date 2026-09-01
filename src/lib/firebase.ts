@@ -12,6 +12,7 @@ import {
   getFirestore,
   collection,
   doc,
+  getDoc,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -23,6 +24,7 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { JournalEntry, StructuredSummary, ChatMessage } from '../types';
+import { SAMPLE_ENTRIES } from '../data/sampleEntries';
 
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -224,3 +226,52 @@ export async function deleteJournalEntry(userId: string, entryId: string): Promi
   const entryRef = doc(db, 'users', userId, 'entries', entryId);
   await deleteDoc(entryRef);
 }
+
+/**
+ * Imports the 9 canonical sample entries into the authenticated user's normal Firestore subcollection.
+ * Safe, idempotent, and partial-import resilient:
+ * Uses deterministic document IDs (sample_import_${sample.id}).
+ * Checks existence first and never overwrites existing entries.
+ */
+export async function importSampleEntries(
+  userId: string
+): Promise<{ added: number; existing: number }> {
+  if (!userId) throw new Error('User must be authenticated to import sample reflections.');
+
+  let added = 0;
+  let existing = 0;
+
+  for (const sample of SAMPLE_ENTRIES) {
+    const docId = `sample_import_${sample.id}`;
+    const docRef = doc(db, 'users', userId, 'entries', docId);
+
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      existing++;
+      continue;
+    }
+
+    const rawPayload = {
+      userId,
+      title: sample.title || 'Untitled Reflection',
+      date: sample.date || new Date().toISOString().split('T')[0],
+      content: sample.content || '',
+      situation: sample.situation || '',
+      behaviorOrEvent: sample.behaviorOrEvent || '',
+      feelingOrReaction: sample.feelingOrReaction || '',
+      importantContext: sample.importantContext || '',
+      summary: sample.summary || null,
+      reflections: Array.isArray(sample.reflections) ? sample.reflections : [],
+      createdAt: sample.createdAt || Date.now(),
+      updatedAt: sample.updatedAt || Date.now(),
+      _serverTimestamp: serverTimestamp(),
+    };
+
+    const payload = cleanPayload(rawPayload);
+    await setDoc(docRef, payload);
+    added++;
+  }
+
+  return { added, existing };
+}
+

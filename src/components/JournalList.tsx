@@ -10,12 +10,18 @@ import {
   BookOpen,
   Eye,
   Heart,
+  Download,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
+import { importSampleEntries } from '../lib/firebase';
 
 interface JournalListProps {
   entries: JournalEntry[];
   loading: boolean;
   isDemoMode?: boolean;
+  userId?: string;
   onSeeSample?: () => void;
   onSelectEntry: (entry: JournalEntry) => void;
   onNewEntry: () => void;
@@ -25,11 +31,53 @@ export const JournalList: React.FC<JournalListProps> = ({
   entries,
   loading,
   isDemoMode = false,
+  userId,
   onSeeSample,
   onSelectEntry,
   onNewEntry,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importFeedback, setImportFeedback] = useState<{
+    type: 'success' | 'info' | 'error';
+    message: string;
+  } | null>(null);
+
+  const handleImportSamples = async () => {
+    if (!userId || importing || isDemoMode) return;
+
+    setImporting(true);
+    setImportFeedback(null);
+
+    try {
+      const { added, existing } = await importSampleEntries(userId);
+
+      if (added === 9) {
+        setImportFeedback({
+          type: 'success',
+          message: '9 sample reflections added to your journal.',
+        });
+      } else if (added > 0 && existing > 0) {
+        setImportFeedback({
+          type: 'success',
+          message: `${added} sample reflections added. ${existing} already existed.`,
+        });
+      } else if (added === 0) {
+        setImportFeedback({
+          type: 'info',
+          message: 'Sample reflections are already in your journal.',
+        });
+      }
+    } catch (err: any) {
+      console.error('Error importing sample reflections:', err);
+      setImportFeedback({
+        type: 'error',
+        message: 'Failed to import sample reflections. Please try again.',
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const filteredEntries = useMemo(() => {
     if (!searchQuery.trim()) return entries;
@@ -75,11 +123,32 @@ export const JournalList: React.FC<JournalListProps> = ({
           />
         </div>
 
-        <div className="flex items-center space-x-2 text-xs text-stone-500 justify-between sm:justify-end">
+        <div className="flex items-center space-x-2 text-xs text-stone-500 justify-between sm:justify-end flex-wrap gap-y-2">
           <span>
             {filteredEntries.length} {filteredEntries.length === 1 ? 'reflection' : 'reflections'}
             {isDemoMode && <span className="ml-1.5 text-amber-800 bg-amber-100/70 border border-amber-200/80 px-1.5 py-0.5 rounded text-[10px] font-medium">Sample Data</span>}
           </span>
+          {!isDemoMode && userId && (
+            <button
+              id="import-sample-reflections-top-btn"
+              onClick={handleImportSamples}
+              disabled={importing}
+              className="flex items-center space-x-1.5 bg-stone-100 hover:bg-stone-200/80 border border-stone-200 text-stone-700 text-xs font-medium py-2 px-3 rounded-lg transition-all shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Add the 9 sample reflections to your personal Firestore journal"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-stone-600" />
+                  <span>Adding Samples...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-3.5 h-3.5 text-stone-500" />
+                  <span>Add Sample Reflections</span>
+                </>
+              )}
+            </button>
+          )}
           {!isDemoMode && (
             <button
               id="create-reflection-quick-btn"
@@ -92,6 +161,37 @@ export const JournalList: React.FC<JournalListProps> = ({
           )}
         </div>
       </div>
+
+      {/* Import Feedback Banner */}
+      {importFeedback && (
+        <div
+          id="import-sample-feedback-banner"
+          className={`p-3.5 rounded-xl flex items-center justify-between text-xs transition-all shadow-2xs ${
+            importFeedback.type === 'error'
+              ? 'bg-red-50 border border-red-200/80 text-red-800'
+              : importFeedback.type === 'info'
+              ? 'bg-stone-100 border border-stone-200/90 text-stone-800'
+              : 'bg-emerald-50 border border-emerald-200/80 text-emerald-900'
+          }`}
+        >
+          <div className="flex items-center space-x-2">
+            {importFeedback.type === 'error' ? (
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            ) : importFeedback.type === 'info' ? (
+              <Sparkles className="w-4 h-4 text-stone-600 shrink-0" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            )}
+            <span>{importFeedback.message}</span>
+          </div>
+          <button
+            onClick={() => setImportFeedback(null)}
+            className="text-stone-400 hover:text-stone-700 text-xs font-medium cursor-pointer ml-3"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Empty State */}
       {filteredEntries.length === 0 ? (
@@ -120,14 +220,35 @@ export const JournalList: React.FC<JournalListProps> = ({
               </button>
             )}
 
+            {!isDemoMode && userId && (
+              <button
+                id="import-sample-empty-state-btn"
+                onClick={handleImportSamples}
+                disabled={importing}
+                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-amber-50 hover:bg-amber-100/80 text-amber-900 border border-amber-200/80 text-xs sm:text-sm font-medium py-2.5 px-4 rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {importing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-700" />
+                    <span>Adding Samples...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 text-amber-600" />
+                    <span>Add 9 Sample Reflections</span>
+                  </>
+                )}
+              </button>
+            )}
+
             {!isDemoMode && onSeeSample && (
               <button
                 id="see-sample-button-empty-state"
                 onClick={onSeeSample}
-                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-amber-50 hover:bg-amber-100/80 text-amber-900 border border-amber-200/80 text-xs sm:text-sm font-medium py-2.5 px-4 rounded-xl transition-all shadow-2xs cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-stone-100 hover:bg-stone-200/80 text-stone-700 border border-stone-200 text-xs sm:text-sm font-medium py-2.5 px-4 rounded-xl transition-all shadow-2xs cursor-pointer"
               >
-                <Sparkles className="w-4 h-4 text-amber-600" />
-                <span>See 9 Sample Reflections</span>
+                <BookOpen className="w-4 h-4 text-stone-500" />
+                <span>Preview Demo Mode</span>
               </button>
             )}
           </div>
@@ -135,6 +256,7 @@ export const JournalList: React.FC<JournalListProps> = ({
       ) : (
         /* Journal Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
           {filteredEntries.map((entry) => {
             const hasReflections = entry.reflections && entry.reflections.length > 0;
             return (

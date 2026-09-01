@@ -76,6 +76,21 @@ export interface SignalTimelineResult {
   shifts: SignalTimelineShift[];
 }
 
+export interface AskJournalEvidence {
+  entryId: string;
+  title: string;
+  date: string;
+  reason?: string;
+}
+
+export interface AskJournalResult {
+  hasSufficientEvidence: boolean;
+  answer: string;
+  evidence: AskJournalEvidence[];
+  clarificationQuestion?: string;
+  message?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';

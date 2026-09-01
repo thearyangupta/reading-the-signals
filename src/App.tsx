@@ -249,6 +249,7 @@ export default function App() {
               entries={entries}
               loading={entriesLoading}
               isDemoMode={isDemoMode}
+              userId={user?.uid}
               onSeeSample={handleEnterDemoMode}
               onSelectEntry={(entry) => setSelectedEntry(entry)}
               onNewEntry={handleOpenNewEntry}

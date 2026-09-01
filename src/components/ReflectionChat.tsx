@@ -6,7 +6,6 @@ import { Sparkles, Send, User, Bot, Loader2, Lightbulb, AlertCircle } from 'luci
 interface ReflectionChatProps {
   userId: string;
   entry: JournalEntry;
-  isDemoMode?: boolean;
   onEntryUpdated: (updated: JournalEntry) => void;
 }
 
@@ -20,7 +19,6 @@ const SUGGESTED_PROMPTS = [
 export const ReflectionChat: React.FC<ReflectionChatProps> = ({
   userId,
   entry,
-  isDemoMode = false,
   onEntryUpdated,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(entry.reflections || []);
@@ -94,10 +92,8 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
       const finalMessagesList = [...newMessagesList, botMessage];
       setMessages(finalMessagesList);
 
-      // 2. Persist updated reflections to Firestore if not demo mode
-      if (!isDemoMode && userId !== 'demo-user' && !entry.id.startsWith('demo-')) {
-        await appendReflectionMessage(userId, entry.id, newMessagesList, botMessage);
-      }
+      // 2. Persist updated reflections to Firestore
+      await appendReflectionMessage(userId, entry.id, newMessagesList, botMessage);
       onEntryUpdated({
         ...entry,
         reflections: finalMessagesList,

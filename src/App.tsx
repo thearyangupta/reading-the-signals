@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth, signOutUser, subscribeUserEntries } from './lib/firebase';
 import { UserProfile, JournalEntry } from './types';
-import { SAMPLE_ENTRIES } from './data/sampleEntries';
 import { Navbar } from './components/Navbar';
 import { AuthView } from './components/AuthView';
 import { JournalList } from './components/JournalList';
@@ -14,10 +13,8 @@ import { Sparkles, Shield, AlertCircle } from 'lucide-react';
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [realEntries, setRealEntries] = useState<JournalEntry[]>([]);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Modal / View states
@@ -38,9 +35,7 @@ export default function App() {
         });
       } else {
         setUser(null);
-        setRealEntries([]);
         setEntries([]);
-        setIsDemoMode(false);
         setSelectedEntry(null);
         setEditorOpen(false);
         setEditingEntry(null);
@@ -54,7 +49,6 @@ export default function App() {
   // Listen to isolated real-time Firestore entries for the authenticated user
   useEffect(() => {
     if (!user) {
-      setRealEntries([]);
       setEntries([]);
       setEntriesLoading(false);
       return;
@@ -64,17 +58,12 @@ export default function App() {
     const unsubscribe = subscribeUserEntries(
       user.uid,
       (updatedEntries) => {
-        setRealEntries(updatedEntries);
-        // Only update current view if user is not exploring sample data
-        if (!isDemoMode) {
-          setEntries(updatedEntries);
-        }
+        setEntries(updatedEntries);
         setEntriesLoading(false);
         // If an active modal entry was updated externally or saved, keep selectedEntry in sync
         setSelectedEntry((prev) => {
           if (!prev) return null;
-          const currentList = isDemoMode ? SAMPLE_ENTRIES : updatedEntries;
-          const match = currentList.find((e) => e.id === prev.id);
+          const match = updatedEntries.find((e) => e.id === prev.id);
           return match || prev;
         });
       },
@@ -86,48 +75,28 @@ export default function App() {
     );
 
     return () => unsubscribe();
-  }, [user, isDemoMode]);
+  }, [user]);
 
   const handleSignOut = async () => {
     try {
-      setIsDemoMode(false);
       await signOutUser();
     } catch (err: any) {
       console.error('Sign out error:', err);
     }
   };
 
-  const handleEnterDemoMode = () => {
-    setIsDemoMode(true);
-    setEntries(SAMPLE_ENTRIES);
-    setSelectedEntry(null);
-    setEditorOpen(false);
-    setEditingEntry(null);
-  };
-
-  const handleExitDemoMode = () => {
-    setIsDemoMode(false);
-    setEntries(realEntries);
-    setSelectedEntry(null);
-    setEditorOpen(false);
-    setEditingEntry(null);
-  };
-
   const handleOpenNewEntry = () => {
-    if (isDemoMode) return;
     setEditingEntry(null);
     setEditorOpen(true);
   };
 
   const handleOpenEditEntry = (entry: JournalEntry) => {
-    if (isDemoMode || entry.id.startsWith('demo-')) return;
     setEditingEntry(entry);
     setEditorOpen(true);
     setSelectedEntry(null); // Close detail modal while editing
   };
 
   const handleSaveSuccess = (savedEntry: Partial<JournalEntry>) => {
-    // If it was just edited or created, we can optionally focus it
     if (savedEntry.id) {
       const fullEntry = entries.find((e) => e.id === savedEntry.id);
       if (fullEntry) {
@@ -137,9 +106,7 @@ export default function App() {
   };
 
   const handleDeleteEntry = (entryId: string) => {
-    if (isDemoMode || entryId.startsWith('demo-')) return;
     setEntries((prev) => prev.filter((e) => e.id !== entryId));
-    setRealEntries((prev) => prev.filter((e) => e.id !== entryId));
     if (selectedEntry?.id === entryId) {
       setSelectedEntry(null);
     }
@@ -163,9 +130,6 @@ export default function App() {
       {/* Top Navbar */}
       <Navbar
         user={user}
-        isDemoMode={isDemoMode}
-        onSeeSample={handleEnterDemoMode}
-        onExitDemo={handleExitDemoMode}
         onNewEntry={handleOpenNewEntry}
         onSignOut={handleSignOut}
       />
@@ -187,40 +151,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Demo Mode Notice Banner */}
-        {user && isDemoMode && (
-          <div
-            id="demo-mode-banner"
-            className="mb-6 p-4 bg-amber-50 border border-amber-200/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-xl bg-amber-700 text-white flex items-center justify-center shrink-0">
-                <Sparkles className="w-4 h-4 text-amber-200" />
-              </div>
-              <div>
-                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md">
-                    Demo Mode
-                  </span>
-                  <span className="text-xs font-semibold text-stone-900">
-                    Viewing sample reflections — your personal journal is unchanged.
-                  </span>
-                </div>
-                <p className="text-[11px] text-stone-600 mt-0.5">
-                  9 dated reflections loaded in memory to explore Recurring Patterns, Perspective Differences, and Signal Timeline.
-                </p>
-              </div>
-            </div>
-            <button
-              id="exit-demo-mode-banner-button"
-              onClick={handleExitDemoMode}
-              className="self-end sm:self-center shrink-0 px-3.5 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium rounded-lg transition-all shadow-xs cursor-pointer"
-            >
-              Exit Demo
-            </button>
-          </div>
-        )}
-
         {!user ? (
           <AuthView onAuthSuccess={() => {}} />
         ) : (
@@ -229,18 +159,16 @@ export default function App() {
             <div className="border-b border-stone-200/70 pb-4 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
               <div>
                 <h2 className="text-xl sm:text-2xl font-serif font-bold text-stone-900 tracking-tight">
-                  {isDemoMode ? 'Sample Reflection Journal' : 'Your Reflection Journal'}
+                  Your Reflection Journal
                 </h2>
                 <p className="text-xs text-stone-500 mt-0.5">
-                  {isDemoMode
-                    ? 'Explore 9 dated entries demonstrating cross-entry recurring patterns, perspective shifts, and timelines.'
-                    : 'Record moments, examine your reactions, and converse with your non-diagnostic AI partner.'}
+                  Record moments, examine your reactions, and converse with your non-diagnostic AI partner.
                 </p>
               </div>
 
               <div className="flex items-center space-x-2 text-[11px] text-stone-500 bg-stone-100/70 px-2.5 py-1 rounded-lg border border-stone-200/50 self-start sm:self-auto">
                 <Shield className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{isDemoMode ? 'In-Memory Fixture' : 'Isolated UID Vault'}</span>
+                <span>Isolated UID Vault</span>
               </div>
             </div>
 
@@ -248,14 +176,12 @@ export default function App() {
             <JournalList
               entries={entries}
               loading={entriesLoading}
-              isDemoMode={isDemoMode}
               userId={user?.uid}
-              onSeeSample={handleEnterDemoMode}
               onSelectEntry={(entry) => setSelectedEntry(entry)}
               onNewEntry={handleOpenNewEntry}
             />
 
-            {/* Day 5: Cross-Entry Recurring Pattern Analysis Section */}
+            {/* Cross-Entry Signal Reasoning Section */}
             {!entriesLoading && entries.length > 0 && (
               <PatternAnalysisSection
                 entries={entries}
@@ -267,7 +193,7 @@ export default function App() {
       </main>
 
       {/* Modals & Dialogs */}
-      {editorOpen && user && !isDemoMode && (
+      {editorOpen && user && (
         <JournalEditor
           userId={user.uid}
           initialEntry={editingEntry}
@@ -281,9 +207,8 @@ export default function App() {
 
       {selectedEntry && user && (
         <EntryDetailModal
-          userId={isDemoMode ? 'demo-user' : user.uid}
+          userId={user.uid}
           entry={selectedEntry}
-          isDemoMode={isDemoMode}
           onClose={() => setSelectedEntry(null)}
           onEdit={handleOpenEditEntry}
           onDelete={handleDeleteEntry}

@@ -4,18 +4,12 @@ import { Sparkles, Plus, LogOut, ShieldCheck, User } from 'lucide-react';
 
 interface NavbarProps {
   user: UserProfile | null;
-  isDemoMode?: boolean;
-  onSeeSample?: () => void;
-  onExitDemo?: () => void;
   onNewEntry: () => void;
   onSignOut: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   user,
-  isDemoMode = false,
-  onSeeSample,
-  onExitDemo,
   onNewEntry,
   onSignOut,
 }) => {
@@ -40,37 +34,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* User controls */}
         {user ? (
           <div className="flex items-center space-x-2 sm:space-x-3">
-            {isDemoMode ? (
-              <button
-                id="exit-demo-button-navbar"
-                onClick={onExitDemo}
-                className="flex items-center space-x-1.5 bg-amber-100 hover:bg-amber-200/80 text-amber-900 border border-amber-300/80 text-xs sm:text-sm font-medium py-2 px-3.5 rounded-lg transition-all shadow-2xs cursor-pointer"
-              >
-                <span>Exit Demo</span>
-              </button>
-            ) : (
-              <>
-                {onSeeSample && (
-                  <button
-                    id="see-sample-button-navbar"
-                    onClick={onSeeSample}
-                    className="flex items-center space-x-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200 text-xs sm:text-sm font-medium py-2 px-3 rounded-lg transition-all shadow-2xs cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                    <span>See a sample</span>
-                  </button>
-                )}
-
-                <button
-                  id="new-reflection-button"
-                  onClick={onNewEntry}
-                  className="flex items-center space-x-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-medium py-2 px-3.5 rounded-lg transition-all shadow-xs active:scale-[0.98] cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>New Reflection</span>
-                </button>
-              </>
-            )}
+            <button
+              id="new-reflection-button"
+              onClick={onNewEntry}
+              className="flex items-center space-x-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-medium py-2 px-3.5 rounded-lg transition-all shadow-xs active:scale-[0.98] cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Reflection</span>
+            </button>
 
             <div className="h-5 w-px bg-stone-200 mx-1 hidden sm:block" />
 

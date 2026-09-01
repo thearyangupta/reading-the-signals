@@ -20,9 +20,7 @@ import { importSampleEntries } from '../lib/firebase';
 interface JournalListProps {
   entries: JournalEntry[];
   loading: boolean;
-  isDemoMode?: boolean;
   userId?: string;
-  onSeeSample?: () => void;
   onSelectEntry: (entry: JournalEntry) => void;
   onNewEntry: () => void;
 }
@@ -30,9 +28,7 @@ interface JournalListProps {
 export const JournalList: React.FC<JournalListProps> = ({
   entries,
   loading,
-  isDemoMode = false,
   userId,
-  onSeeSample,
   onSelectEntry,
   onNewEntry,
 }) => {
@@ -44,7 +40,7 @@ export const JournalList: React.FC<JournalListProps> = ({
   } | null>(null);
 
   const handleImportSamples = async () => {
-    if (!userId || importing || isDemoMode) return;
+    if (!userId || importing) return;
 
     setImporting(true);
     setImportFeedback(null);
@@ -126,9 +122,8 @@ export const JournalList: React.FC<JournalListProps> = ({
         <div className="flex items-center space-x-2 text-xs text-stone-500 justify-between sm:justify-end flex-wrap gap-y-2">
           <span>
             {filteredEntries.length} {filteredEntries.length === 1 ? 'reflection' : 'reflections'}
-            {isDemoMode && <span className="ml-1.5 text-amber-800 bg-amber-100/70 border border-amber-200/80 px-1.5 py-0.5 rounded text-[10px] font-medium">Sample Data</span>}
           </span>
-          {!isDemoMode && userId && (
+          {userId && (
             <button
               id="import-sample-reflections-top-btn"
               onClick={handleImportSamples}
@@ -149,16 +144,14 @@ export const JournalList: React.FC<JournalListProps> = ({
               )}
             </button>
           )}
-          {!isDemoMode && (
-            <button
-              id="create-reflection-quick-btn"
-              onClick={onNewEntry}
-              className="flex items-center space-x-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium py-2 px-3 rounded-lg transition-all shadow-xs cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Write Reflection</span>
-            </button>
-          )}
+          <button
+            id="create-reflection-quick-btn"
+            onClick={onNewEntry}
+            className="flex items-center space-x-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium py-2 px-3 rounded-lg transition-all shadow-xs cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Write Reflection</span>
+          </button>
         </div>
       </div>
 
@@ -209,18 +202,16 @@ export const JournalList: React.FC<JournalListProps> = ({
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
-            {!isDemoMode && (
-              <button
-                id="start-first-reflection-button"
-                onClick={onNewEntry}
-                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-medium py-2.5 px-4 rounded-xl transition-all shadow-xs cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Start a Reflection</span>
-              </button>
-            )}
+            <button
+              id="start-first-reflection-button"
+              onClick={onNewEntry}
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-medium py-2.5 px-4 rounded-xl transition-all shadow-xs cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Start a Reflection</span>
+            </button>
 
-            {!isDemoMode && userId && (
+            {userId && (
               <button
                 id="import-sample-empty-state-btn"
                 onClick={handleImportSamples}
@@ -238,17 +229,6 @@ export const JournalList: React.FC<JournalListProps> = ({
                     <span>Add 9 Sample Reflections</span>
                   </>
                 )}
-              </button>
-            )}
-
-            {!isDemoMode && onSeeSample && (
-              <button
-                id="see-sample-button-empty-state"
-                onClick={onSeeSample}
-                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-stone-100 hover:bg-stone-200/80 text-stone-700 border border-stone-200 text-xs sm:text-sm font-medium py-2.5 px-4 rounded-xl transition-all shadow-2xs cursor-pointer"
-              >
-                <BookOpen className="w-4 h-4 text-stone-500" />
-                <span>Preview Demo Mode</span>
               </button>
             )}
           </div>

@@ -9,6 +9,7 @@ import {
   SignalTimelineShift,
 } from '../types';
 import { auth } from '../lib/firebase';
+import { ReflectionWrapped } from './ReflectionWrapped';
 import {
   Layers,
   Sparkles,
@@ -43,7 +44,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   entries,
   onSelectEntry,
 }) => {
-  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions' | 'timeline'>('patterns');
+  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions' | 'timeline' | 'wrapped'>('patterns');
 
   // Day 5 Patterns State
   const [patternsResult, setPatternsResult] = useState<CrossEntryAnalysisResult | null>(null);
@@ -331,6 +332,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           >
             <Milestone className="w-3.5 h-3.5 text-amber-800" />
             <span>Signal Timeline</span>
+          </button>
+          <button
+            id="tab-reflection-wrapped-btn"
+            onClick={() => setActiveTab('wrapped')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+              activeTab === 'wrapped'
+                ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                : 'text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5 text-amber-900" />
+            <span>Reflection Wrapped</span>
           </button>
         </div>
       </div>
@@ -1102,6 +1115,20 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {/* Reflection Wrapped View */}
+      {activeTab === 'wrapped' && (
+        <ReflectionWrapped
+          targetEntries={targetEntries}
+          patternsResult={patternsResult}
+          timelineResult={timelineResult}
+          loadingPatterns={loadingPatterns}
+          loadingTimeline={loadingTimeline}
+          onAnalyzePatterns={handleAnalyzePatterns}
+          onAnalyzeTimeline={handleAnalyzeTimeline}
+          onSelectEntry={onSelectEntry}
+        />
       )}
     </div>
   );

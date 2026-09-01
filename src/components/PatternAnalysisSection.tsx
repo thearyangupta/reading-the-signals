@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   JournalEntry,
   CrossEntryAnalysisResult,
@@ -10,6 +10,7 @@ import {
 } from '../types';
 import { auth } from '../lib/firebase';
 import { ReflectionWrapped } from './ReflectionWrapped';
+import { ThenVsNowComparison } from './ThenVsNowComparison';
 import {
   Layers,
   Sparkles,
@@ -44,7 +45,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   entries,
   onSelectEntry,
 }) => {
-  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions' | 'timeline' | 'wrapped'>('patterns');
+  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions' | 'timeline' | 'wrapped' | 'then_now'>('patterns');
 
   // Day 5 Patterns State
   const [patternsResult, setPatternsResult] = useState<CrossEntryAnalysisResult | null>(null);
@@ -77,6 +78,23 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
   const isScopeValid = targetEntries.length >= 2;
 
+  // Deterministic effective scope key based on exact sorted target entry IDs
+  const currentScopeKey = JSON.stringify(targetEntries.map((e) => e.id).sort());
+  const prevScopeKeyRef = useRef<string>(currentScopeKey);
+
+  // Invalidate analysis results and errors whenever the effective target entry set changes
+  useEffect(() => {
+    if (prevScopeKeyRef.current !== currentScopeKey) {
+      prevScopeKeyRef.current = currentScopeKey;
+      setPatternsResult(null);
+      setContradictionsResult(null);
+      setTimelineResult(null);
+      setPatternsError(null);
+      setContradictionsError(null);
+      setTimelineError(null);
+    }
+  }, [currentScopeKey]);
+
   // Scope handlers
   const handleToggleEntrySelection = (id: string) => {
     setSelectedEntryIds((prev) =>
@@ -108,6 +126,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   const handleAnalyzePatterns = async () => {
     if (targetEntries.length < 2) return;
 
+    const requestScopeKey = currentScopeKey;
     setLoadingPatterns(true);
     setPatternsError(null);
 
@@ -146,18 +165,26 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         throw new Error(data.details ? `${data.error || 'Error'}: ${data.details}` : (data.error || 'Failed to surface recurring patterns.'));
       }
 
-      setPatternsResult(data.result);
+      // Race-protection: only commit result if active scope key has not changed during request
+      if (prevScopeKeyRef.current === requestScopeKey) {
+        setPatternsResult(data.result);
+      }
     } catch (err: any) {
       console.error('Pattern analysis error:', err);
-      setPatternsError(err?.message || 'Unable to complete cross-entry pattern reasoning.');
+      if (prevScopeKeyRef.current === requestScopeKey) {
+        setPatternsError(err?.message || 'Unable to complete cross-entry pattern reasoning.');
+      }
     } finally {
-      setLoadingPatterns(false);
+      if (prevScopeKeyRef.current === requestScopeKey) {
+        setLoadingPatterns(false);
+      }
     }
   };
 
   const handleAnalyzeContradictions = async () => {
     if (targetEntries.length < 2) return;
 
+    const requestScopeKey = currentScopeKey;
     setLoadingContradictions(true);
     setContradictionsError(null);
 
@@ -196,18 +223,26 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         throw new Error(data.details ? `${data.error || 'Error'}: ${data.details}` : (data.error || 'Failed to analyze perspective differences.'));
       }
 
-      setContradictionsResult(data.result);
+      // Race-protection: only commit result if active scope key has not changed during request
+      if (prevScopeKeyRef.current === requestScopeKey) {
+        setContradictionsResult(data.result);
+      }
     } catch (err: any) {
       console.error('Contradiction analysis error:', err);
-      setContradictionsError(err?.message || 'Unable to complete contradiction and perspective difference reasoning.');
+      if (prevScopeKeyRef.current === requestScopeKey) {
+        setContradictionsError(err?.message || 'Unable to complete contradiction and perspective difference reasoning.');
+      }
     } finally {
-      setLoadingContradictions(false);
+      if (prevScopeKeyRef.current === requestScopeKey) {
+        setLoadingContradictions(false);
+      }
     }
   };
 
   const handleAnalyzeTimeline = async () => {
     if (targetEntries.length < 2) return;
 
+    const requestScopeKey = currentScopeKey;
     setLoadingTimeline(true);
     setTimelineError(null);
 
@@ -246,12 +281,19 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         throw new Error(data.details ? `${data.error || 'Error'}: ${data.details}` : (data.error || 'Failed to analyze signal timeline.'));
       }
 
-      setTimelineResult(data.result);
+      // Race-protection: only commit result if active scope key has not changed during request
+      if (prevScopeKeyRef.current === requestScopeKey) {
+        setTimelineResult(data.result);
+      }
     } catch (err: any) {
       console.error('Signal timeline error:', err);
-      setTimelineError(err?.message || 'Unable to complete signal timeline reasoning.');
+      if (prevScopeKeyRef.current === requestScopeKey) {
+        setTimelineError(err?.message || 'Unable to complete signal timeline reasoning.');
+      }
     } finally {
-      setLoadingTimeline(false);
+      if (prevScopeKeyRef.current === requestScopeKey) {
+        setLoadingTimeline(false);
+      }
     }
   };
 
@@ -344,6 +386,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           >
             <Compass className="w-3.5 h-3.5 text-amber-900" />
             <span>Reflection Wrapped</span>
+          </button>
+          <button
+            id="tab-then-vs-now-btn"
+            onClick={() => setActiveTab('then_now')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+              activeTab === 'then_now'
+                ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                : 'text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5 text-amber-800" />
+            <span>Then vs Now</span>
           </button>
         </div>
       </div>
@@ -1126,6 +1180,17 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           loadingPatterns={loadingPatterns}
           loadingTimeline={loadingTimeline}
           onAnalyzePatterns={handleAnalyzePatterns}
+          onAnalyzeTimeline={handleAnalyzeTimeline}
+          onSelectEntry={onSelectEntry}
+        />
+      )}
+
+      {/* Then vs Now View */}
+      {activeTab === 'then_now' && (
+        <ThenVsNowComparison
+          targetEntries={targetEntries}
+          timelineResult={timelineResult}
+          loadingTimeline={loadingTimeline}
           onAnalyzeTimeline={handleAnalyzeTimeline}
           onSelectEntry={onSelectEntry}
         />

@@ -116,6 +116,35 @@ export interface PersonalThemesResult {
   themes: PersonalTheme[];
 }
 
+export type ReflectionConnectionType =
+  | 'shared_signal'
+  | 'contrasting_interpretation'
+  | 'parallel_context';
+
+export interface ReflectionConnectionEvidence {
+  entryId: string;
+  entryTitle: string;
+  entryDate: string;
+  observedSignal: string;
+}
+
+export interface ReflectionConnection {
+  id: string;
+  sourceEntryId: string;
+  targetEntryId: string;
+  connectionType: ReflectionConnectionType;
+  groundedReason: string;
+  reflectionQuestion?: string;
+  source: ReflectionConnectionEvidence;
+  target: ReflectionConnectionEvidence;
+}
+
+export interface ReflectionConnectionsResult {
+  hasSufficientEvidence: boolean;
+  message?: string;
+  connections: ReflectionConnection[];
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';

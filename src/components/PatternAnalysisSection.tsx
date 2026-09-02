@@ -9,12 +9,14 @@ import {
   SignalTimelineShift,
   AskJournalResult,
   PersonalThemesResult,
+  ReflectionConnectionsResult,
 } from '../types';
 import { auth } from '../lib/firebase';
 import { ReflectionWrapped } from './ReflectionWrapped';
 import { ThenVsNowComparison } from './ThenVsNowComparison';
 import { AskMyJournal } from './AskMyJournal';
 import { PersonalThemesView } from './PersonalThemesView';
+import { ReflectionConnectionsView } from './ReflectionConnectionsView';
 import {
   Layers,
   Sparkles,
@@ -40,6 +42,7 @@ import {
   X,
   MessageSquareQuote,
   Tag,
+  GitCommit,
 } from 'lucide-react';
 
 interface PatternAnalysisSectionProps {
@@ -51,7 +54,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   entries,
   onSelectEntry,
 }) => {
-  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions' | 'timeline' | 'wrapped' | 'then_now' | 'ask_journal' | 'themes'>('patterns');
+  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions' | 'timeline' | 'wrapped' | 'then_now' | 'ask_journal' | 'themes' | 'connections'>('patterns');
 
   // Day 5 Patterns State
   const [patternsResult, setPatternsResult] = useState<CrossEntryAnalysisResult | null>(null);
@@ -83,6 +86,14 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   const themesAbortControllerRef = useRef<AbortController | null>(null);
   const themesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Reflection Connections State (Pairwise Semantic Mapping)
+  const [connectionsResult, setConnectionsResult] = useState<ReflectionConnectionsResult | null>(null);
+  const [loadingConnections, setLoadingConnections] = useState(false);
+  const [connectionsError, setConnectionsError] = useState<string | null>(null);
+  const connectionsRequestIdRef = useRef<number>(0);
+  const connectionsAbortControllerRef = useRef<AbortController | null>(null);
+  const connectionsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Filter entries that have a structured summary
   const structuredEntries = entries.filter((e) => Boolean(e.summary));
 
@@ -111,6 +122,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       prevScopeKeyRef.current = currentScopeKey;
       askRequestIdRef.current += 1;
       themesRequestIdRef.current += 1;
+      connectionsRequestIdRef.current += 1;
       if (themesAbortControllerRef.current) {
         themesAbortControllerRef.current.abort();
         themesAbortControllerRef.current = null;
@@ -119,18 +131,29 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         clearTimeout(themesTimeoutRef.current);
         themesTimeoutRef.current = null;
       }
+      if (connectionsAbortControllerRef.current) {
+        connectionsAbortControllerRef.current.abort();
+        connectionsAbortControllerRef.current = null;
+      }
+      if (connectionsTimeoutRef.current) {
+        clearTimeout(connectionsTimeoutRef.current);
+        connectionsTimeoutRef.current = null;
+      }
       setPatternsResult(null);
       setContradictionsResult(null);
       setTimelineResult(null);
       setAskJournalResult(null);
       setThemesResult(null);
+      setConnectionsResult(null);
       setPatternsError(null);
       setContradictionsError(null);
       setTimelineError(null);
       setAskJournalError(null);
       setThemesError(null);
+      setConnectionsError(null);
       setLoadingAskJournal(false);
       setLoadingThemes(false);
+      setLoadingConnections(false);
     }
   }, [currentScopeKey]);
 
@@ -144,6 +167,14 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       if (themesTimeoutRef.current) {
         clearTimeout(themesTimeoutRef.current);
         themesTimeoutRef.current = null;
+      }
+      if (connectionsAbortControllerRef.current) {
+        connectionsAbortControllerRef.current.abort();
+        connectionsAbortControllerRef.current = null;
+      }
+      if (connectionsTimeoutRef.current) {
+        clearTimeout(connectionsTimeoutRef.current);
+        connectionsTimeoutRef.current = null;
       }
     };
   }, []);
@@ -542,6 +573,102 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
     }
   };
 
+  const handleAnalyzeConnections = async () => {
+    if (targetEntries.length < 2) return;
+    if (loadingConnections) return;
+
+    // Clean up any pending connections timer or in-flight fetch
+    if (connectionsAbortControllerRef.current) {
+      connectionsAbortControllerRef.current.abort();
+      connectionsAbortControllerRef.current = null;
+    }
+    if (connectionsTimeoutRef.current) {
+      clearTimeout(connectionsTimeoutRef.current);
+      connectionsTimeoutRef.current = null;
+    }
+
+    setLoadingConnections(true);
+    setConnectionsError(null);
+    setConnectionsResult(null);
+
+    const requestScopeKey = currentScopeKey;
+    connectionsRequestIdRef.current += 1;
+    const currentRequestId = connectionsRequestIdRef.current;
+
+    const abortController = new AbortController();
+    connectionsAbortControllerRef.current = abortController;
+
+    // Frontend safety timeout (48 seconds, matching backend overall limit of 45s)
+    const timeoutId = setTimeout(() => {
+      if (connectionsRequestIdRef.current === currentRequestId && prevScopeKeyRef.current === requestScopeKey) {
+        abortController.abort();
+        setConnectionsError('Connection analysis took too long. Please try again.');
+        setLoadingConnections(false);
+      }
+    }, 48000);
+    connectionsTimeoutRef.current = timeoutId;
+
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('You must be signed in to analyze reflection connections.');
+      }
+
+      const idToken = await currentUser.getIdToken();
+
+      const payloadEntries = targetEntries.map((e) => ({
+        id: e.id,
+        title: e.title,
+        date: e.date,
+        summary: e.summary,
+      }));
+
+      const res = await fetch('/api/connections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          entries: payloadEntries,
+        }),
+        signal: abortController.signal,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.details ? `${data.error || 'Error'}: ${data.details}` : (data.error || 'Failed to analyze reflection connections.'));
+      }
+
+      // Race-protection: only commit result if active scope key has not changed and requestId is latest
+      if (prevScopeKeyRef.current === requestScopeKey && connectionsRequestIdRef.current === currentRequestId) {
+        setConnectionsResult(data.result);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        if (prevScopeKeyRef.current === requestScopeKey && connectionsRequestIdRef.current === currentRequestId) {
+          setConnectionsError((prev) => prev || 'Connection analysis took too long. Please try again.');
+        }
+      } else {
+        console.error('Reflection Connections analysis error:', err);
+        if (prevScopeKeyRef.current === requestScopeKey && connectionsRequestIdRef.current === currentRequestId) {
+          setConnectionsError(err?.message || 'Unable to discover reflection connections across reflections.');
+        }
+      }
+    } finally {
+      if (connectionsTimeoutRef.current === timeoutId) {
+        clearTimeout(connectionsTimeoutRef.current);
+        connectionsTimeoutRef.current = null;
+      }
+      if (connectionsAbortControllerRef.current === abortController) {
+        connectionsAbortControllerRef.current = null;
+      }
+      if (prevScopeKeyRef.current === requestScopeKey && connectionsRequestIdRef.current === currentRequestId) {
+        setLoadingConnections(false);
+      }
+    }
+  };
+
   const handleOpenSupportingEntry = (entryId: string) => {
     const target = entries.find((e) => e.id === entryId);
     if (target) {
@@ -584,7 +711,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
         {/* Tab Toggle - Responsive multi-row wrap / grid layout */}
         <div className="p-1 bg-stone-100/80 rounded-xl border border-stone-200/60 w-full xl:w-auto overflow-hidden">
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:flex xl:flex-wrap gap-1 w-full">
+          <div className="grid grid-cols-2 sm:grid-cols-4 xl:flex xl:flex-wrap gap-1 w-full">
             <button
               id="tab-recurring-patterns-btn"
               onClick={() => setActiveTab('patterns')}
@@ -668,6 +795,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             >
               <MessageSquareQuote className="w-3.5 h-3.5 text-amber-800 shrink-0" />
               <span>Ask My Journal</span>
+            </button>
+            <button
+              id="tab-reflection-connections-btn"
+              onClick={() => setActiveTab('connections')}
+              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'connections'
+                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
+              }`}
+            >
+              <GitCommit className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+              <span>Connections</span>
             </button>
           </div>
         </div>
@@ -1511,6 +1650,19 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           loading={loadingThemes}
           error={themesError}
           onAnalyzeThemes={handleAnalyzeThemes}
+          onSelectEntry={onSelectEntry}
+        />
+      )}
+
+      {/* Reflection Connections View */}
+      {activeTab === 'connections' && (
+        <ReflectionConnectionsView
+          targetEntries={targetEntries}
+          allEntries={entries}
+          result={connectionsResult}
+          loading={loadingConnections}
+          error={connectionsError}
+          onAnalyzeConnections={handleAnalyzeConnections}
           onSelectEntry={onSelectEntry}
         />
       )}

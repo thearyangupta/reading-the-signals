@@ -91,6 +91,31 @@ export interface AskJournalResult {
   message?: string;
 }
 
+export interface PersonalThemeObservedSignal {
+  signal: string;
+  entryId: string;
+  entryTitle: string;
+  entryDate: string;
+}
+
+export interface PersonalTheme {
+  id: string;
+  name: string;
+  groundedSummary: string;
+  supportingEntryIds: string[];
+  firstSeenDate: string;
+  lastSeenDate: string;
+  frequency: number;
+  observedSignals: PersonalThemeObservedSignal[];
+  reflectionQuestion?: string;
+}
+
+export interface PersonalThemesResult {
+  hasSufficientEvidence: boolean;
+  message?: string;
+  themes: PersonalTheme[];
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';

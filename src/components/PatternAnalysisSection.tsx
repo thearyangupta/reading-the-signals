@@ -8,11 +8,13 @@ import {
   SignalTimelineResult,
   SignalTimelineShift,
   AskJournalResult,
+  PersonalThemesResult,
 } from '../types';
 import { auth } from '../lib/firebase';
 import { ReflectionWrapped } from './ReflectionWrapped';
 import { ThenVsNowComparison } from './ThenVsNowComparison';
 import { AskMyJournal } from './AskMyJournal';
+import { PersonalThemesView } from './PersonalThemesView';
 import {
   Layers,
   Sparkles,
@@ -37,6 +39,7 @@ import {
   Square,
   X,
   MessageSquareQuote,
+  Tag,
 } from 'lucide-react';
 
 interface PatternAnalysisSectionProps {
@@ -48,7 +51,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   entries,
   onSelectEntry,
 }) => {
-  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions' | 'timeline' | 'wrapped' | 'then_now' | 'ask_journal'>('patterns');
+  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions' | 'timeline' | 'wrapped' | 'then_now' | 'ask_journal' | 'themes'>('patterns');
 
   // Day 5 Patterns State
   const [patternsResult, setPatternsResult] = useState<CrossEntryAnalysisResult | null>(null);
@@ -71,6 +74,14 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   const [loadingAskJournal, setLoadingAskJournal] = useState(false);
   const [askJournalError, setAskJournalError] = useState<string | null>(null);
   const askRequestIdRef = useRef<number>(0);
+
+  // Personal Themes State (v2 Server Semantic Clustering)
+  const [themesResult, setThemesResult] = useState<PersonalThemesResult | null>(null);
+  const [loadingThemes, setLoadingThemes] = useState(false);
+  const [themesError, setThemesError] = useState<string | null>(null);
+  const themesRequestIdRef = useRef<number>(0);
+  const themesAbortControllerRef = useRef<AbortController | null>(null);
+  const themesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Filter entries that have a structured summary
   const structuredEntries = entries.filter((e) => Boolean(e.summary));
@@ -99,17 +110,43 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
     if (prevScopeKeyRef.current !== currentScopeKey) {
       prevScopeKeyRef.current = currentScopeKey;
       askRequestIdRef.current += 1;
+      themesRequestIdRef.current += 1;
+      if (themesAbortControllerRef.current) {
+        themesAbortControllerRef.current.abort();
+        themesAbortControllerRef.current = null;
+      }
+      if (themesTimeoutRef.current) {
+        clearTimeout(themesTimeoutRef.current);
+        themesTimeoutRef.current = null;
+      }
       setPatternsResult(null);
       setContradictionsResult(null);
       setTimelineResult(null);
       setAskJournalResult(null);
+      setThemesResult(null);
       setPatternsError(null);
       setContradictionsError(null);
       setTimelineError(null);
       setAskJournalError(null);
+      setThemesError(null);
       setLoadingAskJournal(false);
+      setLoadingThemes(false);
     }
   }, [currentScopeKey]);
+
+  // Clean up timers and controllers on unmount
+  useEffect(() => {
+    return () => {
+      if (themesAbortControllerRef.current) {
+        themesAbortControllerRef.current.abort();
+        themesAbortControllerRef.current = null;
+      }
+      if (themesTimeoutRef.current) {
+        clearTimeout(themesTimeoutRef.current);
+        themesTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Scope handlers
   const handleOpenScopeModal = () => {
@@ -409,6 +446,102 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
     }
   };
 
+  const handleAnalyzeThemes = async () => {
+    if (targetEntries.length < 2) return;
+    if (loadingThemes) return;
+
+    // Clean up any pending themes timer or in-flight fetch
+    if (themesAbortControllerRef.current) {
+      themesAbortControllerRef.current.abort();
+      themesAbortControllerRef.current = null;
+    }
+    if (themesTimeoutRef.current) {
+      clearTimeout(themesTimeoutRef.current);
+      themesTimeoutRef.current = null;
+    }
+
+    setLoadingThemes(true);
+    setThemesError(null);
+    setThemesResult(null);
+
+    const requestScopeKey = currentScopeKey;
+    themesRequestIdRef.current += 1;
+    const currentRequestId = themesRequestIdRef.current;
+
+    const abortController = new AbortController();
+    themesAbortControllerRef.current = abortController;
+
+    // Frontend safety timeout (48 seconds, since backend overall limit is 45s)
+    const timeoutId = setTimeout(() => {
+      if (themesRequestIdRef.current === currentRequestId && prevScopeKeyRef.current === requestScopeKey) {
+        abortController.abort();
+        setThemesError('Theme analysis took too long. Please try again.');
+        setLoadingThemes(false);
+      }
+    }, 48000);
+    themesTimeoutRef.current = timeoutId;
+
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('You must be signed in to analyze personal themes.');
+      }
+
+      const idToken = await currentUser.getIdToken();
+
+      const payloadEntries = targetEntries.map((e) => ({
+        id: e.id,
+        title: e.title,
+        date: e.date,
+        summary: e.summary,
+      }));
+
+      const res = await fetch('/api/themes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          entries: payloadEntries,
+        }),
+        signal: abortController.signal,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.details ? `${data.error || 'Error'}: ${data.details}` : (data.error || 'Failed to analyze personal themes.'));
+      }
+
+      // Race-protection: only commit result if active scope key has not changed and requestId is latest
+      if (prevScopeKeyRef.current === requestScopeKey && themesRequestIdRef.current === currentRequestId) {
+        setThemesResult(data.result);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        if (prevScopeKeyRef.current === requestScopeKey && themesRequestIdRef.current === currentRequestId) {
+          setThemesError((prev) => prev || 'Theme analysis took too long. Please try again.');
+        }
+      } else {
+        console.error('Personal Themes analysis error:', err);
+        if (prevScopeKeyRef.current === requestScopeKey && themesRequestIdRef.current === currentRequestId) {
+          setThemesError(err?.message || 'Unable to discover personal themes across reflections.');
+        }
+      }
+    } finally {
+      if (themesTimeoutRef.current === timeoutId) {
+        clearTimeout(themesTimeoutRef.current);
+        themesTimeoutRef.current = null;
+      }
+      if (themesAbortControllerRef.current === abortController) {
+        themesAbortControllerRef.current = null;
+      }
+      if (prevScopeKeyRef.current === requestScopeKey && themesRequestIdRef.current === currentRequestId) {
+        setLoadingThemes(false);
+      }
+    }
+  };
+
   const handleOpenSupportingEntry = (entryId: string) => {
     const target = entries.find((e) => e.id === entryId);
     if (target) {
@@ -511,6 +644,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             >
               <Clock className="w-3.5 h-3.5 text-amber-800 shrink-0" />
               <span>Then vs Now</span>
+            </button>
+            <button
+              id="tab-personal-themes-btn"
+              onClick={() => setActiveTab('themes')}
+              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'themes'
+                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
+                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
+              }`}
+            >
+              <Tag className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+              <span>Personal Themes</span>
             </button>
             <button
               id="tab-ask-my-journal-btn"
@@ -1353,6 +1498,19 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           result={askJournalResult}
           loading={loadingAskJournal}
           error={askJournalError}
+          onSelectEntry={onSelectEntry}
+        />
+      )}
+
+      {/* Personal Themes View */}
+      {activeTab === 'themes' && (
+        <PersonalThemesView
+          targetEntries={targetEntries}
+          allEntries={entries}
+          result={themesResult}
+          loading={loadingThemes}
+          error={themesError}
+          onAnalyzeThemes={handleAnalyzeThemes}
           onSelectEntry={onSelectEntry}
         />
       )}

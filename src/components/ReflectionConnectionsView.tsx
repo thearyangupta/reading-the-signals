@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   JournalEntry,
   ReflectionConnection,
@@ -41,6 +41,16 @@ export const ReflectionConnectionsView: React.FC<ReflectionConnectionsViewProps>
   onSelectEntry,
 }) => {
   const [focusEntryId, setFocusEntryId] = useState<string>('all');
+
+  // Deterministic effective scope key based on exact sorted target entry IDs
+  const currentScopeKey = useMemo(() => {
+    return JSON.stringify(targetEntries.map((e) => e.id).sort());
+  }, [targetEntries]);
+
+  // Reset local focus filter to "All Reflections" whenever targetEntries scope changes
+  useEffect(() => {
+    setFocusEntryId('all');
+  }, [currentScopeKey]);
 
   // Lookup map for resolving entry titles, dates, and details from all available entries
   const entryLookup = useMemo(() => {
@@ -395,16 +405,42 @@ export const ReflectionConnectionsView: React.FC<ReflectionConnectionsViewProps>
                               </button>
                             </div>
 
-                            {conn.source.observedSignal && (
-                              <div className="pt-2 border-t border-stone-200/50">
-                                <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
-                                  Observed Signal
-                                </p>
-                                <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed mt-0.5">
-                                  {conn.source.observedSignal}
-                                </p>
-                              </div>
-                            )}
+                            <div className="space-y-2 pt-1">
+                              {conn.source.observedSignal && (
+                                <div className="pt-2 border-t border-stone-200/50">
+                                  <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
+                                    Observed Signal
+                                  </p>
+                                  <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed mt-0.5">
+                                    {conn.source.observedSignal}
+                                  </p>
+                                </div>
+                              )}
+
+                              {conn.source.recordedInterpretation && (
+                                <div className="pt-2 border-t border-stone-200/50">
+                                  <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
+                                    Recorded Interpretation
+                                  </p>
+                                  <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed mt-0.5">
+                                    {conn.source.recordedInterpretation}
+                                  </p>
+                                </div>
+                              )}
+
+                              {conn.source.emotionalTone && (
+                                <div className="pt-2 border-t border-stone-200/50">
+                                  <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
+                                    Emotional Tone
+                                  </p>
+                                  <p className="text-xs text-stone-600 leading-relaxed mt-0.5">
+                                    <span className="inline-block px-2 py-0.5 rounded-full bg-stone-200/70 text-[11px] font-medium text-stone-700">
+                                      {conn.source.emotionalTone}
+                                    </span>
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           {/* Target Entry */}
@@ -436,16 +472,42 @@ export const ReflectionConnectionsView: React.FC<ReflectionConnectionsViewProps>
                               </button>
                             </div>
 
-                            {conn.target.observedSignal && (
-                              <div className="pt-2 border-t border-stone-200/50">
-                                <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
-                                  Observed Signal
-                                </p>
-                                <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed mt-0.5">
-                                  {conn.target.observedSignal}
-                                </p>
-                              </div>
-                            )}
+                            <div className="space-y-2 pt-1">
+                              {conn.target.observedSignal && (
+                                <div className="pt-2 border-t border-stone-200/50">
+                                  <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
+                                    Observed Signal
+                                  </p>
+                                  <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed mt-0.5">
+                                    {conn.target.observedSignal}
+                                  </p>
+                                </div>
+                              )}
+
+                              {conn.target.recordedInterpretation && (
+                                <div className="pt-2 border-t border-stone-200/50">
+                                  <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
+                                    Recorded Interpretation
+                                  </p>
+                                  <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed mt-0.5">
+                                    {conn.target.recordedInterpretation}
+                                  </p>
+                                </div>
+                              )}
+
+                              {conn.target.emotionalTone && (
+                                <div className="pt-2 border-t border-stone-200/50">
+                                  <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
+                                    Emotional Tone
+                                  </p>
+                                  <p className="text-xs text-stone-600 leading-relaxed mt-0.5">
+                                    <span className="inline-block px-2 py-0.5 rounded-full bg-stone-200/70 text-[11px] font-medium text-stone-700">
+                                      {conn.target.emotionalTone}
+                                    </span>
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
 

@@ -126,6 +126,8 @@ export interface ReflectionConnectionEvidence {
   entryTitle: string;
   entryDate: string;
   observedSignal: string;
+  recordedInterpretation?: string;
+  emotionalTone?: string;
 }
 
 export interface ReflectionConnection {

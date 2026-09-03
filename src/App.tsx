@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useMatch, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth, signOutUser, subscribeUserEntries } from './lib/firebase';
 import { UserProfile, JournalEntry } from './types';
@@ -8,24 +8,29 @@ import { AuthView } from './components/AuthView';
 import { JournalList } from './components/JournalList';
 import { JournalEditor } from './components/JournalEditor';
 import { EntryDetailModal } from './components/EntryDetailModal';
+import { EntryDetailPage } from './components/EntryDetailPage';
 import { PatternAnalysisSection } from './components/PatternAnalysisSection';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
+  const routedEntryMatch = useMatch('/journal/:entryId');
+  const routedEntryId = routedEntryMatch?.params.entryId;
   const activeView: AppView = location.pathname === '/insights' ? 'insights' : 'journal';
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
+  const [hasEntriesSnapshot, setHasEntriesSnapshot] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Modal / View states
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
+  const journalDetailNavigationRef = useRef<string | null>(null);
 
   // Tracks whether this session has ever seen an authenticated user, so the
   // sign-out branch below can distinguish a genuine sign-out (reset to
@@ -51,6 +56,7 @@ export default function App() {
         hasBeenSignedInRef.current = false;
         setUser(null);
         setEntries([]);
+        setHasEntriesSnapshot(false);
         setSelectedEntry(null);
         setEditorOpen(false);
         setEditingEntry(null);
@@ -69,15 +75,19 @@ export default function App() {
     if (!user) {
       setEntries([]);
       setEntriesLoading(false);
+      setHasEntriesSnapshot(false);
       return;
     }
 
     setEntriesLoading(true);
+    setHasEntriesSnapshot(false);
+    setEntries([]);
     const unsubscribe = subscribeUserEntries(
       user.uid,
       (updatedEntries) => {
         setEntries(updatedEntries);
         setEntriesLoading(false);
+        setHasEntriesSnapshot(true);
         // If an active modal entry was updated externally or saved, keep selectedEntry in sync
         setSelectedEntry((prev) => {
           if (!prev) return null;
@@ -115,6 +125,7 @@ export default function App() {
   };
 
   const handleSaveSuccess = (savedEntry: Partial<JournalEntry>) => {
+    if (routedEntryId) return;
     if (savedEntry.id) {
       const fullEntry = entries.find((e) => e.id === savedEntry.id);
       if (fullEntry) {
@@ -128,6 +139,19 @@ export default function App() {
     if (selectedEntry?.id === entryId) {
       setSelectedEntry(null);
     }
+  };
+
+  const routedEntry = routedEntryId
+    ? entries.find((entry) => entry.id === routedEntryId)
+    : undefined;
+
+  const handleRoutedBack = () => {
+    if (location.state?.fromJournal === true && journalDetailNavigationRef.current === routedEntryId) {
+      journalDetailNavigationRef.current = null;
+      navigate(-1);
+      return;
+    }
+    navigate('/journal');
   };
 
   if (authLoading) {
@@ -157,6 +181,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/journal" replace />} />
         <Route path="/journal" element={null} />
+        <Route path="/journal/:entryId" element={null} />
         <Route path="/insights" element={null} />
         <Route path="*" element={<Navigate to="/journal" replace />} />
       </Routes>
@@ -192,6 +217,32 @@ export default function App() {
         {!user ? (
           <AuthView onAuthSuccess={() => {}} />
         ) : (
+          routedEntryId ? (
+            !hasEntriesSnapshot ? (
+              <p role="status" className="py-12 text-center text-sm text-text-muted">Opening reflection&hellip;</p>
+            ) : routedEntry ? (
+              <EntryDetailPage
+                userId={user.uid}
+                entry={routedEntry}
+                onBack={handleRoutedBack}
+                onEdit={handleOpenEditEntry}
+                onDelete={(entryId) => {
+                  handleDeleteEntry(entryId);
+                  navigate('/journal', { replace: true });
+                }}
+                onUpdate={(updated) => {
+                  setEntries((prev) => prev.map((entry) => (entry.id === updated.id ? updated : entry)));
+                }}
+              />
+            ) : (
+              <div className="rounded-feature border border-border bg-surface px-6 py-12 text-center">
+                <h2 className="font-serif text-xl font-semibold text-text-primary">This reflection isn't available.</h2>
+                <button type="button" onClick={() => navigate('/journal')} className="mt-5 min-h-11 rounded-control border border-border bg-surface px-4 text-sm font-semibold text-text-primary hover:bg-surface-subtle">
+                  Back to Journal
+                </button>
+              </div>
+            )
+          ) : (
           <div className={activeView === 'journal' ? 'mx-auto w-full max-w-journal space-y-8' : 'w-full space-y-6'}>
             <div className="border-b border-border pb-4">
               <div>
@@ -211,7 +262,10 @@ export default function App() {
                 entries={entries}
                 loading={entriesLoading}
                 userId={user.uid}
-                onSelectEntry={(entry) => setSelectedEntry(entry)}
+                onSelectEntry={(entry) => {
+                  journalDetailNavigationRef.current = entry.id;
+                  navigate(`/journal/${encodeURIComponent(entry.id)}`, { state: { fromJournal: true } });
+                }}
                 onNewEntry={handleOpenNewEntry}
               />
             ) : entriesLoading ? (
@@ -227,6 +281,7 @@ export default function App() {
               </div>
             )}
           </div>
+          )
         )}
       </main>
 

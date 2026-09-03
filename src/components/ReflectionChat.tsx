@@ -8,6 +8,7 @@ interface ReflectionChatProps {
   entry: JournalEntry;
   onEntryUpdated: (updated: JournalEntry) => void;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  scrollMode?: 'contained' | 'document';
 }
 
 const SUGGESTED_PROMPTS = [
@@ -22,6 +23,7 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
   entry,
   onEntryUpdated,
   scrollContainerRef,
+  scrollMode = 'contained',
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(entry.reflections || []);
   const [input, setInput] = useState('');
@@ -42,7 +44,9 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
       const composer = composerRef.current;
       if (!scrollContainer || !composer) return;
 
-      const containerBounds = scrollContainer.getBoundingClientRect();
+      const containerBounds = scrollMode === 'contained'
+        ? scrollContainer.getBoundingClientRect()
+        : { top: 0, bottom: window.innerHeight };
       const composerBounds = composer.getBoundingClientRect();
       const overflowBelow = composerBounds.bottom - containerBounds.bottom;
       const overflowAbove = composerBounds.top - containerBounds.top;
@@ -54,7 +58,8 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
 
       if (scrollDistance !== 0) {
         const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        scrollContainer.scrollBy({
+        const scrollTarget = scrollMode === 'contained' ? scrollContainer : window;
+        scrollTarget.scrollBy({
           top: scrollDistance,
           behavior: reduceMotion ? 'auto' : 'smooth',
         });
@@ -63,7 +68,7 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
 
     if (!loading) autoScrollActiveRef.current = false;
     return () => window.cancelAnimationFrame(scrollFrame);
-  }, [messages, loading, scrollContainerRef]);
+  }, [messages, loading, scrollContainerRef, scrollMode]);
 
   const handleSendMessage = async (textToSend?: string) => {
     const messageContent = (textToSend || input).trim();

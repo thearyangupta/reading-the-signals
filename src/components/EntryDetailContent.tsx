@@ -11,6 +11,7 @@ interface EntryDetailContentProps {
   onDelete: (entryId: string) => void;
   onUpdate: (entry: JournalEntry) => void;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  scrollMode?: 'contained' | 'document';
   /**
    * Slot for a wrapper-owned header action (e.g. the modal's close button),
    * rendered alongside the title/date on the same header row. Intentionally
@@ -44,7 +45,7 @@ const formatEntryDate = (date: string) => {
 };
 
 export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, EntryDetailContentProps>(
-  ({ userId, entry, onEdit, onDelete, onUpdate, scrollContainerRef, headerAction }, ref) => {
+  ({ userId, entry, onEdit, onDelete, onUpdate, scrollContainerRef, scrollMode = 'contained', headerAction }, ref) => {
     const [summarizing, setSummarizing] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -161,7 +162,12 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
           {headerAction}
         </header>
 
-        <div ref={scrollContainerRef} className="min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain">
+        <div
+          ref={scrollContainerRef}
+          className={scrollMode === 'contained'
+            ? 'min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain'
+            : 'min-w-0 overflow-x-clip'}
+        >
           <div className="mx-auto min-w-0 w-full max-w-[54rem] space-y-10 px-4 py-6 sm:px-8 sm:py-10">
             {error && (
               <div role="alert" className="rounded-card border border-destructive/30 bg-destructive/5 p-3.5 text-sm text-destructive">
@@ -249,6 +255,7 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
                 entry={entry}
                 onEntryUpdated={onUpdate}
                 scrollContainerRef={scrollContainerRef}
+                scrollMode={scrollMode}
               />
             </section>
 

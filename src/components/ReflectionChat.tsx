@@ -29,12 +29,22 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [failedSubmission, setFailedSubmission] = useState<{ text: string; userMessageId: string } | null>(null);
   const composerRef = useRef<HTMLDivElement>(null);
   const autoScrollActiveRef = useRef(false);
+  const requestIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setMessages(entry.reflections || []);
   }, [entry.reflections]);
+
+  useEffect(() => () => {
+    requestIdRef.current += 1;
+    abortControllerRef.current?.abort();
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  }, []);
 
   useEffect(() => {
     if (!autoScrollActiveRef.current) return;
@@ -70,24 +80,58 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
     return () => window.cancelAnimationFrame(scrollFrame);
   }, [messages, loading, scrollContainerRef, scrollMode]);
 
-  const handleSendMessage = async (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string, isRetry = false) => {
     const messageContent = (textToSend || input).trim();
     if (!messageContent || loading) return;
 
     autoScrollActiveRef.current = true;
     setError(null);
-    setInput('');
+    const baseMessages = !isRetry && failedSubmission
+      ? messages.filter((message) => message.id !== failedSubmission.userMessageId)
+      : messages;
+    if (!isRetry) {
+      setFailedSubmission(null);
+      setInput('');
+    }
 
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: messageContent,
-      timestamp: Date.now(),
-    };
-
-    const newMessagesList = [...messages, userMessage];
-    setMessages(newMessagesList);
+    const retryTarget = isRetry ? failedSubmission : null;
+    const userMessage: ChatMessage = retryTarget
+      ? messages.find((message) => message.id === retryTarget.userMessageId) || {
+          id: retryTarget.userMessageId,
+          role: 'user',
+          content: retryTarget.text,
+          timestamp: Date.now(),
+        }
+      : {
+          id: `user-${Date.now()}`,
+          role: 'user',
+          content: messageContent,
+          timestamp: Date.now(),
+        };
+    const historyForRequest = retryTarget
+      ? messages.filter((message) => message.id !== retryTarget.userMessageId)
+      : baseMessages;
+    const newMessagesList = retryTarget ? messages : [...baseMessages, userMessage];
+    if (!retryTarget) setMessages(newMessagesList);
     setLoading(true);
+    let receivedModelReply = false;
+    const currentRequestId = ++requestIdRef.current;
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    const timeoutId = setTimeout(() => {
+      if (requestIdRef.current === currentRequestId) {
+        requestIdRef.current += 1;
+        abortController.abort();
+        abortControllerRef.current = null;
+        timeoutRef.current = null;
+        if (!receivedModelReply) {
+          setFailedSubmission({ text: messageContent, userMessageId: userMessage.id });
+        }
+        setError('This took too long. Please try again.');
+        setLoading(false);
+      }
+    }, 32000);
+    timeoutRef.current = timeoutId;
 
     try {
       const currentUser = auth.currentUser;
@@ -95,6 +139,7 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
         throw new Error('Please sign in to continue the reflection dialogue.');
       }
       const idToken = await currentUser.getIdToken();
+      if (requestIdRef.current !== currentRequestId) return;
 
       // 1. Send to server-side Gemini reflection partner endpoint
       const response = await fetch('/api/reflect', {
@@ -114,10 +159,12 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
             importantContext: entry.importantContext,
             summary: entry.summary,
           },
-          history: messages,
+          history: historyForRequest,
           userMessage: messageContent,
         }),
+        signal: abortController.signal,
       });
+      if (requestIdRef.current !== currentRequestId) return;
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -125,7 +172,9 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
       }
 
       const data = await response.json();
+      if (requestIdRef.current !== currentRequestId) return;
       const modelReply = data.reply || "I'm here with you. What else comes up as you reflect on this?";
+      receivedModelReply = true;
 
       const botMessage: ChatMessage = {
         id: `model-${Date.now()}`,
@@ -136,18 +185,31 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
 
       const finalMessagesList = [...newMessagesList, botMessage];
       setMessages(finalMessagesList);
+      setFailedSubmission(null);
 
       // 2. Persist updated reflections to Firestore
       await appendReflectionMessage(userId, entry.id, newMessagesList, botMessage);
-      onEntryUpdated({
-        ...entry,
-        reflections: finalMessagesList,
-      });
+      if (requestIdRef.current === currentRequestId) {
+        onEntryUpdated({
+          ...entry,
+          reflections: finalMessagesList,
+        });
+      }
     } catch (err: any) {
       console.error('Reflection chat error:', err);
-      setError(err?.message || 'Unable to communicate with the reflection partner. Please try again.');
+      if (requestIdRef.current === currentRequestId) {
+        if (!receivedModelReply) {
+          setFailedSubmission({ text: messageContent, userMessageId: userMessage.id });
+        }
+        setError(err?.message || 'Unable to communicate with the reflection partner. Please try again.');
+      }
     } finally {
-      setLoading(false);
+      if (timeoutRef.current === timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutRef.current = null;
+      }
+      if (abortControllerRef.current === abortController) abortControllerRef.current = null;
+      if (requestIdRef.current === currentRequestId) setLoading(false);
     }
   };
 
@@ -256,7 +318,8 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
             <span className="flex-1">{error}</span>
             <button
               type="button"
-              onClick={() => handleSendMessage()}
+              onClick={() => failedSubmission && handleSendMessage(failedSubmission.text, true)}
+              disabled={!failedSubmission || loading}
               className="min-h-11 px-2 text-xs font-medium underline"
             >
               Retry

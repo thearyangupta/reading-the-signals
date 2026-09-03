@@ -73,6 +73,59 @@ interface FallbackOptions {
   overallTimeoutMs?: number;
 }
 
+type AiErrorCode = 'AI_TIMEOUT' | 'AI_RATE_LIMIT' | 'AI_GENERATION_FAILED';
+
+class AiGenerationError extends Error {
+  constructor(public readonly code: AiErrorCode, message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'AiGenerationError';
+  }
+}
+
+const DEFAULT_PER_MODEL_TIMEOUT_MS = 12_000;
+const DEFAULT_OVERALL_TIMEOUT_MS = 28_000;
+
+function classifyAiError(error: unknown): AiErrorCode {
+  if (error instanceof AiGenerationError) return error.code;
+
+  const err = error as any;
+  const message = String(err?.message || '').toLowerCase();
+  const status = String(err?.status || '').toUpperCase();
+  if (
+    message.includes('429') ||
+    message.includes('resource_exhausted') ||
+    message.includes('quota') ||
+    status === 'RESOURCE_EXHAUSTED' ||
+    err?.code === 429
+  ) {
+    return 'AI_RATE_LIMIT';
+  }
+  if (
+    message.includes('504') ||
+    message.includes('deadline_exceeded') ||
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('deadline expired') ||
+    message.includes('aborted') ||
+    err?.name === 'AbortError'
+  ) {
+    return 'AI_TIMEOUT';
+  }
+  return 'AI_GENERATION_FAILED';
+}
+
+function sendAiError(res: Response, error: unknown, logContext: string): void {
+  console.error(logContext, error);
+  const code = classifyAiError(error);
+  const responseByCode: Record<AiErrorCode, { status: number; message: string }> = {
+    AI_TIMEOUT: { status: 504, message: 'This took too long. Please try again.' },
+    AI_RATE_LIMIT: { status: 429, message: 'AI is busy right now. Please try again shortly.' },
+    AI_GENERATION_FAILED: { status: 502, message: "Couldn't generate this. Please try again." },
+  };
+  const response = responseByCode[code];
+  res.status(response.status).json({ error: response.message, code });
+}
+
 async function generateWithFallback(
   promptOrContents: any,
   options: FallbackOptions = {}
@@ -83,19 +136,19 @@ async function generateWithFallback(
   let isTimedOut = false;
 
   const startTime = Date.now();
-  const overallDeadline = options.overallTimeoutMs ? startTime + options.overallTimeoutMs : null;
+  const perModelTimeoutMs = options.perModelTimeoutMs ?? DEFAULT_PER_MODEL_TIMEOUT_MS;
+  const overallTimeoutMs = options.overallTimeoutMs ?? DEFAULT_OVERALL_TIMEOUT_MS;
+  const overallDeadline = startTime + overallTimeoutMs;
 
   for (const modelName of FALLBACK_MODELS) {
     if (overallDeadline && Date.now() >= overallDeadline) {
-      console.info(`[Gemini Fallback] Overall deadline reached (${options.overallTimeoutMs}ms). Aborting further fallback attempts.`);
+      console.info(`[Gemini Fallback] Overall deadline reached (${overallTimeoutMs}ms). Aborting further fallback attempts.`);
       isTimedOut = true;
       break;
     }
 
-    const remainingBudget = overallDeadline ? overallDeadline - Date.now() : undefined;
-    const attemptTimeout = options.perModelTimeoutMs
-      ? (remainingBudget !== undefined ? Math.min(options.perModelTimeoutMs, remainingBudget) : options.perModelTimeoutMs)
-      : remainingBudget;
+    const remainingBudget = overallDeadline - Date.now();
+    const attemptTimeout = Math.min(perModelTimeoutMs, remainingBudget);
 
     if (attemptTimeout !== undefined && attemptTimeout <= 1000) {
       console.info(`[Gemini Fallback] Remaining time budget too low (${attemptTimeout}ms). Aborting further fallback attempts.`);
@@ -163,22 +216,15 @@ async function generateWithFallback(
     }
   }
 
-  if (
-    isTimedOut &&
-    (!lastError ||
-      String(lastError?.message || '').includes('Deadline') ||
-      String(lastError?.message || '').includes('timeout') ||
-      String(lastError?.message || '').includes('aborted') ||
-      lastError?.name === 'AbortError')
-  ) {
-    throw new Error('Analysis timed out while querying fallback models. Please try again.');
-  }
-
   if (isRateLimited) {
-    throw new Error('Gemini API rate limit or quota exceeded across models. Please wait a few seconds and try again.');
+    throw new AiGenerationError('AI_RATE_LIMIT', 'Gemini rate limit or quota exhausted.', { cause: lastError });
   }
 
-  throw new Error(`All fallback models failed. Last error: ${lastError?.message || 'Unknown error'}`);
+  if (isTimedOut) {
+    throw new AiGenerationError('AI_TIMEOUT', 'Gemini generation deadline exhausted.', { cause: lastError });
+  }
+
+  throw new AiGenerationError('AI_GENERATION_FAILED', 'All Gemini fallback models failed.', { cause: lastError });
 }
 
 const REFLECTION_PARTNER_SYSTEM_INSTRUCTION = `You are a calm, supportive, and non-judgmental reflection partner for a private personal reflection journal named "Reading the Signals".
@@ -509,11 +555,7 @@ Conservative Extraction Rules:
       modelUsed,
     });
   } catch (error: any) {
-    console.error('Error generating summary:', error);
-    res.status(500).json({
-      error: 'Failed to generate structured summary.',
-      details: error?.message || 'Internal server error',
-    });
+    sendAiError(res, error, 'Error generating summary:');
   }
 });
 
@@ -766,11 +808,7 @@ Task instructions:
       modelUsed,
     });
   } catch (error: any) {
-    console.error('Error in cross-entry pattern analysis:', error);
-    res.status(500).json({
-      error: 'Failed to complete cross-entry pattern analysis.',
-      details: error?.message || 'Internal server error',
-    });
+    sendAiError(res, error, 'Error in cross-entry pattern analysis:');
   }
 });
 
@@ -1028,11 +1066,7 @@ Task instructions:
       modelUsed,
     });
   } catch (error: any) {
-    console.error('Error in cross-entry contradiction analysis:', error);
-    res.status(500).json({
-      error: 'Failed to complete cross-entry contradiction analysis.',
-      details: error?.message || 'Internal server error',
-    });
+    sendAiError(res, error, 'Error in cross-entry contradiction analysis:');
   }
 });
 
@@ -1175,10 +1209,7 @@ ${JSON.stringify(normalizedEntries, null, 2)}`;
       parsedResult = JSON.parse(text);
     } catch (parseErr) {
       console.error('Failed to parse Gemini timeline response JSON:', parseErr, text);
-      return res.status(500).json({
-        error: 'Failed to parse AI timeline response.',
-        details: text,
-      });
+      throw new AiGenerationError('AI_GENERATION_FAILED', 'Failed to parse Gemini timeline response.', { cause: parseErr });
     }
 
     // Deterministic validation & sanitization
@@ -1279,11 +1310,7 @@ ${JSON.stringify(normalizedEntries, null, 2)}`;
       modelUsed,
     });
   } catch (error: any) {
-    console.error('Error in Signal Timeline analysis:', error);
-    res.status(500).json({
-      error: 'Failed to complete Signal Timeline analysis.',
-      details: error?.message || 'Internal server error',
-    });
+    sendAiError(res, error, 'Error in Signal Timeline analysis:');
   }
 });
 
@@ -1370,11 +1397,7 @@ Context: ${entry?.importantContext || entry?.summary?.importantContext || 'N/A'}
       modelUsed,
     });
   } catch (error: any) {
-    console.error('Error during reflection turn:', error);
-    res.status(500).json({
-      error: 'Failed to complete reflection dialogue step.',
-      details: error?.message || 'Internal server error',
-    });
+    sendAiError(res, error, 'Error during reflection turn:');
   }
 });
 
@@ -1672,11 +1695,7 @@ Task instructions:
       modelUsed,
     });
   } catch (error: any) {
-    console.error('Error during Ask My Journal query:', error);
-    res.status(500).json({
-      error: 'Failed to process Ask My Journal query.',
-      details: error?.message || 'Internal server error',
-    });
+    sendAiError(res, error, 'Error during Ask My Journal query:');
   }
 });
 
@@ -1924,8 +1943,6 @@ Instructions:
         systemInstruction: THEMES_SYSTEM_INSTRUCTION,
         responseMimeType: 'application/json',
         responseSchema: themesSchema,
-        perModelTimeoutMs: 18000,
-        overallTimeoutMs: 45000,
       }
     );
 
@@ -2064,16 +2081,7 @@ Instructions:
       modelUsed,
     });
   } catch (error: any) {
-    const errMsg = String(error?.message || '');
-    console.error('Error during Personal Themes analysis:', errMsg);
-    const isTimeout =
-      errMsg.toLowerCase().includes('time') ||
-      errMsg.toLowerCase().includes('deadline') ||
-      errMsg.includes('504');
-    res.status(isTimeout ? 504 : 500).json({
-      error: isTimeout ? 'Theme analysis took too long. Please try again.' : 'Failed to process Personal Themes analysis.',
-      details: isTimeout ? 'The request exceeded the allotted time limit.' : 'Unable to complete personal theme clustering at this time.',
-    });
+    sendAiError(res, error, 'Error during Personal Themes analysis:');
   }
 });
 
@@ -2376,8 +2384,6 @@ Instructions:
         systemInstruction: CONNECTIONS_SYSTEM_INSTRUCTION,
         responseMimeType: 'application/json',
         responseSchema: connectionsSchema,
-        perModelTimeoutMs: 18000,
-        overallTimeoutMs: 45000,
       }
     );
 
@@ -2500,16 +2506,7 @@ Instructions:
       modelUsed,
     });
   } catch (error: any) {
-    const errMsg = String(error?.message || '');
-    console.error('Error during Reflection Connections analysis:', errMsg);
-    const isTimeout =
-      errMsg.toLowerCase().includes('time') ||
-      errMsg.toLowerCase().includes('deadline') ||
-      errMsg.includes('504');
-    res.status(isTimeout ? 504 : 500).json({
-      error: isTimeout ? 'Connection analysis took too long. Please try again.' : 'Failed to process Reflection Connections analysis.',
-      details: isTimeout ? 'The request exceeded the allotted time limit.' : 'Unable to complete reflection connection analysis at this time.',
-    });
+    sendAiError(res, error, 'Error during Reflection Connections analysis:');
   }
 });
 

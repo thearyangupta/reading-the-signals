@@ -52,6 +52,9 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
     const [error, setError] = useState<string | null>(null);
     const cancelDeleteRef = useRef<HTMLButtonElement>(null);
     const deleteButtonRef = useRef<HTMLButtonElement>(null);
+    const summaryRequestIdRef = useRef(0);
+    const summaryAbortControllerRef = useRef<AbortController | null>(null);
+    const summaryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const cancelDelete = () => {
       setConfirmDelete(false);
@@ -67,16 +70,37 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
       if (confirmDelete) cancelDeleteRef.current?.focus();
     }, [confirmDelete]);
 
-    const handleGenerateSummary = async () => {
-      try {
-        setSummarizing(true);
-        setError(null);
+    useEffect(() => () => {
+      summaryRequestIdRef.current += 1;
+      summaryAbortControllerRef.current?.abort();
+      if (summaryTimeoutRef.current) clearTimeout(summaryTimeoutRef.current);
+    }, []);
 
+    const handleGenerateSummary = async () => {
+      const currentRequestId = ++summaryRequestIdRef.current;
+      const abortController = new AbortController();
+      summaryAbortControllerRef.current = abortController;
+      setSummarizing(true);
+      setError(null);
+      const timeoutId = setTimeout(() => {
+        if (summaryRequestIdRef.current === currentRequestId) {
+          summaryRequestIdRef.current += 1;
+          abortController.abort();
+          summaryAbortControllerRef.current = null;
+          summaryTimeoutRef.current = null;
+          setError('This took too long. Please try again.');
+          setSummarizing(false);
+        }
+      }, 32000);
+      summaryTimeoutRef.current = timeoutId;
+
+      try {
         const currentUser = auth.currentUser;
         if (!currentUser) {
           throw new Error('Please sign in to add AI observations.');
         }
         const idToken = await currentUser.getIdToken();
+        if (summaryRequestIdRef.current !== currentRequestId) return;
 
         const res = await fetch('/api/summarize', {
           method: 'POST',
@@ -92,9 +116,11 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
             feelingOrReaction: entry.feelingOrReaction,
             importantContext: entry.importantContext,
           }),
+          signal: abortController.signal,
         });
 
         const data = await res.json().catch(() => ({}));
+        if (summaryRequestIdRef.current !== currentRequestId) return;
         if (!res.ok) {
           throw new Error(
             data.details
@@ -106,13 +132,20 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
         if (data.summary) {
           const updatedEntry = { ...entry, summary: data.summary };
           await updateJournalEntry(userId, entry.id, { summary: data.summary });
-          onUpdate(updatedEntry);
+          if (summaryRequestIdRef.current === currentRequestId) onUpdate(updatedEntry);
         }
       } catch (err: any) {
         console.error(err);
-        setError(err?.message || 'Failed to generate summary.');
+        if (summaryRequestIdRef.current === currentRequestId) {
+          setError(err?.message || 'Failed to generate summary.');
+        }
       } finally {
-        setSummarizing(false);
+        if (summaryTimeoutRef.current === timeoutId) {
+          clearTimeout(timeoutId);
+          summaryTimeoutRef.current = null;
+        }
+        if (summaryAbortControllerRef.current === abortController) summaryAbortControllerRef.current = null;
+        if (summaryRequestIdRef.current === currentRequestId) setSummarizing(false);
       }
     };
 

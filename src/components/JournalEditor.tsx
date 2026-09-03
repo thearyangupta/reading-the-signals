@@ -50,6 +50,10 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const continueWritingRef = useRef<HTMLButtonElement>(null);
   const discardReturnFocusRef = useRef<HTMLElement | null>(null);
+  const aiRequestIdRef = useRef(0);
+  const aiAbortControllerRef = useRef<AbortController | null>(null);
+  const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(false);
 
   const isDirty =
     title !== initialValues.current.title ||
@@ -133,6 +137,16 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
     return () => window.cancelAnimationFrame(focusFrame);
   }, [presentation]);
 
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      aiRequestIdRef.current += 1;
+      aiAbortControllerRef.current?.abort();
+      if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current);
+    };
+  }, []);
+
   const handleSubmit = async (generateSummary: boolean) => {
     if (!title.trim() && !content.trim()) {
       setError('Please provide at least a title or some reflection content.');
@@ -148,41 +162,76 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
 
       if (generateSummary) {
         setAnalyzing(true);
-        try {
-          const currentUser = auth.currentUser;
-          if (!currentUser) {
-            throw new Error('Please sign in to add AI observations.');
+        const currentAiRequestId = ++aiRequestIdRef.current;
+        const abortController = new AbortController();
+        aiAbortControllerRef.current = abortController;
+        let resolveDeadline!: () => void;
+        const deadline = new Promise<void>((resolve) => {
+          resolveDeadline = resolve;
+        });
+        const timeoutId = setTimeout(() => {
+          if (aiRequestIdRef.current === currentAiRequestId) {
+            aiRequestIdRef.current += 1;
+            abortController.abort();
+            aiAbortControllerRef.current = null;
+            aiTimeoutRef.current = null;
+            setError('This took too long. Please try again.');
+            setAnalyzing(false);
           }
-          const idToken = await currentUser.getIdToken();
+          resolveDeadline();
+        }, 32000);
+        aiTimeoutRef.current = timeoutId;
 
-          const res = await fetch('/api/summarize', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${idToken}`,
-            },
-            body: JSON.stringify({
-              title,
-              content,
-              situation,
-              behaviorOrEvent,
-              feelingOrReaction,
-              importantContext,
-            }),
-          });
+        const generateSummaryWork = async () => {
+          try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) {
+              throw new Error('Please sign in to add AI observations.');
+            }
+            const idToken = await currentUser.getIdToken();
+            if (aiRequestIdRef.current !== currentAiRequestId) return;
 
-          if (res.ok) {
-            const data = await res.json();
-            if (data.summary) summary = data.summary;
-          } else {
-            console.warn('Could not generate automatic summary; saving entry without it.');
+            const res = await fetch('/api/summarize', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${idToken}`,
+              },
+              body: JSON.stringify({
+                title,
+                content,
+                situation,
+                behaviorOrEvent,
+                feelingOrReaction,
+                importantContext,
+              }),
+              signal: abortController.signal,
+            });
+
+            if (aiRequestIdRef.current !== currentAiRequestId) return;
+            if (res.ok) {
+              const data = await res.json();
+              if (aiRequestIdRef.current === currentAiRequestId && data.summary) summary = data.summary;
+            } else {
+              console.warn('Could not generate automatic summary; saving entry without it.');
+            }
+          } catch (aiErr) {
+            if (aiRequestIdRef.current === currentAiRequestId) {
+              console.warn('AI summary service error:', aiErr);
+            }
           }
-        } catch (aiErr) {
-          console.warn('AI summary service error:', aiErr);
-        } finally {
-          setAnalyzing(false);
+        };
+
+        await Promise.race([generateSummaryWork(), deadline]);
+        if (aiTimeoutRef.current === timeoutId) {
+          clearTimeout(timeoutId);
+          aiTimeoutRef.current = null;
         }
+        if (aiAbortControllerRef.current === abortController) aiAbortControllerRef.current = null;
+        if (aiRequestIdRef.current === currentAiRequestId) setAnalyzing(false);
       }
+
+      if (!isMountedRef.current) return;
 
       const entryPayload = {
         title: title.trim() || 'Untitled Reflection',
@@ -206,11 +255,15 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Error saving journal entry:', err);
-      setError(err?.message || 'Failed to save reflection to Firestore. Please try again.');
+      if (isMountedRef.current) {
+        setError(err?.message || 'Failed to save reflection to Firestore. Please try again.');
+      }
     } finally {
-      setSaving(false);
-      setAnalyzing(false);
-      setSaveIntent(null);
+      if (isMountedRef.current) {
+        setSaving(false);
+        setAnalyzing(false);
+        setSaveIntent(null);
+      }
     }
   };
 

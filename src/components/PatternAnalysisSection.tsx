@@ -173,16 +173,25 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   const [patternsResult, setPatternsResult] = useState<CrossEntryAnalysisResult | null>(null);
   const [loadingPatterns, setLoadingPatterns] = useState(false);
   const [patternsError, setPatternsError] = useState<string | null>(null);
+  const patternsRequestIdRef = useRef<number>(0);
+  const patternsAbortControllerRef = useRef<AbortController | null>(null);
+  const patternsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Day 6 Contradictions State
   const [contradictionsResult, setContradictionsResult] = useState<CrossEntryContradictionResult | null>(null);
   const [loadingContradictions, setLoadingContradictions] = useState(false);
   const [contradictionsError, setContradictionsError] = useState<string | null>(null);
+  const contradictionsRequestIdRef = useRef<number>(0);
+  const contradictionsAbortControllerRef = useRef<AbortController | null>(null);
+  const contradictionsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Signal Timeline State
   const [timelineResult, setTimelineResult] = useState<SignalTimelineResult | null>(null);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
+  const timelineRequestIdRef = useRef<number>(0);
+  const timelineAbortControllerRef = useRef<AbortController | null>(null);
+  const timelineTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Ask My Journal State
   const [askJournalQuestion, setAskJournalQuestion] = useState<string>('');
@@ -190,6 +199,8 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   const [loadingAskJournal, setLoadingAskJournal] = useState(false);
   const [askJournalError, setAskJournalError] = useState<string | null>(null);
   const askRequestIdRef = useRef<number>(0);
+  const askAbortControllerRef = useRef<AbortController | null>(null);
+  const askTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Personal Themes State (v2 Server Semantic Clustering)
   const [themesResult, setThemesResult] = useState<PersonalThemesResult | null>(null);
@@ -234,9 +245,28 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   useEffect(() => {
     if (prevScopeKeyRef.current !== currentScopeKey) {
       prevScopeKeyRef.current = currentScopeKey;
+      patternsRequestIdRef.current += 1;
+      contradictionsRequestIdRef.current += 1;
+      timelineRequestIdRef.current += 1;
       askRequestIdRef.current += 1;
       themesRequestIdRef.current += 1;
       connectionsRequestIdRef.current += 1;
+      patternsAbortControllerRef.current?.abort();
+      contradictionsAbortControllerRef.current?.abort();
+      timelineAbortControllerRef.current?.abort();
+      askAbortControllerRef.current?.abort();
+      patternsAbortControllerRef.current = null;
+      contradictionsAbortControllerRef.current = null;
+      timelineAbortControllerRef.current = null;
+      askAbortControllerRef.current = null;
+      if (patternsTimeoutRef.current) clearTimeout(patternsTimeoutRef.current);
+      if (contradictionsTimeoutRef.current) clearTimeout(contradictionsTimeoutRef.current);
+      if (timelineTimeoutRef.current) clearTimeout(timelineTimeoutRef.current);
+      if (askTimeoutRef.current) clearTimeout(askTimeoutRef.current);
+      patternsTimeoutRef.current = null;
+      contradictionsTimeoutRef.current = null;
+      timelineTimeoutRef.current = null;
+      askTimeoutRef.current = null;
       if (themesAbortControllerRef.current) {
         themesAbortControllerRef.current.abort();
         themesAbortControllerRef.current = null;
@@ -265,6 +295,9 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       setAskJournalError(null);
       setThemesError(null);
       setConnectionsError(null);
+      setLoadingPatterns(false);
+      setLoadingContradictions(false);
+      setLoadingTimeline(false);
       setLoadingAskJournal(false);
       setLoadingThemes(false);
       setLoadingConnections(false);
@@ -274,6 +307,14 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   // Clean up timers and controllers on unmount
   useEffect(() => {
     return () => {
+      patternsAbortControllerRef.current?.abort();
+      contradictionsAbortControllerRef.current?.abort();
+      timelineAbortControllerRef.current?.abort();
+      askAbortControllerRef.current?.abort();
+      if (patternsTimeoutRef.current) clearTimeout(patternsTimeoutRef.current);
+      if (contradictionsTimeoutRef.current) clearTimeout(contradictionsTimeoutRef.current);
+      if (timelineTimeoutRef.current) clearTimeout(timelineTimeoutRef.current);
+      if (askTimeoutRef.current) clearTimeout(askTimeoutRef.current);
       if (themesAbortControllerRef.current) {
         themesAbortControllerRef.current.abort();
         themesAbortControllerRef.current = null;
@@ -353,8 +394,22 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
     if (targetEntries.length < 2) return;
 
     const requestScopeKey = currentScopeKey;
+    const currentRequestId = ++patternsRequestIdRef.current;
+    const abortController = new AbortController();
+    patternsAbortControllerRef.current = abortController;
     setLoadingPatterns(true);
     setPatternsError(null);
+    const timeoutId = setTimeout(() => {
+      if (patternsRequestIdRef.current === currentRequestId && prevScopeKeyRef.current === requestScopeKey) {
+        patternsRequestIdRef.current += 1;
+        abortController.abort();
+        patternsAbortControllerRef.current = null;
+        patternsTimeoutRef.current = null;
+        setPatternsError('This took too long. Please try again.');
+        setLoadingPatterns(false);
+      }
+    }, 32000);
+    patternsTimeoutRef.current = timeoutId;
 
     try {
       const currentUser = auth.currentUser;
@@ -362,6 +417,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         throw new Error('Please sign in to analyze reflection patterns.');
       }
       const idToken = await currentUser.getIdToken();
+      if (patternsRequestIdRef.current !== currentRequestId || prevScopeKeyRef.current !== requestScopeKey) return;
 
       const payloadEntries = targetEntries.map((e) => ({
         id: e.id,
@@ -384,6 +440,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({ entries: payloadEntries }),
+        signal: abortController.signal,
       });
 
       const data = await res.json();
@@ -392,16 +449,21 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       }
 
       // Race-protection: only commit result if active scope key has not changed during request
-      if (prevScopeKeyRef.current === requestScopeKey) {
+      if (prevScopeKeyRef.current === requestScopeKey && patternsRequestIdRef.current === currentRequestId) {
         setPatternsResult(data.result);
       }
     } catch (err: any) {
       console.error('Pattern analysis error:', err);
-      if (prevScopeKeyRef.current === requestScopeKey) {
+      if (prevScopeKeyRef.current === requestScopeKey && patternsRequestIdRef.current === currentRequestId) {
         setPatternsError(err?.message || 'Unable to complete cross-entry pattern reasoning.');
       }
     } finally {
-      if (prevScopeKeyRef.current === requestScopeKey) {
+      if (patternsTimeoutRef.current === timeoutId) {
+        clearTimeout(timeoutId);
+        patternsTimeoutRef.current = null;
+      }
+      if (patternsAbortControllerRef.current === abortController) patternsAbortControllerRef.current = null;
+      if (prevScopeKeyRef.current === requestScopeKey && patternsRequestIdRef.current === currentRequestId) {
         setLoadingPatterns(false);
       }
     }
@@ -411,8 +473,22 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
     if (targetEntries.length < 2) return;
 
     const requestScopeKey = currentScopeKey;
+    const currentRequestId = ++contradictionsRequestIdRef.current;
+    const abortController = new AbortController();
+    contradictionsAbortControllerRef.current = abortController;
     setLoadingContradictions(true);
     setContradictionsError(null);
+    const timeoutId = setTimeout(() => {
+      if (contradictionsRequestIdRef.current === currentRequestId && prevScopeKeyRef.current === requestScopeKey) {
+        contradictionsRequestIdRef.current += 1;
+        abortController.abort();
+        contradictionsAbortControllerRef.current = null;
+        contradictionsTimeoutRef.current = null;
+        setContradictionsError('This took too long. Please try again.');
+        setLoadingContradictions(false);
+      }
+    }, 32000);
+    contradictionsTimeoutRef.current = timeoutId;
 
     try {
       const currentUser = auth.currentUser;
@@ -420,6 +496,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         throw new Error('Please sign in to analyze perspective differences.');
       }
       const idToken = await currentUser.getIdToken();
+      if (contradictionsRequestIdRef.current !== currentRequestId || prevScopeKeyRef.current !== requestScopeKey) return;
 
       const payloadEntries = targetEntries.map((e) => ({
         id: e.id,
@@ -442,6 +519,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({ entries: payloadEntries }),
+        signal: abortController.signal,
       });
 
       const data = await res.json();
@@ -450,16 +528,21 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       }
 
       // Race-protection: only commit result if active scope key has not changed during request
-      if (prevScopeKeyRef.current === requestScopeKey) {
+      if (prevScopeKeyRef.current === requestScopeKey && contradictionsRequestIdRef.current === currentRequestId) {
         setContradictionsResult(data.result);
       }
     } catch (err: any) {
       console.error('Contradiction analysis error:', err);
-      if (prevScopeKeyRef.current === requestScopeKey) {
+      if (prevScopeKeyRef.current === requestScopeKey && contradictionsRequestIdRef.current === currentRequestId) {
         setContradictionsError(err?.message || 'Unable to complete contradiction and perspective difference reasoning.');
       }
     } finally {
-      if (prevScopeKeyRef.current === requestScopeKey) {
+      if (contradictionsTimeoutRef.current === timeoutId) {
+        clearTimeout(timeoutId);
+        contradictionsTimeoutRef.current = null;
+      }
+      if (contradictionsAbortControllerRef.current === abortController) contradictionsAbortControllerRef.current = null;
+      if (prevScopeKeyRef.current === requestScopeKey && contradictionsRequestIdRef.current === currentRequestId) {
         setLoadingContradictions(false);
       }
     }
@@ -469,8 +552,22 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
     if (targetEntries.length < 2) return;
 
     const requestScopeKey = currentScopeKey;
+    const currentRequestId = ++timelineRequestIdRef.current;
+    const abortController = new AbortController();
+    timelineAbortControllerRef.current = abortController;
     setLoadingTimeline(true);
     setTimelineError(null);
+    const timeoutId = setTimeout(() => {
+      if (timelineRequestIdRef.current === currentRequestId && prevScopeKeyRef.current === requestScopeKey) {
+        timelineRequestIdRef.current += 1;
+        abortController.abort();
+        timelineAbortControllerRef.current = null;
+        timelineTimeoutRef.current = null;
+        setTimelineError('This took too long. Please try again.');
+        setLoadingTimeline(false);
+      }
+    }, 32000);
+    timelineTimeoutRef.current = timeoutId;
 
     try {
       const currentUser = auth.currentUser;
@@ -478,6 +575,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         throw new Error('Please sign in to analyze signal timeline.');
       }
       const idToken = await currentUser.getIdToken();
+      if (timelineRequestIdRef.current !== currentRequestId || prevScopeKeyRef.current !== requestScopeKey) return;
 
       const payloadEntries = targetEntries.map((e) => ({
         id: e.id,
@@ -500,6 +598,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({ entries: payloadEntries }),
+        signal: abortController.signal,
       });
 
       const data = await res.json();
@@ -508,16 +607,21 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       }
 
       // Race-protection: only commit result if active scope key has not changed during request
-      if (prevScopeKeyRef.current === requestScopeKey) {
+      if (prevScopeKeyRef.current === requestScopeKey && timelineRequestIdRef.current === currentRequestId) {
         setTimelineResult(data.result);
       }
     } catch (err: any) {
       console.error('Signal timeline error:', err);
-      if (prevScopeKeyRef.current === requestScopeKey) {
+      if (prevScopeKeyRef.current === requestScopeKey && timelineRequestIdRef.current === currentRequestId) {
         setTimelineError(err?.message || 'Unable to complete signal timeline reasoning.');
       }
     } finally {
-      if (prevScopeKeyRef.current === requestScopeKey) {
+      if (timelineTimeoutRef.current === timeoutId) {
+        clearTimeout(timeoutId);
+        timelineTimeoutRef.current = null;
+      }
+      if (timelineAbortControllerRef.current === abortController) timelineAbortControllerRef.current = null;
+      if (prevScopeKeyRef.current === requestScopeKey && timelineRequestIdRef.current === currentRequestId) {
         setLoadingTimeline(false);
       }
     }
@@ -540,9 +644,22 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
     const requestScopeKey = currentScopeKey;
     const currentRequestId = ++askRequestIdRef.current;
+    const abortController = new AbortController();
+    askAbortControllerRef.current = abortController;
 
     setLoadingAskJournal(true);
     setAskJournalError(null);
+    const timeoutId = setTimeout(() => {
+      if (askRequestIdRef.current === currentRequestId && prevScopeKeyRef.current === requestScopeKey) {
+        askRequestIdRef.current += 1;
+        abortController.abort();
+        askAbortControllerRef.current = null;
+        askTimeoutRef.current = null;
+        setAskJournalError('This took too long. Please try again.');
+        setLoadingAskJournal(false);
+      }
+    }, 32000);
+    askTimeoutRef.current = timeoutId;
 
     try {
       const currentUser = auth.currentUser;
@@ -550,6 +667,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         throw new Error('Please sign in to ask questions about your reflections.');
       }
       const idToken = await currentUser.getIdToken();
+      if (askRequestIdRef.current !== currentRequestId || prevScopeKeyRef.current !== requestScopeKey) return;
 
       const payloadEntries = targetEntries.map((e) => ({
         id: e.id,
@@ -568,6 +686,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           question: trimmedQuestion,
           entries: payloadEntries,
         }),
+        signal: abortController.signal,
       });
 
       const data = await res.json();
@@ -585,6 +704,11 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         setAskJournalError(err?.message || 'Unable to process question across journal entries.');
       }
     } finally {
+      if (askTimeoutRef.current === timeoutId) {
+        clearTimeout(timeoutId);
+        askTimeoutRef.current = null;
+      }
+      if (askAbortControllerRef.current === abortController) askAbortControllerRef.current = null;
       if (prevScopeKeyRef.current === requestScopeKey && askRequestIdRef.current === currentRequestId) {
         setLoadingAskJournal(false);
       }
@@ -607,7 +731,6 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
     setLoadingThemes(true);
     setThemesError(null);
-    setThemesResult(null);
 
     const requestScopeKey = currentScopeKey;
     themesRequestIdRef.current += 1;
@@ -616,14 +739,14 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
     const abortController = new AbortController();
     themesAbortControllerRef.current = abortController;
 
-    // Frontend safety timeout (48 seconds, since backend overall limit is 45s)
+    // Frontend safety timeout remains slightly later than the 28-second backend deadline.
     const timeoutId = setTimeout(() => {
       if (themesRequestIdRef.current === currentRequestId && prevScopeKeyRef.current === requestScopeKey) {
         abortController.abort();
         setThemesError('Theme analysis took too long. Please try again.');
         setLoadingThemes(false);
       }
-    }, 48000);
+    }, 32000);
     themesTimeoutRef.current = timeoutId;
 
     try {
@@ -703,7 +826,6 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
     setLoadingConnections(true);
     setConnectionsError(null);
-    setConnectionsResult(null);
 
     const requestScopeKey = currentScopeKey;
     connectionsRequestIdRef.current += 1;
@@ -712,14 +834,14 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
     const abortController = new AbortController();
     connectionsAbortControllerRef.current = abortController;
 
-    // Frontend safety timeout (48 seconds, matching backend overall limit of 45s)
+    // Frontend safety timeout remains slightly later than the 28-second backend deadline.
     const timeoutId = setTimeout(() => {
       if (connectionsRequestIdRef.current === currentRequestId && prevScopeKeyRef.current === requestScopeKey) {
         abortController.abort();
         setConnectionsError('Connection analysis took too long. Please try again.');
         setLoadingConnections(false);
       }
-    }, 48000);
+    }, 32000);
     connectionsTimeoutRef.current = timeoutId;
 
     try {

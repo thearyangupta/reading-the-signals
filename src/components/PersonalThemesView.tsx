@@ -110,7 +110,7 @@ export const PersonalThemesView: React.FC<PersonalThemesViewProps> = ({
         </div>
       )}
 
-      {!loading && result && (
+      {result && (
         <section aria-labelledby="themes-ai-observations-title" className="space-y-6 border-t border-border pt-5">
           <div className="space-y-1">
             <h4 id="themes-ai-observations-title" className="font-serif text-lg font-semibold text-text-primary">AI observations</h4>

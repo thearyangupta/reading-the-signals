@@ -196,7 +196,7 @@ export const ReflectionConnectionsView: React.FC<ReflectionConnectionsViewProps>
         </div>
       )}
 
-      {!loading && result && (
+      {result && (
         <section aria-labelledby="connections-ai-observations-title" className="space-y-6 border-t border-border pt-5">
           <div className="space-y-1">
             <h4 id="connections-ai-observations-title" className="font-serif text-lg font-semibold text-text-primary">AI observations</h4>

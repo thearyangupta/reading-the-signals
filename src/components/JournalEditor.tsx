@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useBeforeUnload } from 'react-router-dom';
+import { useBeforeUnload, useBlocker } from 'react-router-dom';
 import { Loader2, PenLine, Save, Sparkles, X } from 'lucide-react';
 import { auth, createJournalEntry, updateJournalEntry } from '../lib/firebase';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
@@ -13,6 +13,7 @@ interface JournalEditorProps {
 }
 
 type EditorMode = 'freeform' | 'guided';
+type DiscardIntent = 'close' | 'navigation';
 
 export const JournalEditor: React.FC<JournalEditorProps> = ({
   userId,
@@ -42,7 +43,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
   const [analyzing, setAnalyzing] = useState(false);
   const [saveIntent, setSaveIntent] = useState<'save' | 'analyze' | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [discardOpen, setDiscardOpen] = useState(false);
+  const [discardIntent, setDiscardIntent] = useState<DiscardIntent | null>(null);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const continueWritingRef = useRef<HTMLButtonElement>(null);
@@ -65,21 +66,43 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
 
   useBeforeUnload(handleBeforeUnload);
 
+  const blocker = useBlocker(isDirty && !saving);
+  const discardOpen = discardIntent !== null;
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+
+    discardReturnFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    setDiscardIntent('navigation');
+  }, [blocker.state]);
+
   const requestClose = () => {
     if (saving) return;
     if (isDirty) {
       discardReturnFocusRef.current = document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-      setDiscardOpen(true);
+      setDiscardIntent('close');
       return;
     }
     onClose();
   };
 
   const continueWriting = () => {
-    setDiscardOpen(false);
+    if (discardIntent === 'navigation' && blocker.state === 'blocked') {
+      blocker.reset();
+    }
+    setDiscardIntent(null);
     window.requestAnimationFrame(() => discardReturnFocusRef.current?.focus());
+  };
+
+  const discardChanges = () => {
+    if (discardIntent === 'navigation' && blocker.state === 'blocked') {
+      blocker.proceed();
+    }
+    onClose();
   };
 
   const handleDialogClose = () => {
@@ -354,7 +377,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
                 <button ref={continueWritingRef} type="button" onClick={continueWriting} className="min-h-11 rounded-control border border-border px-4 text-base font-semibold text-text-primary hover:bg-surface-subtle sm:text-sm">
                   Continue writing
                 </button>
-                <button type="button" onClick={onClose} className="min-h-11 rounded-control px-4 text-base font-semibold text-destructive hover:bg-destructive/5 sm:text-sm">
+                <button type="button" onClick={discardChanges} className="min-h-11 rounded-control px-4 text-base font-semibold text-destructive hover:bg-destructive/5 sm:text-sm">
                   Discard changes
                 </button>
               </div>

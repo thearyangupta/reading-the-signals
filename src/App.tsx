@@ -13,6 +13,8 @@ import { EntryDetailPage } from './components/EntryDetailPage';
 import { PatternAnalysisSection } from './components/PatternAnalysisSection';
 import { Loader2, AlertCircle } from 'lucide-react';
 
+type EntriesSubscriptionStatus = 'loading' | 'ready' | 'error';
+
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -24,9 +26,8 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [entriesLoading, setEntriesLoading] = useState(false);
-  const [hasEntriesSnapshot, setHasEntriesSnapshot] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [entriesSubscriptionStatus, setEntriesSubscriptionStatus] = useState<EntriesSubscriptionStatus>('loading');
+  const [entriesSyncError, setEntriesSyncError] = useState<string | null>(null);
 
   // Modal / View states
   const [editorOpen, setEditorOpen] = useState(false);
@@ -35,6 +36,7 @@ export default function App() {
   const [pendingNewEntryId, setPendingNewEntryId] = useState<string | null>(null);
   const journalDetailNavigationRef = useRef<string | null>(null);
   const writeNavigationRef = useRef<string | null>(null);
+  const entriesSubscriptionGenerationRef = useRef(0);
 
   // Tracks whether this session has ever seen an authenticated user, so the
   // sign-out branch below can distinguish a genuine sign-out (reset to
@@ -46,8 +48,18 @@ export default function App() {
   // Listen to Firebase Auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      entriesSubscriptionGenerationRef.current += 1;
       if (firebaseUser) {
         hasBeenSignedInRef.current = true;
+        setEntries([]);
+        setEntriesSubscriptionStatus('loading');
+        setEntriesSyncError(null);
+        setSelectedEntry(null);
+        setPendingNewEntryId(null);
+        setEditorOpen(false);
+        setEditingEntry(null);
+        journalDetailNavigationRef.current = null;
+        writeNavigationRef.current = null;
         setUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email,
@@ -60,11 +72,14 @@ export default function App() {
         hasBeenSignedInRef.current = false;
         setUser(null);
         setEntries([]);
-        setHasEntriesSnapshot(false);
+        setEntriesSubscriptionStatus('loading');
+        setEntriesSyncError(null);
         setSelectedEntry(null);
         setPendingNewEntryId(null);
         setEditorOpen(false);
         setEditingEntry(null);
+        journalDetailNavigationRef.current = null;
+        writeNavigationRef.current = null;
         if (wasSignedIn) {
           navigate('/journal', { replace: true });
         }
@@ -79,20 +94,22 @@ export default function App() {
   useEffect(() => {
     if (!user) {
       setEntries([]);
-      setEntriesLoading(false);
-      setHasEntriesSnapshot(false);
+      setEntriesSubscriptionStatus('loading');
+      setEntriesSyncError(null);
       return;
     }
 
-    setEntriesLoading(true);
-    setHasEntriesSnapshot(false);
+    setEntriesSubscriptionStatus('loading');
+    setEntriesSyncError(null);
     setEntries([]);
+    const subscriptionGeneration = entriesSubscriptionGenerationRef.current;
     const unsubscribe = subscribeUserEntries(
       user.uid,
       (updatedEntries) => {
+        if (subscriptionGeneration !== entriesSubscriptionGenerationRef.current) return;
         setEntries(updatedEntries);
-        setEntriesLoading(false);
-        setHasEntriesSnapshot(true);
+        setEntriesSubscriptionStatus('ready');
+        setEntriesSyncError(null);
         // If an active modal entry was updated externally or saved, keep selectedEntry in sync
         setSelectedEntry((prev) => {
           if (!prev) return null;
@@ -101,9 +118,10 @@ export default function App() {
         });
       },
       (error) => {
+        if (subscriptionGeneration !== entriesSubscriptionGenerationRef.current) return;
         console.error('Failed to subscribe to user entries:', error);
-        setErrorMessage('Unable to synchronize journal data from Firestore.');
-        setEntriesLoading(false);
+        setEntriesSubscriptionStatus('error');
+        setEntriesSyncError('Unable to synchronize journal data.');
       }
     );
 
@@ -185,6 +203,12 @@ export default function App() {
     navigate('/journal');
   };
 
+  const handlePendingCreateFailureBack = () => {
+    setPendingNewEntryId(null);
+    writeNavigationRef.current = null;
+    navigate('/journal');
+  };
+
   useEffect(() => {
     if (!pendingNewEntryId || location.pathname !== '/write') return;
     if (!entries.some((entry) => entry.id === pendingNewEntryId)) return;
@@ -246,15 +270,15 @@ export default function App() {
 
       {/* Main Content Area */}
       <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-shell flex-1 px-4 pb-28 pt-6 sm:px-6 sm:pb-28 sm:pt-8 md:pb-8 lg:px-8">
-        {errorMessage && (
+        {entriesSyncError && !(routedEntryId || (isWriteRoute && pendingNewEntryId)) && (
           <div role="alert" className="mb-6 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-xs text-red-700">
             <div className="flex items-center space-x-2">
               <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-              <span>{errorMessage}</span>
+              <span>{entriesSyncError}</span>
             </div>
             <button
               type="button"
-              onClick={() => setErrorMessage(null)}
+              onClick={() => setEntriesSyncError(null)}
               aria-label="Dismiss synchronization error"
               className="text-stone-400 hover:text-stone-700 text-xs font-medium cursor-pointer"
             >
@@ -268,7 +292,17 @@ export default function App() {
         ) : (
           isWriteRoute ? (
             pendingNewEntryId ? (
-              <p role="status" className="py-12 text-center text-sm text-text-muted">Opening reflection&hellip;</p>
+              entriesSubscriptionStatus === 'error' ? (
+                <div className="rounded-feature border border-border bg-surface px-6 py-12 text-center">
+                  <h2 className="font-serif text-xl font-semibold text-text-primary">Your reflection was saved, but we couldn't reopen it yet.</h2>
+                  <p className="mx-auto mt-2 max-w-reading text-sm text-text-secondary">Your journal couldn't be synchronized right now.</p>
+                  <button type="button" onClick={handlePendingCreateFailureBack} className="mt-5 min-h-11 rounded-control border border-border bg-surface px-4 text-sm font-semibold text-text-primary hover:bg-surface-subtle">
+                    Back to Journal
+                  </button>
+                </div>
+              ) : (
+                <p role="status" className="py-12 text-center text-sm text-text-muted">Opening reflection&hellip;</p>
+              )
             ) : (
               <JournalEditorPage
                 userId={user.uid}
@@ -279,8 +313,16 @@ export default function App() {
               />
             )
           ) : routedEntryId ? (
-            !hasEntriesSnapshot ? (
+            entriesSubscriptionStatus === 'loading' ? (
               <p role="status" className="py-12 text-center text-sm text-text-muted">Opening reflection&hellip;</p>
+            ) : entriesSubscriptionStatus === 'error' ? (
+              <div className="rounded-feature border border-border bg-surface px-6 py-12 text-center">
+                <h2 className="font-serif text-xl font-semibold text-text-primary">We couldn't sync your journal right now.</h2>
+                <p className="mx-auto mt-2 max-w-reading text-sm text-text-secondary">Your journal couldn't be loaded. Please try again later.</p>
+                <button type="button" onClick={() => navigate('/journal')} className="mt-5 min-h-11 rounded-control border border-border bg-surface px-4 text-sm font-semibold text-text-primary hover:bg-surface-subtle">
+                  Back to Journal
+                </button>
+              </div>
             ) : routedEntry ? (
               <EntryDetailPage
                 userId={user.uid}
@@ -321,7 +363,7 @@ export default function App() {
             {activeView === 'journal' ? (
               <JournalList
                 entries={entries}
-                loading={entriesLoading}
+                loading={entriesSubscriptionStatus === 'loading'}
                 userId={user.uid}
                 onSelectEntry={(entry) => {
                   journalDetailNavigationRef.current = entry.id;
@@ -329,7 +371,7 @@ export default function App() {
                 }}
                 onNewEntry={handleOpenNewEntry}
               />
-            ) : entriesLoading ? (
+            ) : entriesSubscriptionStatus === 'loading' ? (
               <p role="status" className="py-12 text-center text-sm text-text-muted">Loading your reflections…</p>
             ) : entries.length > 0 ? (
               <PatternAnalysisSection entries={entries} onSelectEntry={(entry) => setSelectedEntry(entry)} />

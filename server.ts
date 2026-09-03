@@ -395,6 +395,13 @@ app.get('/api/health', (req: Request, res: Response) => {
  */
 app.post('/api/summarize', async (req: Request, res: Response) => {
   try {
+    const decodedToken = await verifyFirebaseToken(req);
+    if (!decodedToken || !decodedToken.uid) {
+      return res.status(401).json({
+        error: 'Unauthorized: A valid Firebase authentication token is required.',
+      });
+    }
+
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const { title, content, situation, behaviorOrEvent, feelingOrReaction, importantContext } = body;
 
@@ -1286,6 +1293,13 @@ ${JSON.stringify(normalizedEntries, null, 2)}`;
  */
 app.post('/api/reflect', async (req: Request, res: Response) => {
   try {
+    const decodedToken = await verifyFirebaseToken(req);
+    if (!decodedToken || !decodedToken.uid) {
+      return res.status(401).json({
+        error: 'Unauthorized: A valid Firebase authentication token is required.',
+      });
+    }
+
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const { entry, history = [], userMessage } = body;
 

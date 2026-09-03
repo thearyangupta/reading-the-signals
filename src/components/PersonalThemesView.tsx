@@ -1,18 +1,6 @@
 import React, { useMemo } from 'react';
 import { JournalEntry, PersonalTheme, PersonalThemesResult } from '../types';
-import {
-  Tag,
-  Calendar,
-  Layers,
-  Sparkles,
-  Loader2,
-  FileText,
-  Clock,
-  ShieldCheck,
-  AlertCircle,
-  HelpCircle,
-  RefreshCw,
-} from 'lucide-react';
+import { AlertCircle, Calendar, FileText, HelpCircle, Info, Loader2, RefreshCw, Sparkles, Tag } from 'lucide-react';
 
 interface PersonalThemesViewProps {
   targetEntries: JournalEntry[];
@@ -25,34 +13,21 @@ interface PersonalThemesViewProps {
 }
 
 export const PersonalThemesView: React.FC<PersonalThemesViewProps> = ({
-  targetEntries,
-  allEntries,
-  result,
-  loading,
-  error,
-  onAnalyzeThemes,
-  onSelectEntry,
+  targetEntries, allEntries, result, loading, error, onAnalyzeThemes, onSelectEntry,
 }) => {
-  // Lookup map for resolving entry titles, dates, and details from all available entries
   const entryLookup = useMemo(() => {
     const map = new Map<string, JournalEntry>();
-    for (const entry of allEntries) {
-      map.set(entry.id, entry);
-    }
+    for (const entry of allEntries) map.set(entry.id, entry);
     return map;
   }, [allEntries]);
 
-  // Format date helper: YYYY-MM-DD -> e.g. "Aug 3, 2026"
   const formatDate = (dateStr: string): string => {
     if (!dateStr) return '';
     try {
       const [year, month, day] = dateStr.split('-').map(Number);
       if (!year || !month || !day) return dateStr;
-      const date = new Date(year, month - 1, day);
-      return date.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
+      return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+        month: 'short', day: 'numeric', year: 'numeric',
       });
     } catch {
       return dateStr;
@@ -63,290 +38,184 @@ export const PersonalThemesView: React.FC<PersonalThemesViewProps> = ({
   const isSingleEntry = targetEntries.length === 1;
   const canAnalyze = !loading && targetEntries.length >= 2;
 
-  // Case 1: Zero entries in active scope
   if (isScopeEmpty) {
     return (
-      <div id="personal-themes-empty-scope" className="bg-stone-50/70 border border-dashed border-stone-200 rounded-2xl p-8 text-center space-y-3">
-        <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-800 border border-amber-200/60 flex items-center justify-center mx-auto">
-          <Tag className="w-5 h-5" />
-        </div>
-        <h4 className="text-sm font-serif font-semibold text-stone-800">
-          No Reflections in Scope
-        </h4>
-        <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
-          Write reflections to begin identifying recurring themes.
+      <section id="personal-themes-empty-scope" className="space-y-2 border-t border-border py-6">
+        <h4 className="font-serif text-base font-semibold text-text-primary">Themes need reflections to draw from</h4>
+        <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+          Add eligible reflections to this scope before looking for recurring subjects.
         </p>
-      </div>
+      </section>
     );
   }
 
-  // Case 2: Exactly 1 entry in active scope
   if (isSingleEntry) {
     return (
-      <div id="personal-themes-single-entry-scope" className="bg-amber-50/40 border border-amber-200/60 rounded-2xl p-8 text-center space-y-3">
-        <div className="w-10 h-10 rounded-xl bg-amber-100/70 text-amber-800 border border-amber-200 flex items-center justify-center mx-auto">
-          <Layers className="w-5 h-5" />
-        </div>
-        <h4 className="text-sm font-serif font-semibold text-stone-900">
-          Cross-Entry Threshold Required
-        </h4>
-        <p className="text-xs text-stone-600 max-w-md mx-auto leading-relaxed">
-          Personal Themes need at least 2 reflections in the active scope. Include additional reflections in your scope above to surface recurring thematic domains.
+      <section id="personal-themes-single-entry-scope" className="space-y-2 border-t border-border py-6">
+        <h4 className="font-serif text-base font-semibold text-text-primary">Include another reflection</h4>
+        <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+          Themes need at least two reflections in the current scope so recurring subjects can be considered across entries.
         </p>
-      </div>
+      </section>
     );
   }
 
   return (
     <div id="personal-themes-container" className="space-y-6">
-      {/* Informative Header Banner & Action Button */}
-      <div className="bg-stone-50 border border-stone-200/80 rounded-2xl p-5 text-stone-800 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center space-x-2">
-              <div className="p-1.5 bg-amber-100/80 text-amber-800 rounded-lg">
-                <Tag className="w-4 h-4 text-amber-800" />
-              </div>
-              <h4 className="text-sm font-serif font-bold text-stone-900 tracking-tight">
-                Personal Themes (Semantic Domain Clustering)
-              </h4>
-            </div>
-            <p className="text-xs text-stone-600 leading-relaxed max-w-2xl">
-              Identifies broad recurring life areas, behavioral patterns, and reflection domains across your structured reflections in the active scope ({targetEntries.length} reflections). Grounded strictly in explicit summaries without clinical diagnosis or entity labeling.
-            </p>
-          </div>
-
-          <div className="shrink-0 flex items-center">
-            <button
-              id="find-personal-themes-btn"
-              type="button"
-              onClick={onAnalyzeThemes}
-              disabled={!canAnalyze}
-              className="inline-flex items-center space-x-2 px-4 py-2 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium rounded-lg shadow-2xs transition-all cursor-pointer disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-700"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Discovering Themes...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>{result ? 'Re-analyze Themes' : 'Find Personal Themes'}</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-stone-200/60 text-[11px] text-stone-500">
-          <div className="flex items-center space-x-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span>Evidence-backed (≥2 distinct reflections per theme)</span>
-          </div>
-          <span className="text-stone-300">•</span>
-          <div className="flex items-center space-x-1">
-            <Tag className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-            <span>Domain-level categories (no isolated person names)</span>
-          </div>
-        </div>
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+          Notice recurring subjects, concerns, and questions across your reflections.
+        </p>
+        <button
+          id="find-personal-themes-btn"
+          type="button"
+          onClick={onAnalyzeThemes}
+          disabled={!canAnalyze}
+          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-text-muted disabled:shadow-none sm:w-auto"
+        >
+          {loading ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /><span>Looking for themes…</span></>
+            : result ? <><RefreshCw className="h-4 w-4" aria-hidden="true" /><span>Refresh themes</span></>
+              : <><Sparkles className="h-4 w-4" aria-hidden="true" /><span>Find Themes</span></>}
+        </button>
       </div>
 
-      {/* Error State */}
       {error && (
-        <div id="personal-themes-error-banner" className="bg-rose-50/80 border border-rose-200 rounded-xl p-4 text-xs text-rose-800 flex items-start space-x-3">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-          <div className="space-y-1.5 flex-1">
-            <p className="font-semibold">{error}</p>
-            <button
-              onClick={onAnalyzeThemes}
-              className="inline-flex items-center space-x-1 text-rose-700 hover:text-rose-900 font-medium underline underline-offset-2 cursor-pointer"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>Retry Analysis</span>
-            </button>
+        <div id="personal-themes-error-banner" role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 items-start gap-3">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
+            <div><p className="font-semibold">AI observations could not be generated</p><p className="mt-1 leading-relaxed">{error}</p></div>
           </div>
+          <button type="button" onClick={onAnalyzeThemes} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-3 text-sm font-semibold text-red-700 underline underline-offset-2 hover:bg-red-100 hover:text-red-900">
+            <RefreshCw className="h-4 w-4" aria-hidden="true" /><span>Retry</span>
+          </button>
         </div>
       )}
 
-      {/* Loading Skeleton */}
       {loading && (
-        <div id="personal-themes-loading-state" className="bg-white border border-stone-200/90 rounded-2xl p-8 text-center space-y-4 shadow-2xs">
-          <Loader2 className="w-6 h-6 text-amber-700 animate-spin mx-auto" />
-          <div className="space-y-1">
-            <h5 className="text-xs font-serif font-semibold text-stone-800">
-              Clustering Reflection Domains Across {targetEntries.length} Entries...
-            </h5>
-            <p className="text-[11px] text-stone-500 max-w-sm mx-auto leading-relaxed">
-              Evaluating shared behavioral and reflective patterns to organize evidence-backed personal themes.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Empty State before running analysis */}
-      {!loading && !result && !error && (
-        <div id="personal-themes-initial-prompt" className="bg-stone-50/60 border border-dashed border-stone-200 rounded-2xl p-8 text-center space-y-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-800 border border-amber-200/60 flex items-center justify-center mx-auto">
-            <Sparkles className="w-5 h-5 text-amber-700" />
-          </div>
-          <h4 className="text-sm font-serif font-semibold text-stone-800">
-            Ready to Discover Personal Themes
-          </h4>
-          <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
-            Click &quot;Find Personal Themes&quot; to cluster recurring domains and patterns across the {targetEntries.length} reflections in your active scope.
+        <div id="personal-themes-loading-state" role="status" aria-live="polite" className="space-y-3 py-12 text-center">
+          <Loader2 className="mx-auto h-7 w-7 animate-spin text-accent-primary" aria-hidden="true" />
+          <p className="font-serif text-base font-semibold text-text-primary">Looking across the reflections in this scope…</p>
+          <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            AI is gathering recurring subjects supported by more than one of your recorded reflections.
           </p>
         </div>
       )}
 
-      {/* Results Rendering */}
+      {!loading && !result && !error && (
+        <div id="personal-themes-initial-prompt" className="space-y-2 border-t border-border py-8 text-center">
+          <h4 className="font-serif text-base font-semibold text-text-primary">No AI observations yet</h4>
+          <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            Find Themes when you are ready to look for recurring subjects in the current scope.
+          </p>
+        </div>
+      )}
+
       {!loading && result && (
-        <>
+        <section aria-labelledby="themes-ai-observations-title" className="space-y-6 border-t border-border pt-5">
+          <div className="space-y-1">
+            <h4 id="themes-ai-observations-title" className="font-serif text-lg font-semibold text-text-primary">AI observations</h4>
+            <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+              Generated only from the reflections included in the current scope. These themes are organizing lenses for reflection, not facts, diagnoses, or fixed identity labels.
+            </p>
+          </div>
+
+          {result.message && result.themes.length > 0 && (
+            <div className="flex items-start gap-3 rounded-card bg-surface-ai px-4 py-3 text-sm text-text-secondary">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+              <p className="leading-relaxed">{result.message}</p>
+            </div>
+          )}
+
           {result.themes.length === 0 ? (
-            <div id="personal-themes-no-qualifying" className="bg-stone-50/70 border border-dashed border-stone-200 rounded-2xl p-8 text-center space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-stone-100 text-stone-600 border border-stone-200 flex items-center justify-center mx-auto">
-                <Tag className="w-5 h-5" />
-              </div>
-              <h4 className="text-sm font-serif font-semibold text-stone-800">
-                No Recurring Themes Found
-              </h4>
-              <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
-                {result.message || 'No grounded recurring personal themes spanning 2 or more reflections were found in the active scope.'}
+            <div id="personal-themes-no-qualifying" className="space-y-2 py-8 text-center">
+              <Tag className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
+              <h5 className="font-serif text-base font-semibold text-text-primary">No recurring themes yet</h5>
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                {result.message || 'The reflections in this scope do not yet show a recurring theme supported by more than one entry.'}
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {result.themes.map((theme: PersonalTheme) => {
-                return (
-                  <div
-                    key={theme.id}
-                    id={`theme-card-${theme.id}`}
-                    className="bg-white border border-stone-200/90 rounded-xl p-5 shadow-2xs hover:border-amber-200/80 transition-all flex flex-col justify-between space-y-4"
-                  >
-                    {/* Card Header: Theme Name & Frequency Badge */}
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center space-x-2 min-w-0">
-                          <div className="p-1.5 bg-stone-100 rounded-lg text-stone-700 shrink-0">
-                            <Tag className="w-3.5 h-3.5 text-amber-800" />
-                          </div>
-                          <h4 className="text-sm sm:text-base font-serif font-bold text-stone-900 truncate">
-                            {theme.name}
-                          </h4>
-                        </div>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100/70 text-amber-900 border border-amber-200/80 shrink-0 whitespace-nowrap">
-                          {theme.frequency} {theme.frequency === 1 ? 'reflection' : 'reflections'}
-                        </span>
-                      </div>
+            <div className="space-y-5">
+              {result.themes.map((theme: PersonalTheme) => (
+                <article key={theme.id} id={`theme-card-${theme.id}`} className="min-w-0 space-y-5 rounded-card border border-border bg-surface p-4 shadow-low sm:p-6">
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold uppercase tracking-[0.08em] text-accent-primary">Theme</p>
+                    <h5 className="[overflow-wrap:anywhere] font-serif text-xl font-semibold leading-snug text-text-primary">{theme.name}</h5>
+                    {theme.groundedSummary && <p className="max-w-reading font-serif text-base leading-relaxed text-text-primary sm:text-lg">{theme.groundedSummary}</p>}
+                  </div>
 
-                      {/* Date Range Meta */}
-                      <div className="flex items-center space-x-1.5 text-[11px] text-stone-500">
-                        <Calendar className="w-3 h-3 text-stone-400 shrink-0" />
-                        <span>
-                          {formatDate(theme.firstSeenDate)} – {formatDate(theme.lastSeenDate)}
-                        </span>
+                  {theme.reflectionQuestion && (
+                    <div className="flex items-start gap-3 border-l-2 border-border-ai pl-4">
+                      <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-sm font-semibold text-text-secondary">Question to sit with</p>
+                        <p className="font-serif text-base italic leading-relaxed text-text-primary">{theme.reflectionQuestion}</p>
                       </div>
                     </div>
+                  )}
 
-                    {/* Grounded Summary */}
-                    {theme.groundedSummary && (
-                      <p className="text-xs text-stone-700 leading-relaxed bg-stone-50/70 rounded-lg p-3 border border-stone-100">
-                        {theme.groundedSummary}
-                      </p>
-                    )}
-
-                    {/* Observed Signals Section */}
-                    {theme.observedSignals && theme.observedSignals.length > 0 && (
-                      <div className="space-y-2 pt-1 border-t border-stone-100">
-                        <div className="flex items-center space-x-1.5 text-[11px] font-semibold text-stone-700">
-                          <Clock className="w-3 h-3 text-amber-700 shrink-0" />
-                          <span>Observed Signals ({theme.observedSignals.length})</span>
-                        </div>
-                        <div className="space-y-1.5">
-                          {theme.observedSignals.map((item, idx) => {
-                            const sourceEntry = entryLookup.get(item.entryId);
-                            return (
-                              <div
-                                key={`${theme.id}-sig-${idx}`}
-                                className="bg-amber-50/30 border border-amber-100/70 rounded-lg p-2.5 space-y-1"
-                              >
-                                <p className="text-xs text-stone-800 leading-relaxed font-sans">
-                                  &ldquo;{item.signal}&rdquo;
-                                </p>
-                                {sourceEntry ? (
-                                  <div className="flex items-center justify-between text-[10px] text-stone-500 pt-0.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => onSelectEntry(sourceEntry)}
-                                      className="inline-flex items-center space-x-1 text-amber-800 hover:text-amber-950 font-medium hover:underline cursor-pointer"
-                                    >
-                                      <FileText className="w-2.5 h-2.5 text-amber-700" />
-                                      <span className="truncate max-w-[200px]">{sourceEntry.title}</span>
-                                    </button>
-                                    <span className="text-stone-400">{formatDate(sourceEntry.date)}</span>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center justify-between text-[10px] text-stone-500 pt-0.5">
-                                    <span className="inline-flex items-center space-x-1 text-stone-600 font-medium truncate max-w-[200px]">
-                                      <FileText className="w-2.5 h-2.5 text-stone-400" />
-                                      <span>{item.entryTitle || item.entryId}</span>
-                                    </span>
-                                    {item.entryDate && <span className="text-stone-400">{formatDate(item.entryDate)}</span>}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Optional Reflection Question */}
-                    {theme.reflectionQuestion && (
-                      <div className="bg-stone-50/80 border border-stone-200/80 rounded-lg p-3 text-xs text-stone-700 flex items-start space-x-2">
-                        <HelpCircle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
-                        <div className="space-y-0.5">
-                          <span className="text-[10px] font-semibold text-amber-900 uppercase tracking-wider block">
-                            Reflective Question
-                          </span>
-                          <p className="italic text-stone-700 leading-relaxed font-serif">
-                            {theme.reflectionQuestion}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Supporting Reflections List */}
-                    <div className="pt-2 border-t border-stone-100 space-y-2">
-                      <span className="text-[11px] font-semibold text-stone-700 block">
-                        Supporting Reflections ({theme.supportingEntryIds.length})
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {theme.supportingEntryIds.map((id) => {
-                          const entry = entryLookup.get(id);
-                          if (!entry) return null;
+                  {theme.observedSignals && theme.observedSignals.length > 0 && (
+                    <section className="space-y-3 border-t border-border pt-4">
+                      <h6 className="font-serif text-base font-semibold text-text-primary">From your reflections</h6>
+                      <div className="divide-y divide-border">
+                        {theme.observedSignals.map((item, idx) => {
+                          const sourceEntry = entryLookup.get(item.entryId);
                           return (
-                            <button
-                              key={id}
-                              type="button"
-                              onClick={() => onSelectEntry(entry)}
-                              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-stone-100 hover:bg-amber-100 text-stone-700 hover:text-amber-950 border border-stone-200/60 hover:border-amber-300 transition-colors cursor-pointer"
-                              title={`View "${entry.title}" (${entry.date})`}
-                            >
-                              <FileText className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-700" />
-                              <span className="max-w-[140px] truncate">{entry.title}</span>
-                              <span className="text-stone-400 text-[10px]">({formatDate(entry.date)})</span>
-                            </button>
+                            <div key={`${theme.id}-sig-${idx}`} className="min-w-0 space-y-2 py-4 first:pt-0 last:pb-0">
+                              <p className="font-serif text-base leading-relaxed text-text-primary">&ldquo;{item.signal}&rdquo;</p>
+                              {sourceEntry ? (
+                                <button type="button" onClick={() => onSelectEntry(sourceEntry)} className="flex min-h-11 w-full min-w-0 max-w-full flex-col items-start justify-center gap-0.5 rounded-control px-2 text-left text-sm text-accent-secondary hover:bg-surface-subtle hover:text-text-primary sm:w-auto sm:flex-row sm:items-center sm:gap-2">
+                                  <span className="flex min-w-0 max-w-full items-center gap-2 font-semibold">
+                                    <FileText className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                    <span className="min-w-0 [overflow-wrap:anywhere]">{sourceEntry.title}</span>
+                                  </span>
+                                  <span className="pl-6 text-[13px] text-text-muted sm:pl-0">{formatDate(sourceEntry.date)}</span>
+                                </button>
+                              ) : (
+                                <div className="flex min-w-0 flex-col gap-0.5 text-sm text-text-muted sm:flex-row sm:items-center sm:gap-2">
+                                  <span className="flex min-w-0 items-center gap-2 font-semibold text-text-secondary">
+                                    <FileText className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                    <span className="min-w-0 [overflow-wrap:anywhere]">{item.entryTitle || item.entryId}</span>
+                                  </span>
+                                  {item.entryDate && <span className="pl-6 text-[13px] sm:pl-0">{formatDate(item.entryDate)}</span>}
+                                </div>
+                              )}
+                            </div>
                           );
                         })}
                       </div>
-                    </div>
+                    </section>
+                  )}
+
+                  <div className="flex flex-col gap-2 border-t border-border pt-4 text-sm text-text-muted sm:flex-row sm:flex-wrap sm:gap-x-5">
+                    <span><strong className="font-semibold text-text-secondary">Journal support:</strong> {theme.frequency} {theme.frequency === 1 ? 'reflection' : 'reflections'}</span>
+                    <span className="inline-flex min-w-0 items-center gap-2">
+                      <Calendar className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="[overflow-wrap:anywhere]">{formatDate(theme.firstSeenDate)} – {formatDate(theme.lastSeenDate)}</span>
+                    </span>
                   </div>
-                );
-              })}
+
+                  <section className="space-y-3 border-t border-border pt-4">
+                    <h6 className="font-serif text-base font-semibold text-text-primary">Supporting reflections ({theme.supportingEntryIds.length})</h6>
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      {theme.supportingEntryIds.map((id) => {
+                        const entry = entryLookup.get(id);
+                        if (!entry) return null;
+                        return (
+                          <button key={id} type="button" onClick={() => onSelectEntry(entry)} className="flex min-h-11 w-full min-w-0 max-w-full items-center gap-2 rounded-control border border-border bg-surface-user px-3 py-2 text-left text-sm text-text-secondary transition-colors hover:border-border-strong hover:bg-surface-subtle hover:text-text-primary sm:w-auto" title={`View "${entry.title}" (${entry.date})`}>
+                            <FileText className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
+                            <span className="min-w-0 flex-1 truncate font-semibold">{entry.title}</span>
+                            <span className="shrink-0 text-[13px] text-text-muted">{formatDate(entry.date)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                </article>
+              ))}
             </div>
           )}
-        </>
+        </section>
       )}
     </div>
   );

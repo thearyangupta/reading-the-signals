@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Loader2, PenLine, Save, Sparkles, X } from 'lucide-react';
+import { auth, createJournalEntry, updateJournalEntry } from '../lib/firebase';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import { JournalEntry, StructuredSummary } from '../types';
-import { createJournalEntry, updateJournalEntry } from '../lib/firebase';
-import { Sparkles, Calendar, BookOpen, Heart, Eye, HelpCircle, X, Loader2, Save } from 'lucide-react';
 
 interface JournalEditorProps {
   userId: string;
@@ -10,23 +11,82 @@ interface JournalEditorProps {
   onSaveSuccess: (entry: Partial<JournalEntry>) => void;
 }
 
+type EditorMode = 'freeform' | 'guided';
+
 export const JournalEditor: React.FC<JournalEditorProps> = ({
   userId,
   initialEntry,
   onClose,
   onSaveSuccess,
 }) => {
-  const [title, setTitle] = useState(initialEntry?.title || '');
-  const [date, setDate] = useState(initialEntry?.date || new Date().toISOString().split('T')[0]);
-  const [content, setContent] = useState(initialEntry?.content || '');
-  const [situation, setSituation] = useState(initialEntry?.situation || '');
-  const [behaviorOrEvent, setBehaviorOrEvent] = useState(initialEntry?.behaviorOrEvent || '');
-  const [feelingOrReaction, setFeelingOrReaction] = useState(initialEntry?.feelingOrReaction || '');
-  const [importantContext, setImportantContext] = useState(initialEntry?.importantContext || '');
-  
+  const initialValues = useRef({
+    title: initialEntry?.title || '',
+    date: initialEntry?.date || new Date().toISOString().split('T')[0],
+    content: initialEntry?.content || '',
+    situation: initialEntry?.situation || '',
+    behaviorOrEvent: initialEntry?.behaviorOrEvent || '',
+    feelingOrReaction: initialEntry?.feelingOrReaction || '',
+    importantContext: initialEntry?.importantContext || '',
+  });
+
+  const [mode, setMode] = useState<EditorMode>('freeform');
+  const [title, setTitle] = useState(initialValues.current.title);
+  const [date, setDate] = useState(initialValues.current.date);
+  const [content, setContent] = useState(initialValues.current.content);
+  const [situation, setSituation] = useState(initialValues.current.situation);
+  const [behaviorOrEvent, setBehaviorOrEvent] = useState(initialValues.current.behaviorOrEvent);
+  const [feelingOrReaction, setFeelingOrReaction] = useState(initialValues.current.feelingOrReaction);
+  const [importantContext, setImportantContext] = useState(initialValues.current.importantContext);
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [saveIntent, setSaveIntent] = useState<'save' | 'analyze' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [discardOpen, setDiscardOpen] = useState(false);
+
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const continueWritingRef = useRef<HTMLButtonElement>(null);
+  const discardReturnFocusRef = useRef<HTMLElement | null>(null);
+
+  const isDirty =
+    title !== initialValues.current.title ||
+    date !== initialValues.current.date ||
+    content !== initialValues.current.content ||
+    situation !== initialValues.current.situation ||
+    behaviorOrEvent !== initialValues.current.behaviorOrEvent ||
+    feelingOrReaction !== initialValues.current.feelingOrReaction ||
+    importantContext !== initialValues.current.importantContext;
+
+  const requestClose = () => {
+    if (saving) return;
+    if (isDirty) {
+      discardReturnFocusRef.current = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+      setDiscardOpen(true);
+      return;
+    }
+    onClose();
+  };
+
+  const continueWriting = () => {
+    setDiscardOpen(false);
+    window.requestAnimationFrame(() => discardReturnFocusRef.current?.focus());
+  };
+
+  const handleDialogClose = () => {
+    if (discardOpen) {
+      continueWriting();
+      return;
+    }
+    requestClose();
+  };
+
+  const dialogRef = useDialogAccessibility(handleDialogClose, titleInputRef);
+  const isContentValidationError = Boolean(error && !title.trim() && !content.trim());
+
+  useEffect(() => {
+    if (discardOpen) continueWritingRef.current?.focus();
+  }, [discardOpen]);
 
   const handleSubmit = async (generateSummary: boolean) => {
     if (!title.trim() && !content.trim()) {
@@ -35,18 +95,27 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
     }
 
     try {
+      setSaveIntent(generateSummary ? 'analyze' : 'save');
       setSaving(true);
       setError(null);
 
       let summary: StructuredSummary | null = initialEntry?.summary || null;
 
-      // Request structured summary from server-side Gemini endpoint
       if (generateSummary) {
         setAnalyzing(true);
         try {
+          const currentUser = auth.currentUser;
+          if (!currentUser) {
+            throw new Error('Please sign in to add AI observations.');
+          }
+          const idToken = await currentUser.getIdToken();
+
           const res = await fetch('/api/summarize', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${idToken}`,
+            },
             body: JSON.stringify({
               title,
               content,
@@ -59,9 +128,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
 
           if (res.ok) {
             const data = await res.json();
-            if (data.summary) {
-              summary = data.summary;
-            }
+            if (data.summary) summary = data.summary;
           } else {
             console.warn('Could not generate automatic summary; saving entry without it.');
           }
@@ -98,206 +165,193 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
     } finally {
       setSaving(false);
       setAnalyzing(false);
+      setSaveIntent(null);
     }
   };
 
+  const inputClass =
+    'box-border min-h-11 min-w-0 w-full max-w-full rounded-control border border-border bg-surface px-3.5 py-2.5 text-base text-text-primary placeholder:text-text-muted sm:text-sm';
+  const labelClass = 'mb-2 block text-sm font-semibold text-text-primary';
+
   return (
-    <div className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-3xl w-full border border-stone-200/90 shadow-xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
-        {/* Header */}
-        <div className="px-5 sm:px-6 py-4 border-b border-stone-200/80 flex items-center justify-between bg-[#FCFAF7]">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-1.5 bg-stone-900 text-stone-100 rounded-lg">
-              <BookOpen className="w-4 h-4 text-amber-300" />
-            </div>
-            <div>
-              <h3 className="font-serif font-semibold text-stone-900 text-base">
-                {initialEntry ? 'Edit Reflection Entry' : 'New Reflection Entry'}
-              </h3>
-              <p className="text-xs text-stone-500">Record observations and explore what you noticed</p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Form Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-5">
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">
-              {error}
-            </div>
-          )}
-
-          {/* Title & Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-stone-700 mb-1">
-                Title / Focus Topic
-              </label>
-              <input
-                id="entry-title-input"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Challenging review discussion"
-                className="w-full text-sm px-3.5 py-2.5 bg-stone-50/60 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400 text-stone-900"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-stone-700 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-stone-500" /> Date
-              </label>
-              <input
-                id="entry-date-input"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full text-sm px-3.5 py-2.5 bg-stone-50/60 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400 text-stone-900"
-              />
-            </div>
-          </div>
-
-          {/* Main Freeform Reflection */}
-          <div>
-            <label className="block text-xs font-medium text-stone-700 mb-1">
-              Reflection Narrative
-            </label>
-            <textarea
-              id="entry-content-textarea"
-              rows={4}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="What happened? Describe your thoughts, internal dialogue, and the unfolding experience freely..."
-              className="w-full text-sm px-3.5 py-2.5 bg-stone-50/60 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400 text-stone-900 leading-relaxed resize-y"
-            />
-          </div>
-
-          {/* Structured Observation Prompts */}
-          <div className="border-t border-stone-100 pt-4">
-            <h4 className="text-xs font-semibold text-stone-800 uppercase tracking-wider mb-3">
-              Guided Observation Breakdown
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Situation */}
-              <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1 flex items-center gap-1.5">
-                  <Eye className="w-3.5 h-3.5 text-stone-500" /> The Situation / Setting
-                </label>
-                <input
-                  id="entry-situation-input"
-                  type="text"
-                  value={situation}
-                  onChange={(e) => setSituation(e.target.value)}
-                  placeholder="Where were you? Who was involved?"
-                  className="w-full text-xs px-3 py-2 bg-stone-50/60 border border-stone-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400 text-stone-900"
-                />
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-text-primary/45 p-0 sm:p-4">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="journal-editor-title"
+        aria-describedby="journal-editor-description"
+        tabIndex={-1}
+        className="relative flex h-dvh min-w-0 w-full max-w-full flex-col overflow-hidden bg-surface shadow-dialog sm:my-auto sm:h-auto sm:max-h-[92vh] sm:max-w-editor sm:rounded-feature sm:border sm:border-border"
+      >
+        <div inert={discardOpen ? true : undefined} className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <header className="flex min-w-0 items-start justify-between gap-4 border-b border-border bg-surface px-4 py-4 sm:px-6">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-accent-primary">
+                <PenLine className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <h3 id="journal-editor-title" className="min-w-0 [overflow-wrap:anywhere] font-serif text-xl font-semibold text-text-primary">
+                  {initialEntry ? 'Edit reflection' : 'Write a reflection'}
+                </h3>
               </div>
-
-              {/* Behavior / Event */}
-              <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1 flex items-center gap-1.5">
-                  <BookOpen className="w-3.5 h-3.5 text-stone-500" /> Specific Behavior or Event
-                </label>
-                <input
-                  id="entry-behavior-input"
-                  type="text"
-                  value={behaviorOrEvent}
-                  onChange={(e) => setBehaviorOrEvent(e.target.value)}
-                  placeholder="What specific actions or words were observed?"
-                  className="w-full text-xs px-3 py-2 bg-stone-50/60 border border-stone-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400 text-stone-900"
-                />
-              </div>
-
-              {/* Feelings / Reaction */}
-              <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1 flex items-center gap-1.5">
-                  <Heart className="w-3.5 h-3.5 text-stone-500" /> Your Feelings or Reactions
-                </label>
-                <input
-                  id="entry-feeling-input"
-                  type="text"
-                  value={feelingOrReaction}
-                  onChange={(e) => setFeelingOrReaction(e.target.value)}
-                  placeholder="What did you feel? (e.g. anxious, excited, defensive)"
-                  className="w-full text-xs px-3 py-2 bg-stone-50/60 border border-stone-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400 text-stone-900"
-                />
-              </div>
-
-              {/* Context */}
-              <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1 flex items-center gap-1.5">
-                  <HelpCircle className="w-3.5 h-3.5 text-stone-500" /> Important Context or Assumptions
-                </label>
-                <input
-                  id="entry-context-input"
-                  type="text"
-                  value={importantContext}
-                  onChange={(e) => setImportantContext(e.target.value)}
-                  placeholder="Any background pressures, past history, or expectations?"
-                  className="w-full text-xs px-3 py-2 bg-stone-50/60 border border-stone-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400 text-stone-900"
-                />
-              </div>
+              <p id="journal-editor-description" className="mt-1 text-sm text-text-secondary">
+                Capture what happened in your own words.
+              </p>
             </div>
-          </div>
-        </div>
-
-        {/* Footer actions */}
-        <div className="px-5 sm:px-6 py-4 border-t border-stone-200/80 bg-[#FCFAF7] flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-[11px] text-stone-500 order-2 sm:order-1">
-            Data is stored securely in your isolated Firestore collection.
-          </p>
-
-          <div className="flex items-center space-x-2.5 w-full sm:w-auto justify-end order-1 sm:order-2">
             <button
-              id="cancel-editor-button"
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               disabled={saving}
-              className="px-3.5 py-2 text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
+              aria-label="Close reflection editor"
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control text-text-muted hover:bg-surface-subtle hover:text-text-primary disabled:opacity-50"
             >
-              Cancel
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
+          </header>
 
-            <button
-              id="save-only-button"
-              type="button"
-              onClick={() => handleSubmit(false)}
-              disabled={saving}
-              className="px-3.5 py-2 text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg transition-all border border-stone-200/80 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            >
-              <Save className="w-3.5 h-3.5 text-stone-600" />
-              <span>Save Entry</span>
-            </button>
-
-            <button
-              id="save-analyze-button"
-              type="button"
-              onClick={() => handleSubmit(true)}
-              disabled={saving}
-              className="px-4 py-2 text-xs font-medium bg-stone-900 hover:bg-stone-800 text-white rounded-lg transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            >
-              {analyzing || saving ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-300" />
-                  <span>{analyzing ? 'Generating AI Summary...' : 'Saving...'}</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Save & Generate AI Summary</span>
-                </>
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto">
+            <div className="mx-auto min-w-0 w-full max-w-full space-y-8 px-4 py-6 sm:max-w-editor sm:px-8 sm:py-8">
+              {error && (
+                <div id="journal-editor-error" role="alert" className="rounded-card border border-destructive/30 bg-destructive/5 p-3.5 text-sm text-destructive">
+                  {error}
+                </div>
               )}
-            </button>
+
+              <div role="group" aria-label="Reflection mode" className="flex w-full max-w-xs rounded-control border border-border bg-surface-subtle p-1 sm:inline-flex sm:w-auto">
+                {(['freeform', 'guided'] as EditorMode[]).map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    aria-pressed={mode === item}
+                    onClick={() => setMode(item)}
+                    className={
+                      'min-h-10 min-w-0 flex-1 rounded-[7px] px-4 text-sm font-semibold transition-colors sm:flex-none ' +
+                      (mode === item
+                        ? 'bg-surface text-accent-primary shadow-low'
+                        : 'text-text-secondary hover:text-text-primary')
+                    }
+                  >
+                    {item === 'freeform' ? 'Freeform' : 'Guided'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-[minmax(0,1fr)_12rem]">
+                <div className="min-w-0">
+                  <label htmlFor="entry-title-input" className={labelClass}>Title or focus</label>
+                  <input
+                    id="entry-title-input"
+                    ref={titleInputRef}
+                    type="text"
+                    aria-invalid={isContentValidationError}
+                    aria-describedby={isContentValidationError ? 'journal-editor-error' : undefined}
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="What is this reflection about?"
+                    className={inputClass}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label htmlFor="entry-date-input" className={labelClass}>Date</label>
+                  <input
+                    id="entry-date-input"
+                    type="date"
+                    value={date}
+                    onChange={(event) => setDate(event.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              {mode === 'freeform' ? (
+                <div className="min-w-0">
+                  <label htmlFor="entry-content-textarea" className={labelClass}>Reflection</label>
+                  <textarea
+                    id="entry-content-textarea"
+                    aria-invalid={isContentValidationError}
+                    aria-describedby={isContentValidationError ? 'journal-editor-error' : 'entry-content-help'}
+                    value={content}
+                    onChange={(event) => setContent(event.target.value)}
+                    placeholder="Write freely about what happened, what you noticed, and what stayed with you…"
+                    className="box-border min-h-72 min-w-0 w-full max-w-full resize-y rounded-card border border-border bg-surface-user px-4 py-4 font-serif text-base leading-relaxed text-text-primary shadow-low placeholder:font-sans placeholder:text-text-muted sm:min-h-80 sm:text-lg"
+                  />
+                  <p id="entry-content-help" className="mt-2 text-xs text-text-muted">Your writing can be as brief or detailed as you need.</p>
+                </div>
+              ) : (
+                <div className="min-w-0 space-y-6">
+                  <div className="min-w-0">
+                    <h4 className="font-serif text-lg font-semibold text-text-primary">Guided reflection</h4>
+                    <p className="mt-1 min-w-0 [overflow-wrap:anywhere] text-sm text-text-secondary">Use any prompts that help. Your freeform writing stays saved while you switch modes.</p>
+                  </div>
+                  <div className="grid min-w-0 grid-cols-1 gap-6">
+                    <div className="min-w-0">
+                      <label htmlFor="entry-situation-input" className={labelClass}>Situation or setting</label>
+                      <input id="entry-situation-input" type="text" value={situation} onChange={(event) => setSituation(event.target.value)} placeholder="Where were you, and who was involved?" className={inputClass} />
+                    </div>
+                    <div className="min-w-0">
+                      <label htmlFor="entry-behavior-input" className={labelClass}>Specific behavior or event</label>
+                      <input id="entry-behavior-input" type="text" value={behaviorOrEvent} onChange={(event) => setBehaviorOrEvent(event.target.value)} placeholder="What actions or words did you observe?" className={inputClass} />
+                    </div>
+                    <div className="min-w-0">
+                      <label htmlFor="entry-feeling-input" className={labelClass}>Feelings or reactions</label>
+                      <input id="entry-feeling-input" type="text" value={feelingOrReaction} onChange={(event) => setFeelingOrReaction(event.target.value)} placeholder="What did you feel or notice in yourself?" className={inputClass} />
+                    </div>
+                    <div className="min-w-0">
+                      <label htmlFor="entry-context-input" className={labelClass}>Important context or assumptions</label>
+                      <input id="entry-context-input" type="text" value={importantContext} onChange={(event) => setImportantContext(event.target.value)} placeholder="What background, expectations, or pressures mattered?" className={inputClass} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
+
+          <footer className="min-w-0 border-t border-border bg-surface px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-4">
+            <div className="mx-auto flex min-w-0 w-full max-w-full flex-col-reverse gap-3 sm:max-w-editor sm:flex-row sm:items-center sm:justify-between">
+              <button type="button" onClick={requestClose} disabled={saving} className="min-h-11 rounded-control px-4 text-base font-medium text-text-secondary hover:bg-surface-subtle hover:text-text-primary disabled:opacity-50 sm:text-sm">
+                Cancel
+              </button>
+              <div className="flex min-w-0 w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+                <button
+                  id="save-analyze-button"
+                  type="button"
+                  onClick={() => handleSubmit(true)}
+                  disabled={saving}
+                  className="inline-flex min-h-11 min-w-0 w-full items-center justify-center gap-2 rounded-control border border-border bg-surface px-4 text-center text-base font-semibold text-text-secondary hover:bg-surface-ai hover:text-accent-primary disabled:opacity-50 sm:w-auto sm:text-sm"
+                >
+                  {saveIntent === 'analyze' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Sparkles className="h-4 w-4" aria-hidden="true" />}
+                  <span>{saveIntent === 'analyze' ? (analyzing ? 'Adding AI observations…' : 'Saving…') : 'Save and add AI observations'}</span>
+                </button>
+                <button
+                  id="save-only-button"
+                  type="button"
+                  onClick={() => handleSubmit(false)}
+                  disabled={saving}
+                  className="inline-flex min-h-11 min-w-0 w-full items-center justify-center gap-2 rounded-control bg-accent-primary px-4 text-center text-base font-semibold text-white shadow-low hover:bg-accent-primary-hover disabled:opacity-50 sm:w-auto sm:text-sm"
+                >
+                  {saveIntent === 'save' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
+                  <span>{saveIntent === 'save' ? 'Saving…' : 'Save reflection'}</span>
+                </button>
+              </div>
+            </div>
+          </footer>
         </div>
+
+        {discardOpen && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-text-primary/35 p-4">
+            <div role="alertdialog" aria-modal="true" aria-labelledby="discard-title" aria-describedby="discard-description" className="w-full max-w-md rounded-feature border border-border bg-surface p-6 shadow-dialog">
+              <h4 id="discard-title" className="font-serif text-xl font-semibold text-text-primary">Discard this reflection?</h4>
+              <p id="discard-description" className="mt-2 text-sm text-text-secondary">You have changes that haven’t been saved.</p>
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button ref={continueWritingRef} type="button" onClick={continueWriting} className="min-h-11 rounded-control border border-border px-4 text-base font-semibold text-text-primary hover:bg-surface-subtle sm:text-sm">
+                  Continue writing
+                </button>
+                <button type="button" onClick={onClose} className="min-h-11 rounded-control px-4 text-base font-semibold text-destructive hover:bg-destructive/5 sm:text-sm">
+                  Discard changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

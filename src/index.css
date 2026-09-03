@@ -1,1 +1,153 @@
 @import "tailwindcss";
+
+/*
+ * Quiet Reflection Studio foundations.
+ *
+ * Inter and Source Serif 4 are intentionally named first so locally installed or
+ * future self-hosted copies are picked up without introducing a runtime font
+ * request. The system fallbacks keep the application deployable in the meantime.
+ */
+@theme {
+  --color-background: #f7f5f2;
+  --color-surface: #fffefc;
+  --color-surface-subtle: #efeee9;
+  --color-surface-user: #fffefc;
+  --color-surface-ai: #f1eef7;
+  --color-text-primary: #292722;
+  --color-text-secondary: #57534e;
+  --color-text-muted: #6b6862;
+  --color-accent-primary: #6d5f8f;
+  --color-accent-primary-hover: #574b73;
+  --color-accent-secondary: #8a654a;
+  --color-positive: #2f6b57;
+  --color-warning: #8a5a14;
+  --color-destructive: #a33a3a;
+  --color-border: #d8d4cc;
+  --color-border-strong: #beb9b0;
+  --color-focus: #6750a4;
+  --color-border-ai: #d8d0e8;
+  --color-user-accent: #7a5942;
+
+  --font-sans: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: "Source Serif 4", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+
+  /* Keep Tailwind's smallest functional text utility at the approved 13px floor. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.45;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 1rem;
+  --text-base--line-height: 1.65;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75;
+
+  --radius-control: 0.625rem;
+  --radius-card: 0.75rem;
+  --radius-feature: 1rem;
+
+  --shadow-low: 0 1px 2px rgb(41 39 34 / 0.05), 0 4px 12px rgb(41 39 34 / 0.04);
+  --shadow-dialog: 0 18px 50px rgb(41 39 34 / 0.16), 0 4px 16px rgb(41 39 34 / 0.08);
+
+  --container-reading: 45rem;
+  --container-editor: 50rem;
+  --container-account: 47.5rem;
+  --container-journal: 65rem;
+  --container-insights: 70rem;
+  --container-shell: 75rem;
+
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+:root {
+  color-scheme: light;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 240ms;
+}
+
+@layer base {
+  html {
+    background: var(--color-background);
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+    line-height: 1.65;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  ::selection {
+    background: var(--color-border-ai);
+    color: var(--color-text-primary);
+  }
+}
+
+/* Unlayered so component utilities cannot accidentally suppress keyboard focus. */
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Bring legacy arbitrary microcopy sizes up to the approved functional floor. */
+[class~="text-[9px]"],
+[class~="text-[10px]"],
+[class~="text-[11px]"] {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+}
+
+@media (max-width: 47.999rem) {
+  input,
+  textarea,
+  select {
+    /* Prevent small utility classes from triggering mobile browser zoom. */
+    font-size: 1rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}

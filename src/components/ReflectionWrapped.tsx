@@ -3,22 +3,15 @@ import {
   JournalEntry,
   CrossEntryAnalysisResult,
   SignalTimelineResult,
+  TimelineShiftType,
 } from '../types';
 import {
-  Sparkles,
-  Milestone,
   Calendar,
-  ChevronRight,
   FileText,
-  AlertCircle,
-  Clock,
-  ArrowRight,
-  TrendingUp,
-  ShieldCheck,
-  Compass,
-  Layers,
-  Heart,
+  Info,
   Loader2,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 
 interface ReflectionWrappedProps {
@@ -32,6 +25,28 @@ interface ReflectionWrappedProps {
   onSelectEntry: (entry: JournalEntry) => void;
 }
 
+const SHIFT_TYPE_LABELS: Record<TimelineShiftType, string> = {
+  perspective: 'change in perspective',
+  emotional_reaction: 'change in emotional reaction',
+  interpretation: 'change in interpretation',
+  focus: 'change in focus',
+};
+
+const formatDate = (dateStr: string): string => {
+  if (!dateStr) return '';
+  try {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    if (!year || !month || !day) return dateStr;
+    return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
 export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
   targetEntries,
   patternsResult,
@@ -42,7 +57,7 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
   onAnalyzeTimeline,
   onSelectEntry,
 }) => {
-  // Sort target entries chronologically for deterministic emotional arc
+  // Sort target entries chronologically for a deterministic reflection order
   const chronologicalEntries = [...targetEntries].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
@@ -54,449 +69,340 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
     }
   };
 
-  // State 1: Fewer than 2 structured reflections
+  // Guard: Fewer than 2 structured reflections in active scope
   if (targetEntries.length < 2) {
     return (
-      <div className="bg-stone-50/80 border border-stone-200 rounded-2xl p-8 text-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200/60 text-amber-800 flex items-center justify-center mx-auto">
-          <Sparkles className="w-6 h-6 text-amber-700" />
-        </div>
-        <div className="max-w-md mx-auto space-y-2">
-          <h4 className="font-serif font-bold text-stone-900 text-base">
-            Reflection Wrapped Needs More Reflections
-          </h4>
-          <p className="text-xs text-stone-600 leading-relaxed">
-            Reflection Wrapped synthesizes recurring patterns, emotional trajectories, and perspective shifts across your journal. You need at least 2 structured reflections in your active scope.
-          </p>
-        </div>
-        <div className="inline-flex items-center space-x-2 text-xs text-stone-500 bg-white px-3.5 py-1.5 rounded-full border border-stone-200">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Currently available in active scope: {targetEntries.length} structured {targetEntries.length === 1 ? 'reflection' : 'reflections'}</span>
-        </div>
-      </div>
+      <section id="reflection-wrapped-insufficient-scope" className="space-y-2 border-t border-border py-6">
+        <h4 className="font-serif text-base font-semibold text-text-primary">Add another reflection to see a recap</h4>
+        <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+          Reflection Wrapped needs at least two reflections in the current scope to summarize patterns and shifts.
+        </p>
+        <p className="text-xs text-text-muted">
+          Current scope: {targetEntries.length} {targetEntries.length === 1 ? 'reflection' : 'reflections'}.
+        </p>
+      </section>
     );
   }
 
-  // Check whether analyses have been run
   const hasPatterns = Boolean(patternsResult && patternsResult.hasSufficientEvidence && patternsResult.patterns?.length > 0);
   const hasTimeline = Boolean(timelineResult && timelineResult.hasSufficientEvidence && timelineResult.shifts?.length > 0);
-  const isAnyAnalysisRun = Boolean(patternsResult || timelineResult);
 
-  // Extract emotional & perspective shifts from existing timeline result
+  // Emotional/perspective shifts drawn from the shared Timeline result
   const emotionalShifts = (timelineResult?.shifts || []).filter(
     (s) => s.shiftType === 'emotional_reaction' || s.shiftType === 'perspective'
   );
 
+  const firstEntry = chronologicalEntries[0];
+  const lastEntry = chronologicalEntries[chronologicalEntries.length - 1];
+
   return (
-    <div id="reflection-wrapped-container" className="space-y-8 animate-in fade-in duration-200">
-      {/* Header & Introduction */}
-      <div className="bg-gradient-to-br from-amber-50/70 via-stone-50/80 to-stone-100/60 border border-amber-200/60 rounded-2xl p-6 sm:p-8 space-y-3 relative overflow-hidden shadow-2xs">
-        <div className="flex items-center space-x-2 text-amber-800">
-          <div className="p-2 bg-amber-100/70 rounded-xl border border-amber-300/60">
-            <Compass className="w-5 h-5 text-amber-800" />
-          </div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-amber-900/80">
-            Longitudinal Synthesis
-          </span>
-        </div>
-        <div className="space-y-2">
-          <h3 className="text-xl sm:text-2xl font-serif font-bold text-stone-900 tracking-tight">
-            Reflection Wrapped
-          </h3>
-          <p className="text-xs sm:text-sm text-stone-600 max-w-2xl leading-relaxed">
-            A grounded overview of your reflections across time. Every observation, recurring pattern, and perspective shift below is assembled directly from what you chose to record in your journal.
+    <div id="reflection-wrapped-container" className="space-y-8">
+      {/* Purpose */}
+      <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+        Review the signals, reactions, and shifts that appeared across your current reflection scope.
+      </p>
+
+      {/* Quiet deterministic scope snapshot */}
+      <p className="text-xs text-text-muted">
+        {chronologicalEntries.length} {chronologicalEntries.length === 1 ? 'reflection' : 'reflections'} · {formatDate(firstEntry.date)} – {formatDate(lastEntry.date)}
+      </p>
+
+      {/* AI provenance */}
+      <div className="flex items-start gap-3 rounded-card bg-surface-ai px-4 py-3 text-sm text-text-secondary">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+        <p className="leading-relaxed">
+          This recap summarizes only the reflections in your current scope. Patterns and perspective-shift observations below come from AI analysis; the reaction overview uses summaries already stored with each reflection. None of this is an objective fact, a diagnosis, a claim about hidden motives, or a fixed identity — and the order reflections appear in does not prove causation or personal progress.
+        </p>
+      </div>
+
+      {/* Emotional & reaction overview */}
+      <div className="space-y-4 border-t border-border pt-6">
+        <div className="space-y-1">
+          <h4 className="font-serif text-lg font-semibold text-text-primary">Emotional &amp; reaction overview</h4>
+          <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+            A chronological view of the reactions already captured in your saved reflection summaries.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-stone-500">
-          <span className="inline-flex items-center space-x-1.5 bg-white/90 border border-stone-200/80 px-2.5 py-1 rounded-lg">
-            <Calendar className="w-3.5 h-3.5 text-stone-400" />
-            <span>
-              {chronologicalEntries.length > 0 && `${chronologicalEntries[0].date} → ${chronologicalEntries[chronologicalEntries.length - 1].date}`}
-            </span>
-          </span>
-          <span className="inline-flex items-center space-x-1.5 bg-white/90 border border-stone-200/80 px-2.5 py-1 rounded-lg">
-            <FileText className="w-3.5 h-3.5 text-stone-400" />
-            <span>{chronologicalEntries.length} Reflections Synthesized</span>
-          </span>
-          <span className="inline-flex items-center space-x-1.5 bg-white/90 border border-stone-200/80 px-2.5 py-1 rounded-lg text-emerald-800 bg-emerald-50/50">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Non-Diagnostic & Grounded</span>
-          </span>
-        </div>
-      </div>
-
-      {/* If neither analysis has run yet, provide clear instruction and quick triggers */}
-      {!isAnyAnalysisRun && (
-        <div className="bg-stone-50 border border-stone-200/90 rounded-2xl p-6 sm:p-7 text-center space-y-4">
-          <div className="w-10 h-10 rounded-xl bg-stone-100 text-stone-600 flex items-center justify-center mx-auto">
-            <Layers className="w-5 h-5" />
-          </div>
-          <div className="max-w-md mx-auto space-y-1.5">
-            <h4 className="font-serif font-bold text-stone-800 text-sm">
-              Generate Analysis for Current Scope
-            </h4>
-            <p className="text-xs text-stone-500 leading-relaxed">
-              Reflection Wrapped assembles insights from your Recurring Patterns and Signal Timeline analysis. Generate them below to populate your full reflection summary.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-            <button
-              onClick={onAnalyzePatterns}
-              disabled={loadingPatterns}
-              className="inline-flex items-center space-x-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium px-4 py-2 rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
-            >
-              {loadingPatterns ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Analyzing Patterns...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Analyze Recurring Patterns</span>
-                </>
-              )}
-            </button>
-            <button
-              onClick={onAnalyzeTimeline}
-              disabled={loadingTimeline}
-              className="inline-flex items-center space-x-2 bg-white hover:bg-stone-50 border border-stone-200 text-stone-800 text-xs font-medium px-4 py-2 rounded-xl transition-all shadow-2xs disabled:opacity-50 cursor-pointer"
-            >
-              {loadingTimeline ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Analyzing Timeline...</span>
-                </>
-              ) : (
-                <>
-                  <Milestone className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Analyze Signal Timeline</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* SECTION B: Emotional Arc */}
-      <div id="wrapped-emotional-arc-section" className="space-y-4">
-        <div className="flex items-center space-x-2 border-b border-stone-100 pb-2">
-          <Heart className="w-4 h-4 text-rose-600" />
-          <h4 className="font-serif font-bold text-stone-900 text-base">
-            Emotional & Reaction Arc
-          </h4>
-        </div>
-        <p className="text-xs text-stone-500 max-w-2xl leading-relaxed">
-          How your expressed feelings and reactions developed across the chronological timeline of your reflections.
-        </p>
-
-        {/* Chronological Step Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
-          {chronologicalEntries.map((entry, idx) => (
-            <div
-              key={entry.id}
-              className="bg-white border border-stone-200/85 hover:border-stone-300 rounded-xl p-4 space-y-3 shadow-2xs transition-all flex flex-col justify-between"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-[11px] text-stone-400">
-                  <span className="font-mono font-medium text-stone-500">Step {idx + 1}</span>
-                  <span>{entry.date}</span>
-                </div>
-                <h5 className="font-medium text-stone-900 text-xs line-clamp-1">
+        <div className="space-y-3">
+          {chronologicalEntries.map((entry) => (
+            <article key={entry.id} className="min-w-0 space-y-2 rounded-card border border-border bg-surface p-4 sm:p-5">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h5 className="min-w-0 [overflow-wrap:anywhere] font-serif text-base font-semibold text-text-primary">
                   {entry.title}
                 </h5>
-                {entry.summary?.emotionalTone && (
-                  <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-md bg-stone-100 text-stone-700 text-[11px] font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
-                    <span>Tone: {entry.summary.emotionalTone}</span>
-                  </div>
-                )}
-                {entry.summary?.feelingOrReaction && (
-                  <p className="text-xs text-stone-600 leading-relaxed bg-stone-50/70 p-2.5 rounded-lg border border-stone-100">
-                    <span className="font-medium text-stone-800 block text-[10px] uppercase tracking-wider mb-0.5">Reaction:</span>
-                    {entry.summary.feelingOrReaction}
-                  </p>
-                )}
+                <span className="shrink-0 text-xs text-text-muted">{formatDate(entry.date)}</span>
               </div>
-
+              {entry.summary?.emotionalTone && (
+                <p className="text-sm text-text-secondary">
+                  <span className="font-semibold text-text-primary">Tone: </span>
+                  {entry.summary.emotionalTone}
+                </p>
+              )}
+              {entry.summary?.feelingOrReaction && (
+                <p className="text-sm leading-relaxed text-text-secondary">{entry.summary.feelingOrReaction}</p>
+              )}
               <button
+                type="button"
                 onClick={() => onSelectEntry(entry)}
-                className="w-full inline-flex items-center justify-between text-xs text-stone-600 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 border border-stone-200/70 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                className="inline-flex min-h-11 items-center gap-2 rounded-control px-2 text-sm font-semibold text-accent-secondary transition-colors hover:bg-surface-subtle hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
-                <span className="text-[11px]">View Reflection</span>
-                <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
+                <FileText className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>View reflection</span>
               </button>
-            </div>
+            </article>
           ))}
         </div>
 
-        {/* Highlighted Emotional Shifts if Timeline has been generated */}
         {emotionalShifts.length > 0 && (
-          <div className="mt-4 bg-amber-50/40 border border-amber-200/50 rounded-xl p-4 space-y-3">
-            <div className="flex items-center space-x-1.5 text-xs font-semibold text-amber-900">
-              <TrendingUp className="w-4 h-4 text-amber-700" />
-              <span>Grounded Emotional & Perspective Shifts Detected:</span>
-            </div>
-            <div className="space-y-2">
+          <div className="space-y-3 border-t border-border pt-4">
+            <h5 className="font-serif text-base font-semibold text-text-primary">Related perspective or reaction shifts</h5>
+            <div className="space-y-3">
               {emotionalShifts.map((shift, sIdx) => (
-                <div key={sIdx} className="bg-white p-3 rounded-lg border border-amber-100 text-xs space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-500">
-                    <span className="font-medium text-stone-800">{shift.observation}</span>
-                    {shift.earlierDate && shift.laterDate && (
-                      <span className="text-stone-400">({shift.earlierDate} → {shift.laterDate})</span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
-                    <div className="bg-stone-50 p-2 rounded border border-stone-100">
-                      <span className="font-semibold text-stone-500 block text-[10px] uppercase">Earlier State:</span>
-                      <span className="text-stone-700">{shift.earlierState}</span>
+                <article key={sIdx} className="min-w-0 space-y-3 rounded-card border border-border bg-surface p-4">
+                  <p className="text-sm leading-relaxed text-text-primary">{shift.observation}</p>
+                  <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:divide-x sm:divide-border">
+                    <div className="min-w-0 space-y-1 sm:pr-4">
+                      <p className="text-xs font-semibold text-text-muted">
+                        Earlier reflection{shift.earlierDate ? ` · ${shift.earlierDate}` : ''}
+                      </p>
+                      <p className="font-serif text-sm leading-relaxed text-text-primary">{shift.earlierState}</p>
                     </div>
-                    <div className="bg-amber-50/80 p-2 rounded border border-amber-200/60">
-                      <span className="font-semibold text-amber-800 block text-[10px] uppercase">Later State:</span>
-                      <span className="text-stone-800">{shift.laterState}</span>
+                    <div className="min-w-0 space-y-1 sm:pl-4">
+                      <p className="text-xs font-semibold text-text-muted">
+                        Later reflection{shift.laterDate ? ` · ${shift.laterDate}` : ''}
+                      </p>
+                      <p className="font-serif text-sm leading-relaxed text-text-primary">{shift.laterState}</p>
                     </div>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* SECTION C: Patterns That Kept Appearing */}
-      <div id="wrapped-recurring-patterns-section" className="space-y-4 pt-2">
-        <div className="flex items-center justify-between border-b border-stone-100 pb-2">
-          <div className="flex items-center space-x-2">
-            <Sparkles className="w-4 h-4 text-amber-600" />
-            <h4 className="font-serif font-bold text-stone-900 text-base">
-              Patterns That Kept Appearing
-            </h4>
+      {/* Patterns that appeared */}
+      <div className="space-y-4 border-t border-border pt-6">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="space-y-1">
+            <h4 className="font-serif text-lg font-semibold text-text-primary">Patterns that appeared</h4>
+            <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+              Recurring signals or reaction loops observed across multiple reflections in this scope.
+            </p>
           </div>
-          {!hasPatterns && !loadingPatterns && (
-            <button
-              onClick={onAnalyzePatterns}
-              className="text-xs text-amber-850 hover:text-amber-950 font-medium underline underline-offset-2 cursor-pointer"
-            >
-              Analyze Patterns
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onAnalyzePatterns}
+            disabled={loadingPatterns}
+            className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-text-muted disabled:shadow-none sm:w-auto"
+          >
+            {loadingPatterns ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                <span>Finding patterns…</span>
+              </>
+            ) : patternsResult !== null ? (
+              <>
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                <span>Refresh patterns</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                <span>Find patterns</span>
+              </>
+            )}
+          </button>
         </div>
-        <p className="text-xs text-stone-500 max-w-2xl leading-relaxed">
-          Themes, situational triggers, or reaction loops observed across multiple reflections.
-        </p>
 
-        {hasPatterns ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {loadingPatterns ? (
+          <div role="status" aria-live="polite" className="space-y-3 py-10 text-center">
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-accent-primary" aria-hidden="true" />
+            <p className="text-sm leading-relaxed text-text-secondary">Finding patterns…</p>
+          </div>
+        ) : patternsResult === null ? (
+          <div className="space-y-1 py-6 text-center">
+            <h5 className="font-serif text-base font-semibold text-text-primary">No patterns yet</h5>
+            <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+              Find patterns when you are ready to look for recurring signals across this scope.
+            </p>
+          </div>
+        ) : !hasPatterns ? (
+          <div className="space-y-1 py-6 text-center">
+            <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+              No clear recurring patterns have been surfaced for this scope yet.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
             {patternsResult!.patterns.map((pattern, pIdx) => (
-              <div
-                key={pIdx}
-                className="bg-white border border-stone-200/90 rounded-xl p-4 space-y-3 shadow-2xs flex flex-col justify-between"
-              >
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60">
-                      Pattern {pIdx + 1}
-                    </span>
-                    {pattern.evidenceStrength && (
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                        pattern.evidenceStrength === 'strong'
-                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                          : pattern.evidenceStrength === 'emerging'
-                          ? 'bg-blue-50 text-blue-800 border border-blue-200'
-                          : 'bg-stone-100 text-stone-600'
-                      }`}>
-                        {pattern.evidenceStrength.charAt(0).toUpperCase() + pattern.evidenceStrength.slice(1)} Evidence
-                      </span>
-                    )}
-                  </div>
-
-                  <h5 className="font-semibold text-stone-900 text-sm leading-snug">
+              <article key={pIdx} className="min-w-0 space-y-3 rounded-card border border-border bg-surface p-4 sm:p-5">
+                <div className="space-y-2">
+                  <h5 className="font-serif text-base font-semibold leading-snug text-text-primary">
                     {pattern.observation}
                   </h5>
-
                   {pattern.explanation && (
-                    <p className="text-xs text-stone-600 leading-relaxed bg-stone-50/70 p-2.5 rounded-lg border border-stone-100">
-                      {pattern.explanation}
-                    </p>
+                    <p className="text-sm leading-relaxed text-text-secondary">{pattern.explanation}</p>
                   )}
                 </div>
 
-                {/* Supporting Entry Pills */}
                 {Array.isArray(pattern.supportingEntries) && pattern.supportingEntries.length > 0 && (
-                  <div className="space-y-1.5 pt-2 border-t border-stone-100">
-                    <p className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">
-                      Supporting Journal Entries:
+                  <div className="space-y-2 border-t border-border pt-3">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                      <FileText className="h-4 w-4 text-user-accent" aria-hidden="true" />
+                      <span>Supporting reflections</span>
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {pattern.supportingEntries.map((se, sIdx) => (
                         <button
                           key={sIdx}
+                          type="button"
                           onClick={() => handleOpenEntryById(se.entryId)}
-                          className="inline-flex items-center space-x-1 text-[11px] bg-stone-50 hover:bg-stone-100 text-stone-800 px-2 py-1 rounded-md border border-stone-200 transition-colors cursor-pointer group"
+                          className="flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-control border border-border bg-surface-user px-3 py-2 text-left text-sm text-text-primary transition-colors hover:border-border-strong hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
+                          title={`Open reflection: ${se.title}`}
                         >
-                          <Calendar className="w-3 h-3 text-stone-400 group-hover:text-stone-600" />
-                          <span className="truncate max-w-[130px] font-medium">{se.title}</span>
-                          <ChevronRight className="w-3 h-3 text-stone-300 group-hover:text-stone-600" />
+                          <Calendar className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
+                          <span className="min-w-0 flex-1 [overflow-wrap:anywhere] font-medium">{se.title}</span>
+                          {se.date && <span className="shrink-0 text-xs text-text-muted">{se.date}</span>}
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
-              </div>
+
+                <p className="border-t border-border pt-3 text-xs text-text-muted">
+                  {pattern.evidenceCount} supporting {pattern.evidenceCount === 1 ? 'reflection' : 'reflections'}
+                  {pattern.evidenceStrength ? ` · ${pattern.evidenceStrength} support` : ''}
+                </p>
+              </article>
             ))}
-          </div>
-        ) : (
-          <div className="bg-stone-50/70 border border-dashed border-stone-200 rounded-xl p-5 text-center space-y-2">
-            <p className="text-xs text-stone-500">
-              {loadingPatterns
-                ? 'Analyzing recurring patterns...'
-                : 'Recurring pattern analysis has not yet been computed for this scope.'}
-            </p>
-            {!loadingPatterns && (
-              <button
-                onClick={onAnalyzePatterns}
-                className="inline-flex items-center space-x-1.5 text-xs text-amber-800 hover:text-amber-950 font-medium bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-                <span>Run Pattern Analysis</span>
-              </button>
-            )}
           </div>
         )}
       </div>
 
-      {/* SECTION D: Biggest Perspective Shifts */}
-      <div id="wrapped-perspective-shifts-section" className="space-y-4 pt-2">
-        <div className="flex items-center justify-between border-b border-stone-100 pb-2">
-          <div className="flex items-center space-x-2">
-            <Milestone className="w-4 h-4 text-amber-700" />
-            <h4 className="font-serif font-bold text-stone-900 text-base">
-              Biggest Perspective Shifts
-            </h4>
+      {/* Perspective shifts noticed */}
+      <div className="space-y-4 border-t border-border pt-6">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="space-y-1">
+            <h4 className="font-serif text-lg font-semibold text-text-primary">Perspective shifts noticed</h4>
+            <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+              Documented shifts in perspective, interpretation, or focus across the reflections in this scope.
+            </p>
           </div>
-          {!hasTimeline && !loadingTimeline && (
-            <button
-              onClick={onAnalyzeTimeline}
-              className="text-xs text-amber-850 hover:text-amber-950 font-medium underline underline-offset-2 cursor-pointer"
-            >
-              Analyze Timeline
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onAnalyzeTimeline}
+            disabled={loadingTimeline}
+            className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-text-muted disabled:shadow-none sm:w-auto"
+          >
+            {loadingTimeline ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                <span>Finding shifts…</span>
+              </>
+            ) : timelineResult !== null ? (
+              <>
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                <span>Refresh shifts</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                <span>Find perspective shifts</span>
+              </>
+            )}
+          </button>
         </div>
-        <p className="text-xs text-stone-500 max-w-2xl leading-relaxed">
-          Documented shifts in your perspective, assumptions, interpretations, or internal focus across time.
-        </p>
 
-        {hasTimeline ? (
-          <div className="space-y-3">
+        {loadingTimeline ? (
+          <div role="status" aria-live="polite" className="space-y-3 py-10 text-center">
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-accent-primary" aria-hidden="true" />
+            <p className="text-sm leading-relaxed text-text-secondary">Finding shifts…</p>
+          </div>
+        ) : timelineResult === null ? (
+          <div className="space-y-1 py-6 text-center">
+            <h5 className="font-serif text-base font-semibold text-text-primary">No perspective shifts yet</h5>
+            <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+              Find perspective shifts when you are ready to look for change across this scope.
+            </p>
+          </div>
+        ) : !hasTimeline ? (
+          <div className="space-y-1 py-6 text-center">
+            <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+              No clear perspective shifts have been surfaced for this scope yet.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
             {timelineResult!.shifts.map((shift, idx) => (
-              <div
-                key={idx}
-                className="bg-white border border-stone-200/90 rounded-xl p-4 sm:p-5 space-y-3.5 shadow-2xs"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-700 bg-stone-100 px-2 py-0.5 rounded">
-                      {shift.shiftType ? shift.shiftType.replace('_', ' ') : 'Perspective Shift'}
-                    </span>
-                    <span className="text-xs font-semibold text-stone-900">
-                      {shift.observation}
-                    </span>
-                  </div>
-                  {shift.earlierDate && shift.laterDate && (
-                    <span className="text-[11px] text-stone-400 font-mono">
-                      {shift.earlierDate} → {shift.laterDate}
-                    </span>
+              <article key={idx} className="min-w-0 space-y-4 rounded-card border border-border bg-surface p-4 sm:p-5">
+                <div className="space-y-2">
+                  <h5 className="font-serif text-base font-semibold leading-snug text-text-primary">
+                    {shift.observation}
+                  </h5>
+                  {shift.explanation && (
+                    <p className="text-sm leading-relaxed text-text-secondary">{shift.explanation}</p>
                   )}
                 </div>
 
-                {/* Earlier State vs Later State */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="bg-stone-50/80 border border-stone-200/80 rounded-xl p-3 space-y-1">
-                    <div className="flex items-center space-x-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-500">
-                      <Clock className="w-3 h-3 text-stone-400" />
-                      <span>Earlier State</span>
-                    </div>
-                    <p className="text-xs text-stone-700 leading-relaxed font-serif">
-                      {shift.earlierState}
+                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:divide-x sm:divide-border">
+                  <div className="min-w-0 space-y-1 sm:pr-4">
+                    <p className="text-xs font-semibold text-text-muted">
+                      Earlier reflection{shift.earlierDate ? ` · ${shift.earlierDate}` : ''}
                     </p>
+                    <p className="font-serif text-sm leading-relaxed text-text-primary">{shift.earlierState}</p>
                   </div>
-                  <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-3 space-y-1">
-                    <div className="flex items-center space-x-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-800">
-                      <ArrowRight className="w-3 h-3 text-amber-700" />
-                      <span>Later State</span>
-                    </div>
-                    <p className="text-xs text-stone-900 leading-relaxed font-serif font-medium">
-                      {shift.laterState}
+                  <div className="min-w-0 space-y-1 sm:pl-4">
+                    <p className="text-xs font-semibold text-text-muted">
+                      Later reflection{shift.laterDate ? ` · ${shift.laterDate}` : ''}
                     </p>
+                    <p className="font-serif text-sm leading-relaxed text-text-primary">{shift.laterState}</p>
                   </div>
                 </div>
 
-                {shift.explanation && (
-                  <p className="text-xs text-stone-600 leading-relaxed bg-stone-50/50 p-2.5 rounded-lg border border-stone-100">
-                    <span className="font-medium text-stone-800 mr-1">Grounded Evidence:</span>
-                    {shift.explanation}
-                  </p>
-                )}
-
-                {/* Supporting Role-Tagged Evidence Pills */}
                 {Array.isArray(shift.supportingEntries) && shift.supportingEntries.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[10px] font-medium text-stone-400 uppercase tracking-wider mr-1">
-                      Evidence:
-                    </span>
-                    {shift.supportingEntries.map((se, sIdx) => (
-                      <button
-                        key={sIdx}
-                        onClick={() => handleOpenEntryById(se.entryId)}
-                        className="inline-flex items-center space-x-1.5 text-[11px] bg-white hover:bg-stone-100 text-stone-800 px-2 py-1 rounded-md border border-stone-200 transition-colors cursor-pointer group shadow-2xs"
-                      >
-                        <Calendar className="w-3 h-3 text-stone-400 group-hover:text-stone-600" />
-                        <span className="truncate max-w-[130px] font-medium">{se.title}</span>
-                        {se.roleInShift === 'earlier_state' && (
-                          <span className="text-[9px] bg-stone-100 text-stone-500 px-1 rounded">Earlier</span>
-                        )}
-                        {se.roleInShift === 'later_state' && (
-                          <span className="text-[9px] bg-amber-100 text-amber-800 px-1 rounded">Later</span>
-                        )}
-                        <ChevronRight className="w-3 h-3 text-stone-300 group-hover:text-stone-600" />
-                      </button>
-                    ))}
+                  <div className="space-y-2 border-t border-border pt-3">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                      <FileText className="h-4 w-4 text-user-accent" aria-hidden="true" />
+                      <span>Supporting reflections</span>
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {shift.supportingEntries.map((se, sIdx) => (
+                        <button
+                          key={sIdx}
+                          type="button"
+                          onClick={() => handleOpenEntryById(se.entryId)}
+                          className="flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-control border border-border bg-surface-user px-3 py-2 text-left text-sm text-text-primary transition-colors hover:border-border-strong hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
+                          title={`Open reflection: ${se.title}`}
+                        >
+                          <Calendar className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
+                          <span className="min-w-0 flex-1 [overflow-wrap:anywhere] font-medium">{se.title}</span>
+                          {se.date && <span className="shrink-0 text-xs text-text-muted">{se.date}</span>}
+                          {se.roleInShift && (
+                            <span className="shrink-0 text-xs text-text-muted">
+                              ({se.roleInShift === 'earlier_state' ? 'earlier' : se.roleInShift === 'later_state' ? 'later' : 'context'})
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div>
+
+                <p className="border-t border-border pt-3 text-xs text-text-muted">
+                  {SHIFT_TYPE_LABELS[shift.shiftType] || 'recorded change'} · {shift.evidenceCount} supporting {shift.evidenceCount === 1 ? 'reflection' : 'reflections'}
+                </p>
+              </article>
             ))}
-          </div>
-        ) : (
-          <div className="bg-stone-50/70 border border-dashed border-stone-200 rounded-xl p-5 text-center space-y-2">
-            <p className="text-xs text-stone-500">
-              {loadingTimeline
-                ? 'Analyzing longitudinal perspective shifts...'
-                : 'Signal Timeline analysis has not yet been computed for this scope.'}
-            </p>
-            {!loadingTimeline && (
-              <button
-                onClick={onAnalyzeTimeline}
-                className="inline-flex items-center space-x-1.5 text-xs text-amber-800 hover:text-amber-950 font-medium bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
-              >
-                <Milestone className="w-3.5 h-3.5 text-amber-700" />
-                <span>Run Timeline Analysis</span>
-              </button>
-            )}
           </div>
         )}
       </div>
 
-      {/* SECTION E: Closing Grounding Note */}
-      <div className="bg-stone-100/70 border border-stone-200/80 rounded-xl p-4 sm:p-5 text-center space-y-1.5">
-        <p className="text-xs font-serif font-medium text-stone-800">
-          “These aren’t conclusions about you. They’re patterns and shifts grounded in what you chose to write.”
-        </p>
-        <p className="text-[11px] text-stone-500">
-          Reading the Signals is a thinking companion designed to assist your introspection, not evaluate your personality.
-        </p>
-      </div>
+      {/* Closing grounding note */}
+      <p className="border-t border-border pt-6 text-sm italic leading-relaxed text-text-muted">
+        These observations are prompts for reflection, not conclusions about you.
+      </p>
     </div>
   );
 };

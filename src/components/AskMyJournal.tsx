@@ -1,17 +1,12 @@
 import React from 'react';
 import { JournalEntry, AskJournalResult } from '../types';
 import {
-  Compass,
-  Sparkles,
-  Loader2,
-  Calendar,
-  ChevronRight,
-  FileText,
   AlertCircle,
-  HelpCircle,
-  Send,
+  Compass,
+  FileText,
   Info,
-  ShieldCheck,
+  Loader2,
+  Send,
 } from 'lucide-react';
 
 interface AskMyJournalProps {
@@ -75,77 +70,82 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
 
   return (
     <div id="ask-my-journal-tab" className="space-y-6">
-      {/* Overview & Purpose Banner */}
-      <div className="bg-stone-50 border border-stone-200/80 rounded-2xl p-5 text-stone-800 space-y-2.5">
-        <div className="flex items-center space-x-2">
-          <div className="p-1.5 bg-amber-100/80 text-amber-800 rounded-lg">
-            <Compass className="w-4 h-4 text-amber-800" />
-          </div>
-          <h4 className="text-sm font-serif font-bold text-stone-900 tracking-tight">
-            Ask My Journal (Grounded Synthesis)
-          </h4>
-        </div>
-        <p className="text-xs text-stone-600 leading-relaxed">
-          Ask natural-language questions about your reflections. Answers are synthesized strictly from the structured signals in your active scope ({targetEntries.length} {targetEntries.length === 1 ? 'entry' : 'entries'}), without diagnostic assumptions or general world knowledge.
+      {/* Purpose */}
+      <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+        Ask about something you&rsquo;ve noticed, felt, or written about.
+      </p>
+
+      {!isScopeEmpty && (
+        <p className="text-xs text-text-muted">
+          Using {targetEntries.length} {targetEntries.length === 1 ? 'reflection' : 'reflections'} in your current scope.
+        </p>
+      )}
+
+      {/* AI provenance */}
+      <div className="flex items-start gap-3 rounded-card bg-surface-ai px-4 py-3 text-sm text-text-secondary">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+        <p className="leading-relaxed">
+          Answers are based only on the reflections in your current scope, using the structured summaries already created from them. There may not be enough evidence to answer every question. Responses are an AI-generated interpretation, not objective fact &mdash; they do not diagnose, determine hidden motives, or define who you are.
         </p>
       </div>
 
-      {/* Scope Warning if 0 entries */}
       {isScopeEmpty ? (
-        <div className="bg-amber-50/60 border border-amber-200/70 rounded-xl p-5 text-center space-y-2">
-          <AlertCircle className="w-5 h-5 text-amber-700 mx-auto" />
-          <h5 className="text-xs font-serif font-semibold text-stone-800">
-            No Structured Entries in Active Scope
-          </h5>
-          <p className="text-[11px] text-stone-500 max-w-md mx-auto leading-relaxed">
-            Ask My Journal requires at least 1 reflection with a structured summary in the active scope. Please record reflections or adjust your scope selection above.
+        <div className="space-y-2 border-t border-border py-6 text-center">
+          <h4 className="font-serif text-base font-semibold text-text-primary">Add a reflection to ask a question</h4>
+          <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            Ask My Journal needs at least one summarized reflection in the current scope before it can answer.
           </p>
         </div>
       ) : (
-        /* Question Form */
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="relative bg-white rounded-xl border border-stone-200 shadow-2xs focus-within:border-amber-600 focus-within:ring-1 focus-within:ring-amber-600 transition-all">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Composer */}
+          <div className="space-y-2">
+            <label htmlFor="ask-journal-question-input" className="block text-sm font-semibold text-text-primary">
+              What would you like to understand?
+            </label>
             <textarea
               id="ask-journal-question-input"
               rows={3}
               value={question}
               onChange={(e) => onQuestionChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a question about your journal (e.g. When did I start feeling differently about work?)..."
+              aria-invalid={question.length > 500}
+              aria-describedby="ask-journal-character-count"
+              placeholder="Ask about something in your reflections&hellip;"
               disabled={loading}
-              className="w-full p-3.5 pb-10 text-xs text-stone-900 placeholder:text-stone-400 bg-transparent resize-none focus:outline-none disabled:opacity-50"
+              className="w-full resize-none rounded-control border border-border bg-surface p-3.5 text-base leading-relaxed text-text-primary placeholder:text-text-muted transition-colors focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary disabled:opacity-60"
             />
-            <div className="absolute bottom-2.5 left-3.5 right-3.5 flex items-center justify-between">
-              <span className={`text-[10px] ${question.length > 500 ? 'text-rose-600 font-semibold' : 'text-stone-400'}`}>
-                {question.length}/500 chars
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span
+                id="ask-journal-character-count"
+                className={`text-xs ${question.length > 500 ? 'font-semibold text-destructive' : 'text-text-muted'}`}
+              >
+                {question.length}/500
               </span>
               <button
                 type="submit"
                 id="ask-journal-submit-btn"
                 disabled={!canSubmit}
-                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium rounded-lg shadow-2xs transition-all cursor-pointer disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-1"
+                className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-text-muted disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Analyzing...</span>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <span>Looking&hellip;</span>
                   </>
                 ) : (
                   <>
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Ask Journal</span>
+                    <Send className="h-4 w-4" aria-hidden="true" />
+                    <span>Ask my journal</span>
                   </>
                 )}
               </button>
             </div>
           </div>
 
-          {/* Suggestion Chips */}
-          <div className="space-y-1.5 pt-1">
-            <p className="text-[11px] font-medium text-stone-500 flex items-center space-x-1">
-              <Sparkles className="w-3 h-3 text-amber-600" />
-              <span>Suggested Explorations:</span>
-            </p>
+          {/* Suggested questions */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-text-secondary">Questions you could ask</p>
             <div className="flex flex-wrap gap-2">
               {SUGGESTED_QUESTIONS.map((suggestion, sIdx) => (
                 <button
@@ -153,7 +153,7 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
                   type="button"
                   onClick={() => handleChipClick(suggestion)}
                   disabled={loading}
-                  className="text-left text-xs bg-stone-50 hover:bg-amber-50/70 border border-stone-200/80 hover:border-amber-300 text-stone-700 hover:text-stone-900 px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                  className="min-h-11 max-w-full rounded-control border border-border bg-surface px-3 py-2 text-left text-sm leading-snug text-text-secondary transition-colors hover:border-border-strong hover:bg-surface-subtle hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
                   {suggestion}
                 </button>
@@ -163,124 +163,89 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
         </form>
       )}
 
-      {/* Error Message */}
+      {/* Error */}
       {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start space-x-2.5 shadow-2xs">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-semibold text-rose-900">Query Analysis Error</p>
-            <p className="leading-relaxed">{error}</p>
+        <div role="alert" className="flex items-start gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
+          <div>
+            <p className="font-semibold">I couldn&rsquo;t answer that</p>
+            <p className="mt-1 leading-relaxed">{error}</p>
           </div>
         </div>
       )}
 
-      {/* Loading Placeholder */}
+      {/* Loading */}
       {loading && (
-        <div className="bg-stone-50/80 border border-stone-200/70 rounded-xl p-8 text-center space-y-3">
-          <Loader2 className="w-6 h-6 text-amber-700 animate-spin mx-auto" />
-          <div className="space-y-1">
-            <h5 className="text-xs font-serif font-semibold text-stone-800">
-              Synthesizing Grounded Reflections...
-            </h5>
-            <p className="text-[11px] text-stone-500 max-w-sm mx-auto">
-              Examining structured signals across {targetEntries.length} active reflection {targetEntries.length === 1 ? 'entry' : 'entries'} to construct an evidence-led answer.
+        <div role="status" aria-live="polite" className="space-y-2 py-8 text-center">
+          <Loader2 className="mx-auto h-6 w-6 animate-spin text-accent-primary" aria-hidden="true" />
+          <p className="text-sm leading-relaxed text-text-secondary">Looking through your reflections&hellip;</p>
+        </div>
+      )}
+
+      {/* Answer */}
+      {!loading && result && (
+        <div className="space-y-6 border-t border-border pt-6">
+          <div className="space-y-2">
+            <h4 className="font-serif text-lg font-semibold text-text-primary">Answer</h4>
+            {!result.hasSufficientEvidence && (
+              <p className="text-sm text-text-muted">
+                Not enough evidence in this scope to fully answer this question.
+              </p>
+            )}
+            <p className="whitespace-pre-line font-serif text-base leading-relaxed text-text-primary">
+              {result.answer}
             </p>
           </div>
-        </div>
-      )}
 
-      {/* Result Card */}
-      {!loading && result && (
-        <div className="bg-stone-50/70 border border-stone-200 rounded-xl p-5 space-y-5 shadow-2xs">
-          {/* Answer Section */}
-          <div className="space-y-2">
-            <div className="flex items-center space-x-1.5 text-xs font-semibold text-stone-800">
-              <Compass className="w-4 h-4 text-amber-700" />
-              <span>Grounded Answer</span>
-              {!result.hasSufficientEvidence && (
-                <span className="text-[10px] bg-amber-100 text-amber-850 px-1.5 py-0.5 rounded font-medium ml-2">
-                  Insufficient Evidence
-                </span>
-              )}
-            </div>
-            <div className="bg-white p-4 rounded-xl border border-stone-200/90 text-xs text-stone-800 leading-relaxed whitespace-pre-line shadow-2xs">
-              {result.answer}
-            </div>
-          </div>
-
-          {/* Evidence Citations */}
           {Array.isArray(result.evidence) && result.evidence.length > 0 && (
-            <div className="space-y-2.5 pt-1 border-t border-stone-200/60">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-stone-800 flex items-center space-x-1.5">
-                  <FileText className="w-3.5 h-3.5 text-stone-500" />
-                  <span>Supporting Evidence ({result.evidence.length})</span>
-                </span>
-                <span className="text-[10px] text-stone-400">
-                  Click to open reflection
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="space-y-3 border-t border-border pt-4">
+              <h5 className="font-serif text-base font-semibold text-text-primary">From your reflections</h5>
+              <div className="space-y-3">
                 {result.evidence.map((ev, evIdx) => {
                   const resolvable = targetEntries.some((e) => e.id === ev.entryId);
                   return (
-                    <button
-                      key={evIdx}
-                      type="button"
-                      onClick={() => handleEvidenceClick(ev.entryId)}
-                      disabled={!resolvable}
-                      className={`text-left p-3 rounded-xl border transition-all text-xs space-y-1.5 shadow-2xs ${
-                        resolvable
-                          ? 'bg-white hover:bg-stone-100/80 border-stone-200 text-stone-800 cursor-pointer group'
-                          : 'bg-stone-100/60 border-stone-200 text-stone-400 cursor-not-allowed opacity-70'
-                      }`}
-                      title={resolvable ? 'Click to view reflection details' : 'Entry not available in active scope'}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-1.5 font-medium truncate max-w-[180px]">
-                          <Calendar className="w-3 h-3 text-stone-400 group-hover:text-stone-600 shrink-0" />
-                          <span className="truncate">{ev.title}</span>
-                        </div>
-                        {ev.date && (
-                          <span className="text-[10px] text-stone-400 font-mono shrink-0">
-                            {ev.date}
-                          </span>
-                        )}
+                    <article key={evIdx} className="min-w-0 space-y-2 rounded-card border border-border bg-surface p-4">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                        <span className="min-w-0 [overflow-wrap:anywhere] font-serif text-base font-semibold text-text-primary">
+                          {ev.title}
+                        </span>
+                        {ev.date && <span className="shrink-0 text-xs text-text-muted">{ev.date}</span>}
                       </div>
                       {ev.reason && (
-                        <p className="text-[11px] text-stone-600 leading-snug line-clamp-2">
-                          {ev.reason}
-                        </p>
+                        <p className="text-sm leading-relaxed text-text-secondary">{ev.reason}</p>
                       )}
-                      <div className="flex items-center justify-end text-[10px] text-amber-850 font-medium pt-0.5">
-                        <span>View Entry</span>
-                        <ChevronRight className="w-3 h-3 ml-0.5" />
-                      </div>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEvidenceClick(ev.entryId)}
+                        disabled={!resolvable}
+                        className="inline-flex min-h-11 items-center gap-2 rounded-control px-2 text-sm font-semibold text-accent-secondary transition-colors hover:bg-surface-subtle hover:text-text-primary disabled:cursor-not-allowed disabled:text-text-muted disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                      >
+                        <FileText className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>{resolvable ? 'View reflection' : 'Not available in this scope'}</span>
+                      </button>
+                    </article>
                   );
                 })}
               </div>
             </div>
           )}
 
-          {/* Clarification Reflection Question */}
           {result.clarificationQuestion && (
-            <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-900 space-y-1 flex items-start space-x-2.5 shadow-2xs">
-              <HelpCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-              <div className="space-y-0.5">
-                <span className="font-semibold text-amber-950">Reflective Follow-Up:</span>
-                <p className="text-stone-700 leading-relaxed italic">
-                  &ldquo;{result.clarificationQuestion}&rdquo;
-                </p>
+            <div className="space-y-1 border-t border-border pt-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
+                <Compass className="h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+                <span>A question to sit with</span>
               </div>
+              <p className="font-serif text-base italic leading-relaxed text-text-primary">
+                {result.clarificationQuestion}
+              </p>
             </div>
           )}
 
-          {/* Optional Message */}
           {result.message && (
-            <div className="text-[11px] text-stone-500 italic bg-white/80 p-2.5 rounded-lg border border-stone-200/60">
+            <p className="border-t border-border pt-4 text-sm italic leading-relaxed text-text-muted">
               {result.message}
-            </div>
+            </p>
           )}
         </div>
       )}

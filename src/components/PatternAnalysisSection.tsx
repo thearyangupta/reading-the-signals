@@ -17,8 +17,8 @@ import { ThenVsNowComparison } from './ThenVsNowComparison';
 import { AskMyJournal } from './AskMyJournal';
 import { PersonalThemesView } from './PersonalThemesView';
 import { ReflectionConnectionsView } from './ReflectionConnectionsView';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import {
-  Layers,
   Sparkles,
   AlertCircle,
   Loader2,
@@ -33,9 +33,9 @@ import {
   HelpCircle,
   Split,
   Milestone,
+  ArrowLeft,
   ArrowRight,
   Clock,
-  TrendingUp,
   Filter,
   CheckSquare,
   Square,
@@ -50,11 +50,124 @@ interface PatternAnalysisSectionProps {
   onSelectEntry: (entry: JournalEntry) => void;
 }
 
+interface ScopeDialogAccessibilityProps {
+  onClose: () => void;
+  initialFocusRef: React.RefObject<HTMLElement | null>;
+  children: (dialogRef: React.RefObject<HTMLDivElement | null>) => React.ReactNode;
+}
+
+const ScopeDialogAccessibility: React.FC<ScopeDialogAccessibilityProps> = ({
+  onClose,
+  initialFocusRef,
+  children,
+}) => {
+  const dialogRef = useDialogAccessibility(onClose, initialFocusRef);
+
+  return <>{children(dialogRef)}</>;
+};
+
+type InsightToolId =
+  | 'wrapped'
+  | 'patterns'
+  | 'themes'
+  | 'connections'
+  | 'timeline'
+  | 'then_now'
+  | 'contradictions'
+  | 'ask_journal';
+
+const INSIGHT_GROUPS: Array<{
+  label: string;
+  layout: 'wide' | 'grid';
+  tools: Array<{
+    id: InsightToolId;
+    name: string;
+    description: string;
+    icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+  }>;
+}> = [
+  {
+    label: 'Overview',
+    layout: 'wide',
+    tools: [
+      {
+        id: 'wrapped',
+        name: 'Reflection Wrapped',
+        description: 'A grounded overview of the patterns and shifts across your reflections.',
+        icon: Compass,
+      },
+    ],
+  },
+  {
+    label: 'Recurring Signals',
+    layout: 'grid',
+    tools: [
+      {
+        id: 'patterns',
+        name: 'Patterns',
+        description: 'Notice recurring situations, reactions, and interpretations.',
+        icon: Sparkles,
+      },
+      {
+        id: 'themes',
+        name: 'Themes',
+        description: 'Explore broader themes grounded in what you have recorded.',
+        icon: Tag,
+      },
+      {
+        id: 'connections',
+        name: 'Connections',
+        description: 'See meaningful links between individual reflections.',
+        icon: GitCommit,
+      },
+    ],
+  },
+  {
+    label: 'Change Over Time',
+    layout: 'grid',
+    tools: [
+      {
+        id: 'timeline',
+        name: 'Timeline',
+        description: 'Follow notable shifts across the chronology of your journal.',
+        icon: Milestone,
+      },
+      {
+        id: 'then_now',
+        name: 'Then vs Now',
+        description: 'Compare earlier and later perspectives side by side.',
+        icon: Clock,
+      },
+      {
+        id: 'contradictions',
+        name: 'Differences',
+        description: 'Notice where similar situations were interpreted or felt differently.',
+        icon: Split,
+      },
+    ],
+  },
+];
+
+// Ask My Journal is promoted to a standalone Hub hero and is intentionally
+// not part of INSIGHT_GROUPS; its display name is merged in separately so
+// the parent detail heading (INSIGHT_TOOL_NAMES[selectedTool]) still resolves.
+const INSIGHT_TOOL_NAMES: Record<InsightToolId, string> = {
+  ask_journal: 'Ask My Journal',
+  ...Object.fromEntries(
+    INSIGHT_GROUPS.flatMap((group) => group.tools.map((tool) => [tool.id, tool.name])),
+  ),
+} as Record<InsightToolId, string>;
+
 export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   entries,
   onSelectEntry,
 }) => {
-  const [activeTab, setActiveTab] = useState<'patterns' | 'contradictions' | 'timeline' | 'wrapped' | 'then_now' | 'ask_journal' | 'themes' | 'connections'>('patterns');
+  const [selectedTool, setSelectedTool] = useState<InsightToolId | null>(null);
+  const detailNavigationRef = useRef<HTMLDivElement>(null);
+  const detailHeadingRef = useRef<HTMLHeadingElement>(null);
+  const hubButtonRefs = useRef<Partial<Record<InsightToolId, HTMLButtonElement | null>>>({});
+  const lastOpenedToolRef = useRef<InsightToolId | null>(null);
+  const hubScrollPositionRef = useRef<number | null>(null);
 
   // Day 5 Patterns State
   const [patternsResult, setPatternsResult] = useState<CrossEntryAnalysisResult | null>(null);
@@ -102,6 +215,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
   const [draftSelectedEntryIds, setDraftSelectedEntryIds] = useState<string[]>([]);
   const [isScopeModalOpen, setIsScopeModalOpen] = useState(false);
+  const scopeCloseButtonRef = useRef<HTMLButtonElement>(null);
 
   // Active target entries for analysis based on scope
   const targetEntries =
@@ -679,138 +793,194 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
   const formatShiftTypeLabel = (type: string) => {
     switch (type) {
       case 'perspective':
-        return 'Perspective Shift';
+        return 'Change in perspective';
       case 'emotional_reaction':
-        return 'Emotional Tone Shift';
+        return 'Change in emotional reaction';
       case 'interpretation':
-        return 'Interpretation Shift';
+        return 'Change in interpretation';
       case 'focus':
-        return 'Focus & Agency Shift';
+        return 'Change in focus';
       default:
-        return 'Perspective Shift';
+        return 'Recorded change';
     }
   };
 
+  const formatTimelineRole = (role: string | undefined) => {
+    switch (role) {
+      case 'earlier_state':
+        return 'Earlier';
+      case 'later_state':
+        return 'Later';
+      case 'context':
+        return 'Context';
+      default:
+        return role
+          ? role.replaceAll('_', ' ').replace(/^./, (character) => character.toUpperCase())
+          : 'Supporting';
+    }
+  };
+
+  const presentationTimelineShifts = (timelineResult?.shifts ?? [])
+    .map((shift, originalIndex) => ({ shift, originalIndex }))
+    .sort((a, b) => {
+      const earlierA = a.shift.earlierDate ? Date.parse(a.shift.earlierDate) : Number.NaN;
+      const earlierB = b.shift.earlierDate ? Date.parse(b.shift.earlierDate) : Number.NaN;
+      const laterA = a.shift.laterDate ? Date.parse(a.shift.laterDate) : Number.NaN;
+      const laterB = b.shift.laterDate ? Date.parse(b.shift.laterDate) : Number.NaN;
+      const safeEarlierA = Number.isNaN(earlierA) ? Number.POSITIVE_INFINITY : earlierA;
+      const safeEarlierB = Number.isNaN(earlierB) ? Number.POSITIVE_INFINITY : earlierB;
+
+      if (safeEarlierA !== safeEarlierB) return safeEarlierA - safeEarlierB;
+
+      const safeLaterA = Number.isNaN(laterA) ? Number.POSITIVE_INFINITY : laterA;
+      const safeLaterB = Number.isNaN(laterB) ? Number.POSITIVE_INFINITY : laterB;
+
+      if (safeLaterA !== safeLaterB) return safeLaterA - safeLaterB;
+      return a.originalIndex - b.originalIndex;
+    })
+    .map(({ shift }) => shift);
+
+  useEffect(() => {
+    const focusFrame = window.requestAnimationFrame(() => {
+      const scrollOwner = document.scrollingElement;
+
+      if (selectedTool) {
+        const detailNavigation = detailNavigationRef.current;
+        if (scrollOwner && detailNavigation) {
+          const stickyHeaderHeight = document.querySelector<HTMLElement>('header')?.getBoundingClientRect().height ?? 0;
+          const detailTop = detailNavigation.getBoundingClientRect().top + scrollOwner.scrollTop;
+          scrollOwner.scrollTo({
+            top: Math.max(0, detailTop - stickyHeaderHeight - 12),
+            behavior: 'auto',
+          });
+        }
+        detailHeadingRef.current?.focus({ preventScroll: true });
+        return;
+      }
+
+      const previousTool = lastOpenedToolRef.current;
+      if (previousTool) {
+        hubButtonRefs.current[previousTool]?.focus({ preventScroll: true });
+      }
+
+      if (scrollOwner && hubScrollPositionRef.current !== null) {
+        scrollOwner.scrollTo({ top: hubScrollPositionRef.current, behavior: 'auto' });
+      }
+    });
+
+    return () => window.cancelAnimationFrame(focusFrame);
+  }, [selectedTool]);
+
+  const handleOpenTool = (toolId: InsightToolId) => {
+    hubScrollPositionRef.current = document.scrollingElement?.scrollTop ?? 0;
+    lastOpenedToolRef.current = toolId;
+    setSelectedTool(toolId);
+  };
+
+  const handleBackToInsights = () => {
+    setSelectedTool(null);
+  };
+
   return (
-    <div id="cross-entry-analysis-section" className="bg-white border border-stone-200/90 rounded-2xl p-5 sm:p-7 shadow-xs space-y-6">
-      {/* Top Header with Navigation Tabs */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-stone-100 pb-4">
-        <div className="space-y-1 min-w-0 max-w-xl">
-          <div className="flex items-center space-x-2">
-            <div className="p-1.5 bg-amber-50 rounded-lg text-amber-800 border border-amber-200/50">
-              <Layers className="w-4 h-4 text-amber-700" />
-            </div>
-            <h3 className="text-base sm:text-lg font-serif font-bold text-stone-900 tracking-tight">
-              Cross-Entry Signal Reasoning
+    <div id="cross-entry-analysis-section" className="min-w-0 space-y-8">
+      {selectedTool === null ? (
+        <div className="min-w-0 space-y-10">
+          <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+            AI observations are grounded in your recorded reflections.
+          </p>
+
+          {/* Ask My Journal: primary Hub hero. Single native button reusing the
+              existing handleOpenTool navigation — no request logic here. */}
+          <button
+            ref={(element) => {
+              hubButtonRefs.current.ask_journal = element;
+            }}
+            type="button"
+            onClick={() => handleOpenTool('ask_journal')}
+            className="group flex min-h-11 w-full min-w-0 flex-col items-start gap-3 rounded-card border border-border-ai bg-surface-ai px-5 py-6 text-left transition-colors hover:border-accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 sm:px-7 sm:py-7"
+          >
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-surface text-accent-primary">
+              <MessageSquareQuote className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 space-y-2">
+              <span className="block font-serif text-xl font-semibold leading-tight text-text-primary sm:text-2xl">
+                Ask My Journal
+              </span>
+              <span className="block max-w-reading [overflow-wrap:anywhere] text-sm leading-relaxed text-text-secondary">
+                Ask a question about your reflections. Explore something you&rsquo;ve been writing about &mdash; recurring situations, reactions, changes, or something specific you want to understand.
+              </span>
+              <span className="block max-w-reading [overflow-wrap:anywhere] text-xs leading-relaxed text-text-muted">
+                For example: &ldquo;What patterns keep appearing?&rdquo; or &ldquo;How has my perspective changed?&rdquo;
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent-primary">
+              <span>Ask my journal</span>
+              <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </span>
+          </button>
+
+          {INSIGHT_GROUPS.map((group) => (
+            <React.Fragment key={group.label}>
+              {group.label === 'Recurring Signals' && (
+                <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                  Explore further
+                </h3>
+              )}
+              <section aria-labelledby={`insight-group-${group.label.toLowerCase().replaceAll(' ', '-')}`} className="min-w-0 space-y-3">
+                <h3
+                  id={`insight-group-${group.label.toLowerCase().replaceAll(' ', '-')}`}
+                  className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted"
+                >
+                  {group.label}
+                </h3>
+                <div className={group.layout === 'grid' ? 'grid min-w-0 grid-cols-1 gap-3 md:grid-cols-3' : 'grid min-w-0 grid-cols-1 gap-3'}>
+                  {group.tools.map((tool) => {
+                    const Icon = tool.icon;
+                    return (
+                      <button
+                        key={tool.id}
+                        ref={(element) => {
+                          hubButtonRefs.current[tool.id] = element;
+                        }}
+                        type="button"
+                        onClick={() => handleOpenTool(tool.id)}
+                        className="group flex min-h-11 min-w-0 w-full items-start gap-4 rounded-card border border-border bg-surface px-4 py-4 text-left shadow-low transition-colors hover:border-border-strong hover:bg-surface-subtle sm:px-5 sm:py-5"
+                      >
+                        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-surface-ai text-accent-primary">
+                          <Icon className="h-5 w-5" aria-hidden={true} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-serif text-lg font-semibold leading-tight text-text-primary">
+                            {tool.name}
+                          </span>
+                          <span className="mt-1 block [overflow-wrap:anywhere] text-sm leading-relaxed text-text-secondary">
+                            {tool.description}
+                          </span>
+                        </span>
+                        <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-text-muted transition-colors group-hover:text-accent-primary" aria-hidden="true" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            </React.Fragment>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div ref={detailNavigationRef} className="flex min-w-0 flex-col items-start gap-2 border-b border-border pb-4 sm:flex-row sm:items-center sm:gap-3">
+            <button
+              type="button"
+              onClick={handleBackToInsights}
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-2 text-sm font-semibold text-text-secondary hover:bg-surface-subtle hover:text-text-primary"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back to Insights
+            </button>
+            <h3 ref={detailHeadingRef} tabIndex={-1} className="min-w-0 [overflow-wrap:anywhere] font-serif text-lg font-semibold text-text-primary">
+              {INSIGHT_TOOL_NAMES[selectedTool]}
             </h3>
           </div>
-          <p className="text-xs text-stone-500 leading-relaxed">
-            Multi-entry reasoning grounded strictly in your explicit structured reflections without speculative judgment or third-party assumptions.
-          </p>
-        </div>
-
-        {/* Tab Toggle - Responsive multi-row wrap / grid layout */}
-        <div className="p-1 bg-stone-100/80 rounded-xl border border-stone-200/60 w-full xl:w-auto overflow-hidden">
-          <div className="grid grid-cols-2 sm:grid-cols-4 xl:flex xl:flex-wrap gap-1 w-full">
-            <button
-              id="tab-recurring-patterns-btn"
-              onClick={() => setActiveTab('patterns')}
-              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'patterns'
-                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>Recurring Patterns</span>
-            </button>
-            <button
-              id="tab-perspective-differences-btn"
-              onClick={() => setActiveTab('contradictions')}
-              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'contradictions'
-                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
-              }`}
-            >
-              <Split className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-              <span>Perspective Differences</span>
-            </button>
-            <button
-              id="tab-signal-timeline-btn"
-              onClick={() => setActiveTab('timeline')}
-              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'timeline'
-                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
-              }`}
-            >
-              <Milestone className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-              <span>Signal Timeline</span>
-            </button>
-            <button
-              id="tab-reflection-wrapped-btn"
-              onClick={() => setActiveTab('wrapped')}
-              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'wrapped'
-                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
-              }`}
-            >
-              <Compass className="w-3.5 h-3.5 text-amber-900 shrink-0" />
-              <span>Reflection Wrapped</span>
-            </button>
-            <button
-              id="tab-then-vs-now-btn"
-              onClick={() => setActiveTab('then_now')}
-              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'then_now'
-                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-              <span>Then vs Now</span>
-            </button>
-            <button
-              id="tab-personal-themes-btn"
-              onClick={() => setActiveTab('themes')}
-              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'themes'
-                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
-              }`}
-            >
-              <Tag className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-              <span>Personal Themes</span>
-            </button>
-            <button
-              id="tab-ask-my-journal-btn"
-              onClick={() => setActiveTab('ask_journal')}
-              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'ask_journal'
-                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
-              }`}
-            >
-              <MessageSquareQuote className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-              <span>Ask My Journal</span>
-            </button>
-            <button
-              id="tab-reflection-connections-btn"
-              onClick={() => setActiveTab('connections')}
-              className={`flex items-center justify-center sm:justify-start space-x-1.5 px-3 py-2 xl:py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'connections'
-                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                  : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
-              }`}
-            >
-              <GitCommit className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-              <span>Connections</span>
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Structured Signal Eligibility & Analysis Scope Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-stone-50/90 px-3.5 py-3 rounded-xl border border-stone-200/70 shadow-2xs">
@@ -830,6 +1000,8 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           <div className="inline-flex rounded-lg bg-stone-200/70 p-0.5 border border-stone-300/60">
             <button
               id="scope-all-btn"
+              type="button"
+              aria-pressed={scopeMode === 'all'}
               onClick={handleResetToAll}
               className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all cursor-pointer ${
                 scopeMode === 'all'
@@ -841,6 +1013,8 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             </button>
             <button
               id="scope-selected-btn"
+              type="button"
+              aria-pressed={scopeMode === 'selected'}
               onClick={handleSwitchToSelectedScope}
               className={`flex items-center space-x-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all cursor-pointer ${
                 scopeMode === 'selected'
@@ -856,6 +1030,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           {scopeMode === 'selected' && (
             <button
               id="open-scope-selector-modal-btn"
+              type="button"
               onClick={handleOpenScopeModal}
               className="text-[11px] text-amber-800 hover:text-amber-950 font-medium underline underline-offset-2 cursor-pointer"
             >
@@ -865,7 +1040,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         </div>
       </div>
 
-      {targetEntries.length < 2 && activeTab !== 'ask_journal' && (
+      {targetEntries.length < 2 && selectedTool !== 'ask_journal' && (
         <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
@@ -877,6 +1052,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           </div>
           {scopeMode === 'selected' && (
             <button
+              type="button"
               onClick={handleOpenScopeModal}
               className="text-amber-900 font-semibold underline text-xs cursor-pointer shrink-0"
             >
@@ -886,7 +1062,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         </div>
       )}
 
-      {targetEntries.length === 0 && activeTab === 'ask_journal' && (
+      {targetEntries.length === 0 && selectedTool === 'ask_journal' && (
         <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
@@ -896,6 +1072,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           </div>
           {scopeMode === 'selected' && (
             <button
+              type="button"
               onClick={handleOpenScopeModal}
               className="text-amber-900 font-semibold underline text-xs cursor-pointer shrink-0"
             >
@@ -907,29 +1084,43 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
       {/* Scope Selection Modal */}
       {isScopeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white w-full max-w-lg rounded-2xl border border-stone-200 shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
+        <ScopeDialogAccessibility onClose={handleCloseScopeModal} initialFocusRef={scopeCloseButtonRef}>
+          {(scopeDialogRef) => (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+              <div
+                ref={scopeDialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="scope-dialog-title"
+                aria-describedby="scope-dialog-description"
+                tabIndex={-1}
+                className="bg-white w-full max-w-lg rounded-2xl border border-stone-200 shadow-xl overflow-hidden flex flex-col max-h-[85vh]"
+              >
             <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/60">
               <div className="flex items-center space-x-2">
                 <Filter className="w-4 h-4 text-amber-700" />
-                <h3 className="font-serif font-bold text-stone-900 text-sm">
+                <h3 id="scope-dialog-title" className="font-serif font-bold text-stone-900 text-sm">
                   Select Reflections for Cross-Entry Analysis
                 </h3>
               </div>
               <button
+                ref={scopeCloseButtonRef}
+                type="button"
                 onClick={handleCloseScopeModal}
-                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors cursor-pointer"
+                aria-label="Close reflection scope selector"
+                className="min-h-11 min-w-11 inline-flex items-center justify-center p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="p-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between text-xs text-stone-600">
-              <span>
+              <span id="scope-dialog-description">
                 Selected: <strong className="text-stone-900">{draftSelectedEntryIds.length}</strong> of {structuredEntries.length} reflections
               </span>
               <div className="space-x-2">
                 <button
+                  type="button"
                   onClick={handleSelectAllDraftScope}
                   className="text-amber-800 hover:text-amber-950 font-medium underline text-[11px] cursor-pointer"
                 >
@@ -937,6 +1128,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                 </button>
                 <span className="text-stone-300">|</span>
                 <button
+                  type="button"
                   onClick={handleClearDraftScopeSelection}
                   className="text-stone-500 hover:text-stone-800 underline text-[11px] cursor-pointer"
                 >
@@ -997,6 +1189,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               </span>
               <div className="space-x-2">
                 <button
+                  type="button"
                   onClick={handleResetToAll}
                   className="px-3 py-1.5 rounded-lg text-xs text-stone-600 hover:text-stone-800 bg-white border border-stone-200 cursor-pointer"
                 >
@@ -1004,6 +1197,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                 </button>
                 <button
                   id="apply-scope-modal-btn"
+                  type="button"
                   onClick={handleApplyScope}
                   disabled={draftSelectedEntryIds.length === 0}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-medium text-white transition-all cursor-pointer ${
@@ -1016,46 +1210,44 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+              </div>
+            </div>
+          )}
+        </ScopeDialogAccessibility>
       )}
 
       {/* TAB 1: RECURRING PATTERNS (DAY 5) */}
-      {activeTab === 'patterns' && (
-        <div id="recurring-patterns-tab-content" className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FCFCFA] p-3.5 rounded-xl border border-stone-200/70">
-            <div>
-              <h4 className="text-xs font-serif font-bold text-stone-900">
-                Pattern Observations
-              </h4>
-              <p className="text-[11px] text-stone-500">
-                Behavior and reaction patterns across multiple reflections.
-              </p>
-            </div>
+      {selectedTool === 'patterns' && (
+        <div id="recurring-patterns-tab-content" className="space-y-6">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+              Notice recurring reactions, interpretations, and signals across your reflections.
+            </p>
             <button
               id="analyze-cross-entry-patterns-btn"
+              type="button"
               onClick={handleAnalyzePatterns}
               disabled={loadingPatterns || !isMultiEntryScopeValid}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-medium transition-all shadow-xs cursor-pointer shrink-0 ${
+              className={`inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control px-4 py-2.5 text-sm font-semibold shadow-xs transition-colors sm:w-auto ${
                 !isMultiEntryScopeValid
-                  ? 'bg-stone-100 text-stone-400 border border-stone-200/60 cursor-not-allowed'
-                  : 'bg-stone-900 hover:bg-stone-800 text-white active:scale-98'
+                  ? 'cursor-not-allowed border border-border bg-surface-subtle text-text-muted opacity-70'
+                  : 'cursor-pointer bg-accent-primary text-white hover:bg-accent-primary-hover'
               }`}
             >
               {loadingPatterns ? (
                 <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-300" />
-                  <span>Analyzing Patterns...</span>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  <span>Reviewing reflections…</span>
                 </>
               ) : patternsResult ? (
                 <>
-                  <RefreshCw className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Re-Analyze Patterns ({targetEntries.length})</span>
+                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                  <span>Refresh observations</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Surface Patterns ({targetEntries.length} {targetEntries.length === 1 ? 'entry' : 'entries'})</span>
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  <span>Surface Patterns</span>
                 </>
               )}
             </button>
@@ -1063,17 +1255,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
           {/* Patterns Error State */}
           {patternsError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start justify-between gap-2">
-              <div className="flex items-start space-x-2">
-                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 items-start gap-3">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
                 <div>
-                  <p className="font-medium">Pattern Reasoning Error</p>
-                  <p className="text-red-600 mt-0.5">{patternsError}</p>
+                  <p className="font-semibold">AI observations could not be generated</p>
+                  <p className="mt-1 leading-relaxed text-red-700">{patternsError}</p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={handleAnalyzePatterns}
-                className="text-red-700 hover:text-red-900 font-medium underline text-xs cursor-pointer shrink-0"
+                className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-sm font-semibold text-red-700 underline underline-offset-2 hover:bg-red-100 hover:text-red-900"
               >
                 Retry
               </button>
@@ -1082,305 +1275,278 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
           {/* Patterns Content */}
           {loadingPatterns ? (
-            <div className="py-12 text-center space-y-3">
-              <Loader2 className="w-7 h-7 animate-spin text-stone-600 mx-auto" />
-              <p className="text-xs text-stone-600 font-medium font-serif">
-                Synthesizing structured signals across your reflections...
+            <div role="status" aria-live="polite" className="space-y-3 py-12 text-center">
+              <Loader2 className="mx-auto h-7 w-7 animate-spin text-accent-primary" aria-hidden="true" />
+              <p className="font-serif text-base font-semibold text-text-primary">
+                Looking across the reflections in this scope…
               </p>
-              <p className="text-[11px] text-stone-400 max-w-sm mx-auto">
-                Checking for recurring observations supported by at least 2 entries with verified citations.
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                AI is looking for recurring signals supported by more than one of your recorded reflections.
               </p>
             </div>
           ) : patternsResult ? (
-            <div className="space-y-4">
+            <section aria-labelledby="patterns-ai-observations-title" className="space-y-5 border-t border-border pt-5">
+              <div className="space-y-1">
+                <h4 id="patterns-ai-observations-title" className="font-serif text-lg font-semibold text-text-primary">
+                  AI observations
+                </h4>
+                <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+                  Generated only from the reflections included in the current scope. Treat these as prompts for reflection, not facts or diagnoses.
+                </p>
+              </div>
+
               {patternsResult.message && (
-                <div className="text-xs text-stone-700 bg-amber-50/50 p-3 rounded-xl border border-amber-200/60 flex items-start space-x-2">
-                  <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 rounded-card bg-surface-ai px-4 py-3 text-sm text-text-secondary">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
                   <p className="leading-relaxed">{patternsResult.message}</p>
                 </div>
               )}
 
               {!patternsResult.hasSufficientEvidence || patternsResult.patterns.length === 0 ? (
-                <div className="text-center py-8 px-4 bg-stone-50/60 rounded-xl border border-stone-200/80 space-y-2">
-                  <CheckCircle2 className="w-6 h-6 text-stone-400 mx-auto" />
-                  <h4 className="text-xs font-serif font-semibold text-stone-700">
-                    No Recurring Patterns Supported Yet
-                  </h4>
-                  <p className="text-[11px] text-stone-500 max-w-md mx-auto leading-relaxed">
-                    The reasoning engine requires multiple distinct entries with consistent explicit evidence before surfacing a pattern. Continue journaling to build a richer longitudinal signal set.
+                <div className="space-y-2 py-8 text-center">
+                  <CheckCircle2 className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
+                  <h5 className="font-serif text-base font-semibold text-text-primary">
+                    No recurring signals yet
+                  </h5>
+                  <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                    The reflections in this scope do not yet offer enough consistent support for a recurring observation. More writing over time may make meaningful connections easier to notice.
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3.5">
+                <div className="grid grid-cols-1 gap-4">
                   {patternsResult.patterns.map((pat: CrossEntryPattern, idx: number) => (
-                    <div
+                    <article
                       key={idx}
                       id={`pattern-card-${idx}`}
-                      className="bg-[#FCFCFA] border border-stone-200/90 rounded-xl p-4 sm:p-5 shadow-2xs space-y-3 hover:border-stone-300 transition-colors"
+                      className="space-y-4 rounded-card border border-border bg-surface p-5 shadow-low sm:p-6"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                            <span className="text-[11px] font-semibold text-amber-800 bg-amber-100/70 border border-amber-200/60 px-2 py-0.5 rounded-md">
-                              Observation {idx + 1}
-                            </span>
-                            <span className="text-[11px] font-medium text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md">
-                              Supported across {pat.evidenceCount} {pat.evidenceCount === 1 ? 'entry' : 'entries'}
-                            </span>
-                            {(pat.evidenceStrength === 'thin' || pat.evidenceCount === 2) && (
-                              <span className="text-[11px] font-medium text-amber-800 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md">
-                                Thin evidence
-                              </span>
-                            )}
-                            {(pat.evidenceStrength === 'emerging' || pat.evidenceCount === 3) && (
-                              <span className="text-[11px] font-medium text-stone-700 bg-stone-100 border border-stone-200/70 px-2 py-0.5 rounded-md">
-                                Emerging evidence
-                              </span>
-                            )}
-                            {(pat.evidenceStrength === 'strong' || pat.evidenceCount >= 4) && (
-                              <span className="text-[11px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md">
-                                Strong evidence
-                              </span>
-                            )}
-                          </div>
-                          <h4 className="text-sm font-semibold text-stone-900 pt-0.5">
-                            {pat.observation}
-                          </h4>
-                        </div>
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-accent-primary">
+                          Observation {idx + 1}
+                        </p>
+                        <h5 className="font-serif text-lg font-semibold leading-snug text-text-primary">
+                          {pat.observation}
+                        </h5>
+                        <p className="text-sm leading-relaxed text-text-secondary">
+                          {pat.explanation}
+                        </p>
                       </div>
 
-                      {(pat.evidenceStrength === 'thin' || pat.evidenceCount === 2) && (
-                        <div className="text-[11px] text-amber-850 bg-amber-50/60 border border-amber-200/60 px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5">
-                          <Info className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                          <span>Early signal — supported by only 2 journal entries.</span>
-                        </div>
-                      )}
-
-                      <div className="bg-white p-3 rounded-lg border border-stone-100 text-xs text-stone-700 leading-relaxed">
-                        <span className="font-medium text-stone-900 mr-1.5">Grounded Evidence:</span>
-                        {pat.explanation}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-xs text-text-muted">
+                        <span>
+                          {pat.evidenceCount} supporting {pat.evidenceCount === 1 ? 'reflection' : 'reflections'}
+                        </span>
+                        {(pat.evidenceStrength === 'thin' || pat.evidenceCount === 2) && <span>Early journal support</span>}
+                        {(pat.evidenceStrength === 'emerging' || pat.evidenceCount === 3) && <span>Emerging journal support</span>}
+                        {(pat.evidenceStrength === 'strong' || pat.evidenceCount >= 4) && <span>Consistent journal support</span>}
                       </div>
 
                       {Array.isArray(pat.supportingEntries) && pat.supportingEntries.length > 0 && (
-                        <div className="space-y-1.5 pt-1">
-                          <p className="text-[11px] font-medium text-stone-500 flex items-center space-x-1">
-                            <FileText className="w-3 h-3 text-stone-400" />
-                            <span>Supporting Journal Entries:</span>
+                        <div className="space-y-2">
+                          <p className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                            <FileText className="h-4 w-4 text-user-accent" aria-hidden="true" />
+                            <span>Supporting reflections</span>
                           </p>
                           <div className="flex flex-wrap gap-2">
                             {pat.supportingEntries.map((se, sIdx) => (
                               <button
                                 key={sIdx}
+                                type="button"
                                 onClick={() => handleOpenSupportingEntry(se.entryId)}
-                                className="inline-flex items-center space-x-1.5 text-xs bg-white hover:bg-stone-100 border border-stone-200 text-stone-800 px-2.5 py-1 rounded-lg transition-colors cursor-pointer group"
-                                title="Click to view entry"
+                                className="group inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-control border border-border bg-surface-user px-3 py-2 text-left text-sm text-text-primary transition-colors hover:border-border-strong hover:bg-surface-subtle sm:w-auto"
+                                title={`Open reflection: ${se.title}`}
                               >
-                                <Calendar className="w-3 h-3 text-stone-400 group-hover:text-stone-600" />
-                                <span className="font-medium truncate max-w-[160px] sm:max-w-[220px]">
+                                <Calendar className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
+                                <span className="min-w-0 flex-1 truncate font-medium sm:max-w-[220px]">
                                   {se.title}
                                 </span>
-                                {se.date && <span className="text-[10px] text-stone-400">({se.date})</span>}
-                                <ChevronRight className="w-3 h-3 text-stone-300 group-hover:text-stone-600" />
+                                {se.date && <span className="shrink-0 text-xs text-text-muted">{se.date}</span>}
+                                <ChevronRight className="h-4 w-4 shrink-0 text-text-muted group-hover:text-text-primary" aria-hidden="true" />
                               </button>
                             ))}
                           </div>
                         </div>
                       )}
-                    </div>
+                    </article>
                   ))}
                 </div>
               )}
-            </div>
+            </section>
           ) : (
-            <div className="bg-stone-50/50 border border-dashed border-stone-200 rounded-xl p-6 text-center space-y-2">
-              <Sparkles className="w-5 h-5 text-amber-600/70 mx-auto" />
-              <h4 className="text-xs font-serif font-semibold text-stone-800">
-                Discover Cross-Entry Recurring Observations
+            <div className="space-y-2 border-t border-border py-8 text-center">
+              <Sparkles className="mx-auto h-5 w-5 text-accent-primary" aria-hidden="true" />
+              <h4 className="font-serif text-base font-semibold text-text-primary">
+                No AI observations yet
               </h4>
-              <p className="text-[11px] text-stone-500 max-w-md mx-auto leading-relaxed">
-                Examine recurring situations, themes, or reactions across multiple reflections with verified citations.
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                Surface Patterns to look for recurring signals supported by the reflections in your current scope.
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* TAB 2: PERSPECTIVE DIFFERENCES & CONTRADICTIONS (DAY 6) */}
-      {activeTab === 'contradictions' && (
-        <div id="perspective-differences-tab-content" className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FCFCFA] p-3.5 rounded-xl border border-stone-200/70">
-            <div>
-              <h4 className="text-xs font-serif font-bold text-stone-900">
-                Grounded Perspective Differences
-              </h4>
-              <p className="text-[11px] text-stone-500">
-                Contrasting perspectives across different moments.
-              </p>
-            </div>
+      {/* Differences: calm interpretation-difference view */}
+      {selectedTool === 'contradictions' && (
+        <div id="perspective-differences-tab-content" className="space-y-6">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+              Notice where similar situations in your reflections were interpreted or felt differently.
+            </p>
             <button
               id="analyze-cross-entry-contradictions-btn"
+              type="button"
               onClick={handleAnalyzeContradictions}
               disabled={loadingContradictions || !isMultiEntryScopeValid}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-medium transition-all shadow-xs cursor-pointer shrink-0 ${
+              className={`inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control px-4 py-2.5 text-sm font-semibold shadow-xs transition-colors sm:w-auto ${
                 !isMultiEntryScopeValid
-                  ? 'bg-stone-100 text-stone-400 border border-stone-200/60 cursor-not-allowed'
-                  : 'bg-stone-900 hover:bg-stone-800 text-white active:scale-98'
+                  ? 'cursor-not-allowed border border-border bg-surface-subtle text-text-muted opacity-70'
+                  : 'cursor-pointer bg-accent-primary text-white hover:bg-accent-primary-hover'
               }`}
             >
               {loadingContradictions ? (
                 <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-300" />
-                  <span>Comparing Perspectives...</span>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  <span>Finding differences…</span>
                 </>
               ) : contradictionsResult ? (
                 <>
-                  <RefreshCw className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Re-Analyze Differences ({targetEntries.length})</span>
+                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                  <span>Refresh differences</span>
                 </>
               ) : (
                 <>
-                  <Split className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Explore Differences ({targetEntries.length} {targetEntries.length === 1 ? 'entry' : 'entries'})</span>
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  <span>Find differences</span>
                 </>
               )}
             </button>
           </div>
 
-          {/* Contradictions Error State */}
+          {/* AI provenance */}
+          <div className="flex items-start gap-3 rounded-card bg-surface-ai px-4 py-3 text-sm text-text-secondary">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+            <p className="leading-relaxed">
+              Based only on reflections in the current scope. AI is identifying places where similar situations were interpreted or felt differently — a difference does not mean a contradiction, and neither interpretation is necessarily more correct. This is not a diagnosis, not a claim about hidden motives or fixed identity, and similarity or chronology does not prove causation.
+            </p>
+          </div>
+
+          {/* Differences Error State */}
           {contradictionsError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start justify-between gap-2">
-              <div className="flex items-start space-x-2">
-                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 items-start gap-3">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
                 <div>
-                  <p className="font-medium">Perspective Comparison Error</p>
-                  <p className="text-red-600 mt-0.5">{contradictionsError}</p>
+                  <p className="font-semibold">AI observations could not be generated</p>
+                  <p className="mt-1 leading-relaxed text-red-700">{contradictionsError}</p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={handleAnalyzeContradictions}
-                className="text-red-700 hover:text-red-900 font-medium underline text-xs cursor-pointer shrink-0"
+                className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-sm font-semibold text-red-700 underline underline-offset-2 hover:bg-red-100 hover:text-red-900"
               >
                 Retry
               </button>
             </div>
           )}
 
-          {/* Contradictions Content */}
+          {/* Differences Content */}
           {loadingContradictions ? (
-            <div className="py-12 text-center space-y-3">
-              <Loader2 className="w-7 h-7 animate-spin text-stone-600 mx-auto" />
-              <p className="text-xs text-stone-600 font-medium font-serif">
-                Comparing similar reflection contexts for perspective differences...
-              </p>
-              <p className="text-[11px] text-stone-400 max-w-sm mx-auto">
-                Carefully identifying instances where similar situations met differing expressed interpretations or feelings.
+            <div role="status" aria-live="polite" className="space-y-3 py-12 text-center">
+              <Loader2 className="mx-auto h-7 w-7 animate-spin text-accent-primary" aria-hidden="true" />
+              <p className="font-serif text-base font-semibold text-text-primary">Finding differences…</p>
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                AI is looking for similar situations in this scope that were interpreted or felt differently.
               </p>
             </div>
           ) : contradictionsResult ? (
-            <div className="space-y-4">
+            <section aria-label="Differences results" className="space-y-5 border-t border-border pt-5">
               {contradictionsResult.message && (
-                <div className="text-xs text-stone-700 bg-stone-50 p-3 rounded-xl border border-stone-200/70 flex items-start space-x-2">
-                  <Info className="w-4 h-4 text-stone-600 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 rounded-card bg-surface-ai px-4 py-3 text-sm text-text-secondary">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
                   <p className="leading-relaxed">{contradictionsResult.message}</p>
                 </div>
               )}
 
               {!contradictionsResult.hasSufficientEvidence || contradictionsResult.contradictions.length === 0 ? (
-                <div className="text-center py-8 px-4 bg-stone-50/60 rounded-xl border border-stone-200/80 space-y-2">
-                  <CheckCircle2 className="w-6 h-6 text-stone-400 mx-auto" />
-                  <h4 className="text-xs font-serif font-semibold text-stone-700">
-                    No Perspective Contradictions Identified
-                  </h4>
-                  <p className="text-[11px] text-stone-500 max-w-md mx-auto leading-relaxed">
-                    Across your supplied reflections, your stated reactions and interpretations in similar situations appear consistent, or more comparative entries are needed before differences can be observed.
+                <div className="space-y-2 py-8 text-center">
+                  <CheckCircle2 className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
+                  <h5 className="font-serif text-base font-semibold text-text-primary">No clear differences surfaced</h5>
+                  <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                    The reflections in this scope may not contain enough grounded contrast for a useful comparison, or more reflections may be needed before a difference can be observed.
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-5">
                   {contradictionsResult.contradictions.map((contra: CrossEntryContradiction, idx: number) => (
-                    <div
+                    <article
                       key={idx}
                       id={`contradiction-card-${idx}`}
-                      className="bg-[#FCFCFA] border border-stone-200/90 rounded-xl p-4 sm:p-5 shadow-2xs space-y-4 hover:border-stone-300 transition-colors"
+                      className="space-y-4 rounded-card border border-border bg-surface p-5 shadow-low sm:p-6"
                     >
-                      {/* Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                      <div className="space-y-2">
+                        <h4 className="font-serif text-lg font-semibold leading-snug text-text-primary">
+                          {contra.observation}
+                        </h4>
                         <div className="space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-[11px] font-semibold text-stone-800 bg-stone-200/70 border border-stone-300/60 px-2 py-0.5 rounded-md">
-                              Perspective Difference {idx + 1}
-                            </span>
-                            <span className="text-[11px] font-medium text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md">
-                              Compared across {contra.evidenceCount} {contra.evidenceCount === 1 ? 'entry' : 'entries'}
-                            </span>
-                          </div>
-                          <h4 className="text-sm font-semibold text-stone-900 pt-0.5">
-                            {contra.observation}
-                          </h4>
+                          <p className="text-xs font-semibold uppercase tracking-[0.06em] text-text-muted">What may differ</p>
+                          <p className="text-sm leading-relaxed text-text-secondary">{contra.explanation}</p>
                         </div>
                       </div>
 
-                      {/* Grounded Evidence Breakdown */}
-                      <div className="bg-white p-3.5 rounded-lg border border-stone-100 text-xs text-stone-700 leading-relaxed">
-                        <span className="font-medium text-stone-900 mr-1.5">Observed Contrast:</span>
-                        {contra.explanation}
-                      </div>
-
-                      {/* Supporting Entries List */}
                       {Array.isArray(contra.supportingEntries) && contra.supportingEntries.length > 0 && (
-                        <div className="space-y-1.5">
-                          <p className="text-[11px] font-medium text-stone-500 flex items-center space-x-1">
-                            <FileText className="w-3 h-3 text-stone-400" />
-                            <span>Compared Journal Reflections:</span>
+                        <div className="space-y-2 border-t border-border pt-4">
+                          <p className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                            <FileText className="h-4 w-4 text-user-accent" aria-hidden="true" />
+                            <span>Supporting reflections</span>
                           </p>
                           <div className="flex flex-wrap gap-2">
                             {contra.supportingEntries.map((se, sIdx) => (
                               <button
                                 key={sIdx}
+                                type="button"
                                 onClick={() => handleOpenSupportingEntry(se.entryId)}
-                                className="inline-flex items-center space-x-1.5 text-xs bg-white hover:bg-stone-100 border border-stone-200 text-stone-800 px-2.5 py-1 rounded-lg transition-colors cursor-pointer group"
-                                title="Click to view entry"
+                                className="flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-control border border-border bg-surface-user px-3 py-2 text-left text-sm text-text-primary transition-colors hover:border-border-strong hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
+                                title={`Open reflection: ${se.title}`}
                               >
-                                <Calendar className="w-3 h-3 text-stone-400 group-hover:text-stone-600" />
-                                <span className="font-medium truncate max-w-[160px] sm:max-w-[220px]">
+                                <Calendar className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
+                                <span className="min-w-0 flex-1 [overflow-wrap:anywhere] font-medium">
                                   {se.title}
                                 </span>
-                                {se.date && <span className="text-[10px] text-stone-400">({se.date})</span>}
-                                <ChevronRight className="w-3 h-3 text-stone-300 group-hover:text-stone-600" />
+                                {se.date && <span className="shrink-0 text-xs text-text-muted">{se.date}</span>}
                               </button>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {/* Exactly ONE Clarifying Reflection Question Box */}
                       {contra.clarifyingQuestion && (
-                        <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-3.5 sm:p-4 space-y-1.5">
-                          <div className="flex items-center space-x-2 text-amber-900 font-medium text-xs">
-                            <Compass className="w-4 h-4 text-amber-700 shrink-0" />
-                            <span className="font-serif font-bold">Reflection Question</span>
+                        <div className="space-y-1 border-t border-border pt-4">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
+                            <Compass className="h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+                            <span>Question to sit with</span>
                           </div>
-                          <p className="text-xs text-stone-800 font-medium leading-relaxed pl-6">
-                            "{contra.clarifyingQuestion}"
-                          </p>
-                          <p className="text-[10px] text-stone-500 pl-6">
-                            Consider exploring what felt different or what values were at play in each moment.
+                          <p className="font-serif text-base italic leading-relaxed text-text-primary">
+                            {contra.clarifyingQuestion}
                           </p>
                         </div>
                       )}
-                    </div>
+
+                      <p className="border-t border-border pt-3 text-xs text-text-muted">
+                        {contra.evidenceCount} supporting {contra.evidenceCount === 1 ? 'reflection' : 'reflections'}
+                      </p>
+                    </article>
                   ))}
                 </div>
               )}
-            </div>
+            </section>
           ) : (
-            <div className="bg-stone-50/50 border border-dashed border-stone-200 rounded-xl p-6 text-center space-y-2">
-              <HelpCircle className="w-5 h-5 text-stone-500/70 mx-auto" />
-              <h4 className="text-xs font-serif font-semibold text-stone-800">
-                Examine Contrasts in Reactions & Interpretations
-              </h4>
-              <p className="text-[11px] text-stone-500 max-w-md mx-auto leading-relaxed">
-                When you have multiple reflections with structured summaries, the system can gently surface subtle variations in how you interpreted similar situations.
+            <div className="space-y-2 border-t border-border py-8 text-center">
+              <Split className="mx-auto h-5 w-5 text-accent-primary" aria-hidden="true" />
+              <h4 className="font-serif text-base font-semibold text-text-primary">No differences yet</h4>
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                Find differences when you are ready to notice where similar situations in this scope were interpreted or felt differently.
               </p>
             </div>
           )}
@@ -1388,214 +1554,181 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       )}
 
       {/* TAB 3: SIGNAL TIMELINE (PERSPECTIVE CHANGE OVER TIME) */}
-      {activeTab === 'timeline' && (
-        <div id="signal-timeline-tab-content" className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FCFCFA] p-3.5 rounded-xl border border-stone-200/70">
-            <div>
-              <h4 className="text-xs font-serif font-bold text-stone-900">
-                Grounded Signal Timeline
-              </h4>
-              <p className="text-[11px] text-stone-500">
-                Changes in personal observations and interpretations over time.
-              </p>
-            </div>
+      {selectedTool === 'timeline' && (
+        <div id="signal-timeline-tab-content" className="min-w-0 space-y-6">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+              Notice how recorded reactions, interpretations, or focus may differ across reflections over time.
+            </p>
             <button
               id="analyze-signal-timeline-btn"
+              type="button"
               onClick={handleAnalyzeTimeline}
               disabled={loadingTimeline || !isMultiEntryScopeValid}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-medium transition-all shadow-xs cursor-pointer shrink-0 ${
+              className={`inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control px-4 py-2.5 text-sm font-semibold shadow-xs transition-colors sm:w-auto ${
                 !isMultiEntryScopeValid
-                  ? 'bg-stone-100 text-stone-400 border border-stone-200/60 cursor-not-allowed'
-                  : 'bg-stone-900 hover:bg-stone-800 text-white active:scale-98'
+                  ? 'cursor-not-allowed border border-border bg-surface-subtle text-text-muted opacity-70'
+                  : 'cursor-pointer bg-accent-primary text-white hover:bg-accent-primary-hover'
               }`}
             >
               {loadingTimeline ? (
                 <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-300" />
-                  <span>Reasoning Across Timeline...</span>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  <span>Looking across reflections…</span>
                 </>
               ) : timelineResult ? (
                 <>
-                  <RefreshCw className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Re-Analyze Timeline ({targetEntries.length})</span>
+                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                  <span>Refresh timeline</span>
                 </>
               ) : (
                 <>
-                  <Milestone className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Analyze Timeline Shifts ({targetEntries.length} {targetEntries.length === 1 ? 'entry' : 'entries'})</span>
+                  <Milestone className="h-4 w-4" aria-hidden="true" />
+                  <span>Find changes over time</span>
                 </>
               )}
             </button>
           </div>
 
-          {/* Timeline Error State */}
           {timelineError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start justify-between gap-2">
-              <div className="flex items-start space-x-2">
-                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 items-start gap-3">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
                 <div>
-                  <p className="font-medium">Timeline Reasoning Error</p>
-                  <p className="text-red-600 mt-0.5">{timelineError}</p>
+                  <p className="font-semibold">AI observations could not be generated</p>
+                  <p className="mt-1 leading-relaxed">{timelineError}</p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={handleAnalyzeTimeline}
-                className="text-red-700 hover:text-red-900 font-medium underline text-xs cursor-pointer shrink-0"
+                className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-3 text-sm font-semibold text-red-700 underline underline-offset-2 hover:bg-red-100 hover:text-red-900"
               >
-                Retry
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                <span>Retry</span>
               </button>
             </div>
           )}
 
-          {/* Timeline Content */}
           {loadingTimeline ? (
-            <div className="py-12 text-center space-y-3">
-              <Loader2 className="w-7 h-7 animate-spin text-stone-600 mx-auto" />
-              <p className="text-xs text-stone-600 font-medium font-serif">
-                Tracing perspective and reaction shifts across your dated reflections...
-              </p>
-              <p className="text-[11px] text-stone-400 max-w-sm mx-auto">
-                Validating chronological progression and identifying grounded transitions across your journal entries.
+            <div role="status" aria-live="polite" className="space-y-3 py-12 text-center">
+              <Loader2 className="mx-auto h-7 w-7 animate-spin text-accent-primary" aria-hidden="true" />
+              <p className="font-serif text-base font-semibold text-text-primary">Looking across these reflections…</p>
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                AI is considering where recorded reactions, interpretations, or focus may differ over time.
               </p>
             </div>
           ) : timelineResult ? (
-            <div className="space-y-4">
+            <section aria-labelledby="timeline-ai-observations-title" className="space-y-6 border-t border-border pt-5">
+              <div className="space-y-1">
+                <h4 id="timeline-ai-observations-title" className="font-serif text-lg font-semibold text-text-primary">AI observations</h4>
+                <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+                  Generated only from reflections in the current scope. These are interpretive observations: chronology does not prove causation, later does not mean better or worse, and the results are not diagnoses, fixed identity claims, or explanations of hidden motives.
+                </p>
+              </div>
+
               {timelineResult.message && (
-                <div className="text-xs text-stone-700 bg-stone-50 p-3 rounded-xl border border-stone-200/70 flex items-start space-x-2">
-                  <Info className="w-4 h-4 text-stone-600 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 border-l-2 border-border pl-4 text-sm text-text-secondary">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                   <p className="leading-relaxed">{timelineResult.message}</p>
                 </div>
               )}
 
               {!timelineResult.hasSufficientEvidence || timelineResult.shifts.length === 0 ? (
-                <div className="text-center py-8 px-4 bg-stone-50/60 rounded-xl border border-stone-200/80 space-y-2">
-                  <CheckCircle2 className="w-6 h-6 text-stone-400 mx-auto" />
-                  <h4 className="text-xs font-serif font-semibold text-stone-700">
-                    No Longitudinal Perspective Shifts Detected
-                  </h4>
-                  <p className="text-[11px] text-stone-500 max-w-md mx-auto leading-relaxed">
-                    Across your dated journal reflections, your expressed perspective, tone, and focus remain steady, or additional dated entries are needed before an observable transition over time can be grounded.
+                <div className="space-y-2 py-8 text-center">
+                  <CheckCircle2 className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
+                  <h5 className="font-serif text-base font-semibold text-text-primary">No clear changes surfaced</h5>
+                  <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                    The selected reflections did not provide enough contrast for a useful observation. This does not imply that nothing changed outside what was recorded.
                   </p>
                 </div>
               ) : (
-                <div className="relative space-y-6 before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-stone-200 before:hidden sm:before:block">
-                  {timelineResult.shifts.map((shift: SignalTimelineShift, idx: number) => (
-                    <div
-                      key={idx}
+                <ul className="relative min-w-0 space-y-8 pl-7 before:absolute before:bottom-4 before:left-[7px] before:top-4 before:w-px before:bg-border sm:pl-9">
+                  {presentationTimelineShifts.map((shift: SignalTimelineShift, idx: number) => (
+                    <li
+                      key={`${shift.earlierDate ?? 'undated'}-${shift.laterDate ?? 'undated'}-${idx}`}
                       id={`timeline-shift-card-${idx}`}
-                      className="relative bg-[#FCFCFA] border border-stone-200/90 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4 hover:border-stone-300 transition-colors"
+                      className="relative min-w-0 space-y-6 border-b border-border pb-8 last:border-b-0 last:pb-0"
                     >
-                      {/* Node Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                            <span className="text-[11px] font-semibold text-amber-900 bg-amber-100/80 border border-amber-200/70 px-2 py-0.5 rounded-md">
-                              {formatShiftTypeLabel(shift.shiftType)}
-                            </span>
-                            <span className="text-[11px] font-medium text-stone-600 bg-stone-100 px-2 py-0.5 rounded-md flex items-center space-x-1">
-                              <Clock className="w-3 h-3 text-stone-400" />
-                              <span>
-                                {shift.earlierDate && shift.laterDate
-                                  ? `${shift.earlierDate} → ${shift.laterDate}`
-                                  : `Across ${shift.evidenceCount} entries`}
-                              </span>
-                            </span>
-                          </div>
-                          <h4 className="text-sm sm:text-base font-semibold text-stone-900 pt-1 font-serif">
-                            {shift.observation}
-                          </h4>
-                        </div>
+                      <span className="absolute -left-7 top-1 h-4 w-4 rounded-full border-4 border-background bg-accent-primary sm:-left-9" aria-hidden="true" />
+
+                      <header className="min-w-0 space-y-2">
+                        <p className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-semibold text-text-secondary">
+                          <Calendar className="h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+                          <span className="[overflow-wrap:anywhere]">
+                            {shift.earlierDate && shift.laterDate
+                              ? `${shift.earlierDate} – ${shift.laterDate}`
+                              : shift.earlierDate || shift.laterDate || 'Date context unavailable'}
+                          </span>
+                        </p>
+                        <h5 className="max-w-reading font-serif text-lg font-semibold leading-relaxed text-text-primary">
+                          {shift.observation}
+                        </h5>
+                      </header>
+
+                      <div className="grid min-w-0 grid-cols-1 gap-5 border-y border-border py-5 md:grid-cols-2">
+                        <section className="min-w-0 space-y-2">
+                          <h6 className="text-sm font-semibold text-text-secondary">Earlier reflection</h6>
+                          {shift.earlierDate && <p className="text-[13px] text-text-muted">{shift.earlierDate}</p>}
+                          <p className="font-serif text-base leading-relaxed text-text-primary">{shift.earlierState}</p>
+                        </section>
+                        <section className="min-w-0 space-y-2 md:border-l md:border-border md:pl-5">
+                          <h6 className="text-sm font-semibold text-text-secondary">Later reflection</h6>
+                          {shift.laterDate && <p className="text-[13px] text-text-muted">{shift.laterDate}</p>}
+                          <p className="font-serif text-base leading-relaxed text-text-primary">{shift.laterState}</p>
+                        </section>
                       </div>
 
-                      {/* Visual Temporal Shift Comparison Cards */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                        {/* Earlier State */}
-                        <div className="bg-stone-50/90 border border-stone-200/80 rounded-xl p-3.5 space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] uppercase font-bold tracking-wider text-stone-500 bg-stone-200/70 px-1.5 py-0.5 rounded">
-                              Earlier Reflection State
-                            </span>
-                            {shift.earlierDate && (
-                              <span className="text-[10px] text-stone-400 font-mono">
-                                {shift.earlierDate}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-stone-800 leading-relaxed font-medium">
-                            {shift.earlierState}
-                          </p>
-                        </div>
-
-                        {/* Later State */}
-                        <div className="bg-amber-50/40 border border-amber-200/70 rounded-xl p-3.5 space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] uppercase font-bold tracking-wider text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded flex items-center space-x-1">
-                              <TrendingUp className="w-3 h-3 text-amber-700 inline" />
-                              <span>Later Reflection State</span>
-                            </span>
-                            {shift.laterDate && (
-                              <span className="text-[10px] text-stone-400 font-mono">
-                                {shift.laterDate}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-stone-900 leading-relaxed font-medium">
-                            {shift.laterState}
-                          </p>
-                        </div>
+                      <div className="space-y-2">
+                        <h6 className="text-sm font-semibold text-text-secondary">From the recorded reflections</h6>
+                        <p className="max-w-reading text-sm leading-relaxed text-text-secondary">{shift.explanation}</p>
                       </div>
 
-                      {/* Grounded Evidence Explanation */}
-                      <div className="bg-white p-3.5 rounded-xl border border-stone-150 text-xs text-stone-700 leading-relaxed">
-                        <span className="font-medium text-stone-900 mr-1.5">Grounded Evidence:</span>
-                        {shift.explanation}
+                      <div className="flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-text-muted">
+                        <p><span className="font-semibold text-text-secondary">Type:</span> {formatShiftTypeLabel(shift.shiftType)}</p>
+                        <p><span className="font-semibold text-text-secondary">Journal support:</span> {shift.evidenceCount} {shift.evidenceCount === 1 ? 'reflection' : 'reflections'}</p>
                       </div>
 
-                      {/* Supporting Journal Entries */}
                       {Array.isArray(shift.supportingEntries) && shift.supportingEntries.length > 0 && (
-                        <div className="space-y-1.5 pt-1">
-                          <p className="text-[11px] font-medium text-stone-500 flex items-center space-x-1">
-                            <FileText className="w-3 h-3 text-stone-400" />
-                            <span>Supporting Timeline Entries:</span>
-                          </p>
-                          <div className="flex flex-wrap gap-2">
+                        <section className="min-w-0 space-y-2" aria-label="Supporting reflections">
+                          <h6 className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
+                            <FileText className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                            Supporting reflections
+                          </h6>
+                          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
                             {shift.supportingEntries.map((se, sIdx) => (
                               <button
                                 key={sIdx}
+                                type="button"
                                 onClick={() => handleOpenSupportingEntry(se.entryId)}
-                                className="inline-flex items-center space-x-1.5 text-xs bg-white hover:bg-stone-100 border border-stone-200 text-stone-800 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer group shadow-2xs"
+                                className="flex min-h-11 min-w-0 max-w-full items-start gap-3 rounded-control border border-border bg-surface px-3 py-2.5 text-left text-sm text-text-primary transition-colors hover:bg-surface-subtle"
                                 title="Click to view entry details"
                               >
-                                <Calendar className="w-3 h-3 text-stone-400 group-hover:text-stone-600" />
-                                <span className="font-medium truncate max-w-[150px] sm:max-w-[200px]">
-                                  {se.title}
+                                <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block [overflow-wrap:anywhere] font-semibold">{se.title}</span>
+                                  <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-text-muted">
+                                    {se.date && <span>{se.date}</span>}
+                                    <span>{formatTimelineRole(se.roleInShift)}</span>
+                                  </span>
                                 </span>
-                                {se.date && <span className="text-[10px] text-stone-400">({se.date})</span>}
-                                {se.roleInShift === 'earlier_state' && (
-                                  <span className="text-[9px] bg-stone-100 text-stone-500 px-1 rounded">Earlier</span>
-                                )}
-                                {se.roleInShift === 'later_state' && (
-                                  <span className="text-[9px] bg-amber-100 text-amber-800 px-1 rounded">Later</span>
-                                )}
-                                <ChevronRight className="w-3 h-3 text-stone-300 group-hover:text-stone-600" />
+                                <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
                               </button>
                             ))}
                           </div>
-                        </div>
+                        </section>
                       )}
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
-            </div>
+            </section>
           ) : (
-            <div className="bg-stone-50/50 border border-dashed border-stone-200 rounded-xl p-6 text-center space-y-2">
-              <Milestone className="w-5 h-5 text-amber-700/70 mx-auto" />
-              <h4 className="text-xs font-serif font-semibold text-stone-800">
-                Explore Longitudinal Perspective Shifts
-              </h4>
-              <p className="text-[11px] text-stone-500 max-w-md mx-auto leading-relaxed">
-                When you record structured journal entries across time, the timeline engine detects meaningful transitions in your expressed feelings, interpretations, or internal focus.
+            <div className="space-y-2 border-t border-border py-8 text-center">
+              <Milestone className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
+              <h4 className="font-serif text-base font-semibold text-text-primary">No AI observations yet</h4>
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                Find changes over time when you are ready to compare what you recorded across this scope.
               </p>
             </div>
           )}
@@ -1603,7 +1736,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       )}
 
       {/* Reflection Wrapped View */}
-      {activeTab === 'wrapped' && (
+      {selectedTool === 'wrapped' && (
         <ReflectionWrapped
           targetEntries={targetEntries}
           patternsResult={patternsResult}
@@ -1617,7 +1750,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       )}
 
       {/* Then vs Now View */}
-      {activeTab === 'then_now' && (
+      {selectedTool === 'then_now' && (
         <ThenVsNowComparison
           targetEntries={targetEntries}
           timelineResult={timelineResult}
@@ -1628,7 +1761,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       )}
 
       {/* Ask My Journal View */}
-      {activeTab === 'ask_journal' && (
+      {selectedTool === 'ask_journal' && (
         <AskMyJournal
           targetEntries={targetEntries}
           question={askJournalQuestion}
@@ -1642,7 +1775,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       )}
 
       {/* Personal Themes View */}
-      {activeTab === 'themes' && (
+      {selectedTool === 'themes' && (
         <PersonalThemesView
           targetEntries={targetEntries}
           allEntries={entries}
@@ -1655,7 +1788,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       )}
 
       {/* Reflection Connections View */}
-      {activeTab === 'connections' && (
+      {selectedTool === 'connections' && (
         <ReflectionConnectionsView
           targetEntries={targetEntries}
           allEntries={entries}
@@ -1665,6 +1798,8 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           onAnalyzeConnections={handleAnalyzeConnections}
           onSelectEntry={onSelectEntry}
         />
+      )}
+        </>
       )}
     </div>
   );

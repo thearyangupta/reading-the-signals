@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { JournalEntry, ChatMessage } from '../types';
-import { appendReflectionMessage } from '../lib/firebase';
+import { appendReflectionMessage, auth } from '../lib/firebase';
 import { Sparkles, Send, User, Bot, Loader2, Lightbulb, AlertCircle } from 'lucide-react';
 
 interface ReflectionChatProps {
   userId: string;
   entry: JournalEntry;
   onEntryUpdated: (updated: JournalEntry) => void;
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -20,25 +21,55 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
   userId,
   entry,
   onEntryUpdated,
+  scrollContainerRef,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(entry.reflections || []);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  const autoScrollActiveRef = useRef(false);
 
   useEffect(() => {
     setMessages(entry.reflections || []);
   }, [entry.reflections]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+    if (!autoScrollActiveRef.current) return;
+
+    const scrollFrame = window.requestAnimationFrame(() => {
+      const scrollContainer = scrollContainerRef.current;
+      const composer = composerRef.current;
+      if (!scrollContainer || !composer) return;
+
+      const containerBounds = scrollContainer.getBoundingClientRect();
+      const composerBounds = composer.getBoundingClientRect();
+      const overflowBelow = composerBounds.bottom - containerBounds.bottom;
+      const overflowAbove = composerBounds.top - containerBounds.top;
+      const scrollDistance = overflowBelow > 0
+        ? overflowBelow
+        : overflowAbove < 0
+          ? overflowAbove
+          : 0;
+
+      if (scrollDistance !== 0) {
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        scrollContainer.scrollBy({
+          top: scrollDistance,
+          behavior: reduceMotion ? 'auto' : 'smooth',
+        });
+      }
+    });
+
+    if (!loading) autoScrollActiveRef.current = false;
+    return () => window.cancelAnimationFrame(scrollFrame);
+  }, [messages, loading, scrollContainerRef]);
 
   const handleSendMessage = async (textToSend?: string) => {
     const messageContent = (textToSend || input).trim();
     if (!messageContent || loading) return;
 
+    autoScrollActiveRef.current = true;
     setError(null);
     setInput('');
 
@@ -54,10 +85,19 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
     setLoading(true);
 
     try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('Please sign in to continue the reflection dialogue.');
+      }
+      const idToken = await currentUser.getIdToken();
+
       // 1. Send to server-side Gemini reflection partner endpoint
       const response = await fetch('/api/reflect', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           entry: {
             title: entry.title,
@@ -107,43 +147,44 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-stone-50/50 rounded-xl border border-stone-200/80 overflow-hidden">
+    <div className="flex min-w-0 w-full flex-col rounded-card border border-border bg-surface-ai/40">
       {/* Header bar */}
-      <div className="px-4 py-3 bg-white border-b border-stone-200/70 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
+      <div className="flex min-w-0 items-center justify-between border-b border-border-ai bg-surface px-4 py-3">
+        <div className="flex min-w-0 items-center space-x-2">
           <div className="p-1 bg-amber-100 text-amber-900 rounded-md">
             <Sparkles className="w-4 h-4 text-amber-700" />
           </div>
-          <div>
-            <h4 className="text-xs font-semibold text-stone-900">AI Reflection Partner</h4>
-            <p className="text-[10px] text-stone-500">
-              Examining observations & feelings • Non-diagnostic dialogue
+          <div className="min-w-0">
+            <h4 className="text-sm font-semibold text-text-primary">AI observations in dialogue</h4>
+            <p className="text-xs text-text-muted">
+              A non-diagnostic reflection conversation
             </p>
           </div>
         </div>
       </div>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3.5 max-h-[380px] min-h-[220px]">
+      <div role="log" aria-live="polite" aria-label="Reflection dialogue" className="min-w-0 space-y-3.5 p-4">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center px-4 py-6 text-stone-500 space-y-3">
+          <div className="flex min-w-0 flex-col items-center justify-center space-y-3 px-4 py-6 text-center text-stone-500">
             <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-400">
               <Bot className="w-5 h-5 text-stone-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-stone-700">Start a deeper reflection</p>
-              <p className="text-[11px] text-stone-400 max-w-xs mt-0.5">
+              <p className="mt-1 max-w-xs text-xs text-text-muted">
                 Explore the situation from different angles, inspect your feelings, or separate facts from assumptions.
               </p>
             </div>
 
             {/* Quick suggested prompt pills */}
-            <div className="flex flex-wrap gap-1.5 justify-center max-w-md pt-2">
+            <div className="flex min-w-0 max-w-md flex-wrap justify-center gap-1.5 pt-2">
               {SUGGESTED_PROMPTS.map((prompt, idx) => (
                 <button
                   key={idx}
+                  type="button"
                   onClick={() => handleSendMessage(prompt)}
-                  className="text-left text-[11px] bg-white hover:bg-stone-100 text-stone-700 px-2.5 py-1.5 rounded-lg border border-stone-200 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  className="flex min-h-11 items-center gap-1.5 rounded-control border border-border bg-surface px-3 py-2 text-left text-xs text-text-secondary shadow-low transition-colors hover:bg-surface-subtle hover:text-text-primary"
                 >
                   <Lightbulb className="w-3 h-3 text-amber-500 shrink-0" />
                   <span>{prompt}</span>
@@ -161,7 +202,7 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
                   className={`flex items-start space-x-2.5 ${isUser ? 'flex-row-reverse space-x-reverse' : 'flex-row'}`}
                 >
                   <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] ${
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${
                       isUser
                         ? 'bg-stone-900 text-white'
                         : 'bg-amber-100 text-amber-900 border border-amber-200'
@@ -177,9 +218,9 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
                         : 'bg-white text-stone-800 border border-stone-200/80 rounded-tl-xs shadow-2xs'
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{msg.content}</p>
                     <div
-                      className={`text-[9px] mt-1 text-right ${
+                      className={`mt-1 text-right text-xs ${
                         isUser ? 'text-stone-400' : 'text-stone-400'
                       }`}
                     >
@@ -193,7 +234,7 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
         )}
 
         {loading && (
-          <div className="flex items-start space-x-2.5">
+          <div role="status" className="flex items-start space-x-2.5">
             <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-900 border border-amber-200 flex items-center justify-center shrink-0">
               <Bot className="w-3.5 h-3.5 text-amber-800" />
             </div>
@@ -205,30 +246,33 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
         )}
 
         {error && (
-          <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2 text-red-700 text-xs">
+          <div role="alert" className="p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2 text-red-700 text-xs">
             <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
             <span className="flex-1">{error}</span>
             <button
+              type="button"
               onClick={() => handleSendMessage()}
-              className="text-[11px] underline font-medium cursor-pointer"
+              className="min-h-11 px-2 text-xs font-medium underline"
             >
               Retry
             </button>
           </div>
         )}
 
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Form */}
-      <div className="p-2.5 bg-white border-t border-stone-200/80">
+      <div ref={composerRef} className="border-t border-stone-200/80 bg-white p-2.5">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSendMessage();
           }}
-          className="flex items-center space-x-2"
+          className="flex min-w-0 items-center space-x-2"
         >
+          <label htmlFor="reflection-chat-input" className="sr-only">
+            Message for the AI reflection partner
+          </label>
           <input
             id="reflection-chat-input"
             type="text"
@@ -236,13 +280,14 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
             onChange={(e) => setInput(e.target.value)}
             disabled={loading}
             placeholder="Type a reflection question or feeling..."
-            className="flex-1 text-xs px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-400 text-stone-900"
+            className="min-h-11 min-w-0 flex-1 rounded-control border border-border bg-surface px-3.5 py-2.5 text-base text-text-primary placeholder:text-text-muted sm:text-sm"
           />
           <button
             id="send-reflection-message-button"
             type="submit"
+            aria-label={loading ? 'Sending reflection message' : 'Send reflection message'}
             disabled={!input.trim() || loading}
-            className="p-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl transition-all disabled:opacity-40 cursor-pointer shrink-0 shadow-2xs"
+            className="min-h-11 min-w-11 inline-flex items-center justify-center p-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl transition-all disabled:opacity-40 cursor-pointer shrink-0 shadow-2xs"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>

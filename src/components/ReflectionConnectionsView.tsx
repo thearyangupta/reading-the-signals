@@ -6,19 +6,19 @@ import {
   ReflectionConnectionType,
 } from '../types';
 import {
-  GitCommit,
-  Split,
-  Layers,
-  Sparkles,
-  Loader2,
+  AlertCircle,
+  ArrowDown,
+  ArrowRight,
   Calendar,
   FileText,
-  AlertCircle,
-  RefreshCw,
-  HelpCircle,
-  ShieldCheck,
-  ArrowRight,
   Filter,
+  GitCommit,
+  HelpCircle,
+  Layers,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+  Split,
 } from 'lucide-react';
 
 interface ReflectionConnectionsViewProps {
@@ -95,444 +95,230 @@ export const ReflectionConnectionsView: React.FC<ReflectionConnectionsViewProps>
     switch (type) {
       case 'shared_signal':
         return {
-          label: 'Shared Signal',
+          label: 'Shared signal',
           icon: GitCommit,
-          badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
-          accentColor: 'text-emerald-700',
-          description: 'Both reflections share a related observational or behavioral signal.',
+          description: 'Both reflections include a related recorded signal.',
         };
       case 'contrasting_interpretation':
         return {
-          label: 'Contrasting Interpretation',
+          label: 'Different interpretations',
           icon: Split,
-          badgeBg: 'bg-purple-50 text-purple-800 border-purple-200/80',
-          accentColor: 'text-purple-700',
-          description: 'Related situations are interpreted differently across the reflections.',
+          description: 'Related situations are interpreted differently in the two reflections.',
         };
       case 'parallel_context':
         return {
-          label: 'Parallel Context',
+          label: 'Parallel contexts',
           icon: Layers,
-          badgeBg: 'bg-sky-50 text-sky-800 border-sky-200/80',
-          accentColor: 'text-sky-700',
-          description: 'Different situations feature a parallel internal or situational reaction.',
+          description: 'Different situations contain a related context or recorded reaction.',
         };
       default:
         return {
           label: 'Connection',
           icon: Sparkles,
-          badgeBg: 'bg-stone-100 text-stone-800 border-stone-200',
-          accentColor: 'text-stone-700',
-          description: 'A grounded connection between two reflections.',
+          description: 'A possible connection between two recorded reflections.',
         };
     }
   };
 
-  // Case 1: Zero entries in active scope
   if (isScopeEmpty) {
     return (
-      <div
-        id="reflection-connections-empty-scope"
-        className="bg-stone-50/70 border border-dashed border-stone-200 rounded-2xl p-8 text-center space-y-3"
-      >
-        <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-800 border border-amber-200/60 flex items-center justify-center mx-auto">
-          <GitCommit className="w-5 h-5" />
-        </div>
-        <h4 className="text-sm font-serif font-semibold text-stone-800">
-          No Reflections in Scope
-        </h4>
-        <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
-          Write reflections to begin discovering grounded pairwise connections between what you wrote.
+      <section id="reflection-connections-empty-scope" className="space-y-2 border-t border-border py-6">
+        <h4 className="font-serif text-base font-semibold text-text-primary">Connections need reflections to draw from</h4>
+        <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+          Add eligible reflections to this scope before looking for relationships between them.
         </p>
-      </div>
+      </section>
     );
   }
 
-  // Case 2: Exactly 1 entry in active scope
   if (isSingleEntry) {
     return (
-      <div
-        id="reflection-connections-single-entry-scope"
-        className="bg-amber-50/40 border border-amber-200/60 rounded-2xl p-8 text-center space-y-3"
-      >
-        <div className="w-10 h-10 rounded-xl bg-amber-100/70 text-amber-800 border border-amber-200 flex items-center justify-center mx-auto">
-          <Layers className="w-5 h-5" />
-        </div>
-        <h4 className="text-sm font-serif font-semibold text-stone-900">
-          Cross-Entry Threshold Required
-        </h4>
-        <p className="text-xs text-stone-600 max-w-md mx-auto leading-relaxed">
-          Reflection Connections need at least 2 reflections in the active scope. Include additional reflections in your scope above to discover pairwise relationships.
+      <section id="reflection-connections-single-entry-scope" className="space-y-2 border-t border-border py-6">
+        <h4 className="font-serif text-base font-semibold text-text-primary">Include another reflection</h4>
+        <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+          Connections need at least two reflections in the current scope so they can be considered alongside each other.
         </p>
-      </div>
+      </section>
     );
   }
 
   return (
     <div id="reflection-connections-container" className="space-y-6">
-      {/* Informative Header Banner & Action Button */}
-      <div className="bg-stone-50 border border-stone-200/80 rounded-2xl p-5 text-stone-800 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center space-x-2">
-              <div className="p-1.5 bg-amber-100/80 text-amber-800 rounded-lg">
-                <GitCommit className="w-4 h-4 text-amber-800" />
-              </div>
-              <h4 className="text-sm font-serif font-bold text-stone-900 tracking-tight">
-                Reflection Connections (Pairwise Signal Mapping)
-              </h4>
-            </div>
-            <p className="text-xs text-stone-600 leading-relaxed max-w-2xl">
-              Discovers grounded pairwise relationships between distinct reflections in your active scope ({targetEntries.length} reflections)—such as shared behavioral signals, contrasting interpretations, or parallel contexts. Grounded strictly in structured summaries without psychological profiling.
-            </p>
-          </div>
-
-          <div className="shrink-0 flex items-center">
-            <button
-              id="find-connections-btn"
-              type="button"
-              onClick={onAnalyzeConnections}
-              disabled={!canAnalyze}
-              className="inline-flex items-center space-x-2 px-4 py-2 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:bg-stone-200 disabled:text-stone-400 text-white text-xs font-medium rounded-lg shadow-2xs transition-all cursor-pointer disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-700"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Discovering Connections...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>{result ? 'Re-analyze Connections' : 'Find Connections'}</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-stone-200/60 text-[11px] text-stone-500">
-          <div className="flex items-center space-x-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span>Authoritative evidence from structured entries</span>
-          </div>
-          <span className="text-stone-300">•</span>
-          <div className="flex items-center space-x-1">
-            <GitCommit className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-            <span>Deduplicated pairwise connections (up to 8)</span>
-          </div>
-          <span className="text-stone-300">•</span>
-          <div className="flex items-center space-x-1">
-            <Layers className="w-3.5 h-3.5 text-stone-600 shrink-0" />
-            <span>Non-diagnostic observational framing</span>
-          </div>
-        </div>
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+          Notice how two reflections may echo, differ, or sit alongside each other.
+        </p>
+        <button
+          id="find-connections-btn"
+          type="button"
+          onClick={onAnalyzeConnections}
+          disabled={!canAnalyze}
+          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-text-muted disabled:shadow-none sm:w-auto"
+        >
+          {loading ? (
+            <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /><span>Looking for connections…</span></>
+          ) : result ? (
+            <><RefreshCw className="h-4 w-4" aria-hidden="true" /><span>Refresh connections</span></>
+          ) : (
+            <><Sparkles className="h-4 w-4" aria-hidden="true" /><span>Find Connections</span></>
+          )}
+        </button>
       </div>
 
-      {/* Error State */}
       {error && (
-        <div
-          id="reflection-connections-error-banner"
-          className="bg-rose-50/80 border border-rose-200 rounded-xl p-4 text-xs text-rose-800 flex items-start space-x-3"
-        >
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-          <div className="space-y-1.5 flex-1">
-            <p className="font-semibold">{error}</p>
-            <button
-              onClick={onAnalyzeConnections}
-              className="inline-flex items-center space-x-1 text-rose-700 hover:text-rose-900 font-medium underline underline-offset-2 cursor-pointer"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>Retry Analysis</span>
-            </button>
+        <div id="reflection-connections-error-banner" role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 items-start gap-3">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
+            <div><p className="font-semibold">AI observations could not be generated</p><p className="mt-1 leading-relaxed">{error}</p></div>
           </div>
+          <button type="button" onClick={onAnalyzeConnections} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-3 text-sm font-semibold text-red-700 underline underline-offset-2 hover:bg-red-100 hover:text-red-900">
+            <RefreshCw className="h-4 w-4" aria-hidden="true" /><span>Retry</span>
+          </button>
         </div>
       )}
 
-      {/* Loading Skeleton */}
       {loading && (
-        <div
-          id="reflection-connections-loading-state"
-          className="bg-white border border-stone-200/90 rounded-2xl p-8 text-center space-y-4 shadow-2xs"
-        >
-          <Loader2 className="w-6 h-6 text-amber-700 animate-spin mx-auto" />
-          <div className="space-y-1">
-            <h5 className="text-xs font-serif font-semibold text-stone-800">
-              Evaluating Grounded Connections Across {targetEntries.length} Reflections...
-            </h5>
-            <p className="text-[11px] text-stone-500 max-w-sm mx-auto leading-relaxed">
-              Analyzing shared behavioral signals, contrasting interpretations, and parallel contexts between pairs of reflections.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Empty State before running analysis */}
-      {!loading && !result && !error && (
-        <div
-          id="reflection-connections-initial-prompt"
-          className="bg-stone-50/60 border border-dashed border-stone-200 rounded-2xl p-8 text-center space-y-3"
-        >
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-800 border border-amber-200/60 flex items-center justify-center mx-auto">
-            <Sparkles className="w-5 h-5 text-amber-700" />
-          </div>
-          <h4 className="text-sm font-serif font-semibold text-stone-800">
-            Ready to Map Reflection Connections
-          </h4>
-          <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
-            Click &quot;Find Connections&quot; to discover grounded relationships between what you recorded across the {targetEntries.length} reflections in your active scope.
+        <div id="reflection-connections-loading-state" role="status" aria-live="polite" className="space-y-3 py-12 text-center">
+          <Loader2 className="mx-auto h-7 w-7 animate-spin text-accent-primary" aria-hidden="true" />
+          <p className="font-serif text-base font-semibold text-text-primary">Looking across the reflections in this scope…</p>
+          <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            AI is considering where recorded signals, contexts, or interpretations may relate.
           </p>
         </div>
       )}
 
-      {/* Results Rendering */}
+      {!loading && !result && !error && (
+        <div id="reflection-connections-initial-prompt" className="space-y-2 border-t border-border py-8 text-center">
+          <h4 className="font-serif text-base font-semibold text-text-primary">No AI observations yet</h4>
+          <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            Find Connections when you are ready to consider possible links in the current scope.
+          </p>
+        </div>
+      )}
+
       {!loading && result && (
-        <>
+        <section aria-labelledby="connections-ai-observations-title" className="space-y-6 border-t border-border pt-5">
+          <div className="space-y-1">
+            <h4 id="connections-ai-observations-title" className="font-serif text-lg font-semibold text-text-primary">AI observations</h4>
+            <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+              Generated only from reflections in the current scope. These are interpretive links, not proof that events are objectively connected, diagnoses, explanations of hidden motives, or claims of causation.
+            </p>
+          </div>
+
           {result.connections.length === 0 ? (
-            <div
-              id="reflection-connections-no-qualifying"
-              className="bg-stone-50/70 border border-dashed border-stone-200 rounded-2xl p-8 text-center space-y-3"
-            >
-              <div className="w-10 h-10 rounded-xl bg-stone-100 text-stone-600 border border-stone-200 flex items-center justify-center mx-auto">
-                <GitCommit className="w-5 h-5" />
-              </div>
-              <h4 className="text-sm font-serif font-semibold text-stone-800">
-                No Grounded Connections Found
-              </h4>
-              <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
+            <div id="reflection-connections-no-qualifying" className="space-y-2 py-8 text-center">
+              <GitCommit className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
+              <h5 className="font-serif text-base font-semibold text-text-primary">No clear connections yet</h5>
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
                 {result.message || 'No strongly grounded connections were found in this scope.'}
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* Optional Client-Side Focus Filter */}
+            <div className="space-y-5">
               {targetEntries.length > 2 && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1 text-xs text-stone-600">
-                  <div className="flex items-center space-x-2">
-                    <Filter className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                    <span className="font-medium text-stone-700">Filter by reflection:</span>
-                  </div>
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <label htmlFor="connections-filter-select" className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
+                    <Filter className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+                    Focus on a reflection
+                  </label>
                   <select
+                    aria-label="Focus connections on a reflection"
                     id="connections-filter-select"
                     value={focusEntryId}
                     onChange={(e) => setFocusEntryId(e.target.value)}
-                    className="text-xs bg-white border border-stone-200 rounded-lg px-2.5 py-1.5 text-stone-700 focus:outline-none focus:ring-1 focus:ring-amber-700 max-w-xs truncate"
+                    className="min-h-11 w-full min-w-0 rounded-control border border-border bg-surface px-3 py-2 text-base text-text-primary sm:max-w-sm sm:text-sm"
                   >
-                    <option value="all">All Reflections ({result.connections.length} connections)</option>
+                    <option value="all">All reflections ({result.connections.length} connections)</option>
                     {targetEntries.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.title} ({formatDate(e.date)})
-                      </option>
+                      <option key={e.id} value={e.id}>{e.title} ({formatDate(e.date)})</option>
                     ))}
                   </select>
                 </div>
               )}
 
               {filteredConnections.length === 0 ? (
-                <div className="bg-stone-50/60 border border-dashed border-stone-200 rounded-xl p-6 text-center space-y-2 text-xs text-stone-500">
+                <div className="space-y-3 border-t border-border py-8 text-center text-sm text-text-secondary">
                   <p>No connections involving the selected reflection were found.</p>
-                  <button
-                    type="button"
-                    onClick={() => setFocusEntryId('all')}
-                    className="text-amber-800 hover:text-amber-900 font-medium underline underline-offset-2 cursor-pointer"
-                  >
+                  <button type="button" onClick={() => setFocusEntryId('all')} className="inline-flex min-h-11 items-center rounded-control px-3 font-semibold text-accent-primary underline underline-offset-2 hover:bg-surface-subtle hover:text-accent-primary-hover">
                     Show all connections ({result.connections.length})
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-5">
                   {filteredConnections.map((conn: ReflectionConnection) => {
                     const config = getConnectionTypeConfig(conn.connectionType);
                     const TypeIcon = config.icon;
                     const sourceEntry = entryLookup.get(conn.sourceEntryId);
                     const targetEntry = entryLookup.get(conn.targetEntryId);
+                    const connectionHeadingId = `connection-heading-${conn.id}`;
 
                     return (
-                      <div
-                        key={conn.id}
-                        id={`connection-card-${conn.id}`}
-                        className="bg-white border border-stone-200/90 rounded-2xl p-5 shadow-2xs hover:border-amber-200/80 transition-all space-y-4"
-                      >
-                        {/* Card Header: Type Badge */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-3">
-                          <div className="flex items-center space-x-2">
-                            <span
-                              className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.badgeBg}`}
-                            >
-                              <TypeIcon className="w-3.5 h-3.5 shrink-0" />
-                              <span>{config.label}</span>
-                            </span>
-                            <span className="text-[11px] text-stone-400 hidden sm:inline">
-                              {config.description}
-                            </span>
+                      <article key={conn.id} id={`connection-card-${conn.id}`} aria-labelledby={connectionHeadingId} className="min-w-0 space-y-6 rounded-card border border-border bg-surface p-4 shadow-low sm:p-6">
+                        <header className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-accent-primary">
+                            <TypeIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                            <h5 id={connectionHeadingId} className="font-serif text-lg font-semibold text-text-primary">{config.label}</h5>
                           </div>
-                        </div>
+                          <p className="max-w-reading font-serif text-lg leading-relaxed text-text-primary">{conn.groundedReason}</p>
+                        </header>
 
-                        {/* Grounded Reason */}
-                        <div className="space-y-1">
-                          <p className="text-xs sm:text-sm text-stone-800 leading-relaxed font-normal">
-                            {conn.groundedReason}
-                          </p>
-                        </div>
-
-                        {/* Connected Reflections: Source ↔ Target */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                          {/* Source Entry */}
-                          <div className="bg-stone-50/90 border border-stone-200/70 rounded-xl p-3.5 space-y-2 flex flex-col justify-between">
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between gap-2 text-[11px] text-stone-500">
-                                <span className="font-semibold uppercase tracking-wider text-stone-400">
-                                  Earlier Reflection
-                                </span>
-                                <div className="flex items-center space-x-1 text-stone-400">
-                                  <Calendar className="w-3 h-3" />
-                                  <span>{formatDate(conn.source.entryDate)}</span>
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (sourceEntry) {
-                                    onSelectEntry(sourceEntry);
-                                  }
-                                }}
-                                className="text-left font-serif font-semibold text-xs sm:text-sm text-stone-900 hover:text-amber-800 transition-colors flex items-center space-x-1.5 group cursor-pointer"
-                                title="Click to view full entry"
-                              >
-                                <FileText className="w-3.5 h-3.5 text-stone-400 group-hover:text-amber-700 shrink-0" />
-                                <span className="underline decoration-stone-200 group-hover:decoration-amber-700 underline-offset-2">
-                                  {conn.source.entryTitle}
-                                </span>
+                        <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_9rem_minmax(0,1fr)] md:items-stretch">
+                          <section className="min-w-0 space-y-4 rounded-card bg-surface-subtle p-4" aria-label="First reflection in this connection">
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-text-muted">First reflection</p>
+                              <button type="button" onClick={() => { if (sourceEntry) onSelectEntry(sourceEntry); }} className="flex min-h-11 w-full min-w-0 max-w-full items-center gap-2 rounded-control px-2 text-left font-serif text-base font-semibold text-text-primary hover:bg-surface hover:text-accent-secondary" title="Click to view full entry">
+                                <FileText className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
+                                <span className="min-w-0 [overflow-wrap:anywhere]">{conn.source.entryTitle}</span>
                               </button>
+                              <p className="flex items-center gap-2 pl-2 text-[13px] text-text-muted"><Calendar className="h-4 w-4 shrink-0" aria-hidden="true" />{formatDate(conn.source.entryDate)}</p>
                             </div>
-
-                            <div className="space-y-2 pt-1">
-                              {conn.source.observedSignal && (
-                                <div className="pt-2 border-t border-stone-200/50">
-                                  <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
-                                    Observed Signal
-                                  </p>
-                                  <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed mt-0.5">
-                                    {conn.source.observedSignal}
-                                  </p>
-                                </div>
-                              )}
-
-                              {conn.source.recordedInterpretation && (
-                                <div className="pt-2 border-t border-stone-200/50">
-                                  <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
-                                    Recorded Interpretation
-                                  </p>
-                                  <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed mt-0.5">
-                                    {conn.source.recordedInterpretation}
-                                  </p>
-                                </div>
-                              )}
-
-                              {conn.source.emotionalTone && (
-                                <div className="pt-2 border-t border-stone-200/50">
-                                  <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
-                                    Emotional Tone
-                                  </p>
-                                  <p className="text-xs text-stone-600 leading-relaxed mt-0.5">
-                                    <span className="inline-block px-2 py-0.5 rounded-full bg-stone-200/70 text-[11px] font-medium text-stone-700">
-                                      {conn.source.emotionalTone}
-                                    </span>
-                                  </p>
-                                </div>
-                              )}
+                            <div className="divide-y divide-border">
+                              {conn.source.observedSignal && <div className="space-y-1 py-3 first:pt-0"><p className="text-sm font-semibold text-text-secondary">Recorded signal</p><p className="font-serif text-base leading-relaxed text-text-primary">{conn.source.observedSignal}</p></div>}
+                              {conn.source.recordedInterpretation && <div className="space-y-1 py-3"><p className="text-sm font-semibold text-text-secondary">Recorded interpretation</p><p className="text-sm leading-relaxed text-text-secondary">{conn.source.recordedInterpretation}</p></div>}
+                              {conn.source.emotionalTone && <div className="space-y-1 py-3 last:pb-0"><p className="text-sm font-semibold text-text-secondary">Emotional tone</p><p className="text-sm leading-relaxed text-text-secondary">{conn.source.emotionalTone}</p></div>}
                             </div>
+                          </section>
+
+                          <div className="flex min-w-0 flex-col items-center justify-center gap-2 px-2 py-2 text-center text-sm text-text-secondary">
+                            <ArrowDown className="h-5 w-5 text-accent-primary md:hidden" aria-hidden="true" />
+                            <ArrowRight className="hidden h-5 w-5 text-accent-primary md:block" aria-hidden="true" />
+                            <p className="leading-snug"><span className="block text-[13px] text-text-muted">Related through</span><strong className="font-semibold text-text-primary">{config.label}</strong></p>
+                            <p className="text-[13px] leading-relaxed text-text-muted">{config.description}</p>
+                            <ArrowDown className="h-5 w-5 text-accent-primary md:hidden" aria-hidden="true" />
+                            <ArrowRight className="hidden h-5 w-5 text-accent-primary md:block" aria-hidden="true" />
                           </div>
 
-                          {/* Target Entry */}
-                          <div className="bg-stone-50/90 border border-stone-200/70 rounded-xl p-3.5 space-y-2 flex flex-col justify-between">
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between gap-2 text-[11px] text-stone-500">
-                                <span className="font-semibold uppercase tracking-wider text-stone-400">
-                                  Later Reflection
-                                </span>
-                                <div className="flex items-center space-x-1 text-stone-400">
-                                  <Calendar className="w-3 h-3" />
-                                  <span>{formatDate(conn.target.entryDate)}</span>
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (targetEntry) {
-                                    onSelectEntry(targetEntry);
-                                  }
-                                }}
-                                className="text-left font-serif font-semibold text-xs sm:text-sm text-stone-900 hover:text-amber-800 transition-colors flex items-center space-x-1.5 group cursor-pointer"
-                                title="Click to view full entry"
-                              >
-                                <FileText className="w-3.5 h-3.5 text-stone-400 group-hover:text-amber-700 shrink-0" />
-                                <span className="underline decoration-stone-200 group-hover:decoration-amber-700 underline-offset-2">
-                                  {conn.target.entryTitle}
-                                </span>
+                          <section className="min-w-0 space-y-4 rounded-card bg-surface-subtle p-4" aria-label="Second reflection in this connection">
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-text-muted">Second reflection</p>
+                              <button type="button" onClick={() => { if (targetEntry) onSelectEntry(targetEntry); }} className="flex min-h-11 w-full min-w-0 max-w-full items-center gap-2 rounded-control px-2 text-left font-serif text-base font-semibold text-text-primary hover:bg-surface hover:text-accent-secondary" title="Click to view full entry">
+                                <FileText className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
+                                <span className="min-w-0 [overflow-wrap:anywhere]">{conn.target.entryTitle}</span>
                               </button>
+                              <p className="flex items-center gap-2 pl-2 text-[13px] text-text-muted"><Calendar className="h-4 w-4 shrink-0" aria-hidden="true" />{formatDate(conn.target.entryDate)}</p>
                             </div>
-
-                            <div className="space-y-2 pt-1">
-                              {conn.target.observedSignal && (
-                                <div className="pt-2 border-t border-stone-200/50">
-                                  <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
-                                    Observed Signal
-                                  </p>
-                                  <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed mt-0.5">
-                                    {conn.target.observedSignal}
-                                  </p>
-                                </div>
-                              )}
-
-                              {conn.target.recordedInterpretation && (
-                                <div className="pt-2 border-t border-stone-200/50">
-                                  <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
-                                    Recorded Interpretation
-                                  </p>
-                                  <p className="text-xs text-stone-600 line-clamp-3 leading-relaxed mt-0.5">
-                                    {conn.target.recordedInterpretation}
-                                  </p>
-                                </div>
-                              )}
-
-                              {conn.target.emotionalTone && (
-                                <div className="pt-2 border-t border-stone-200/50">
-                                  <p className="text-[10px] uppercase font-semibold text-stone-400 tracking-wider">
-                                    Emotional Tone
-                                  </p>
-                                  <p className="text-xs text-stone-600 leading-relaxed mt-0.5">
-                                    <span className="inline-block px-2 py-0.5 rounded-full bg-stone-200/70 text-[11px] font-medium text-stone-700">
-                                      {conn.target.emotionalTone}
-                                    </span>
-                                  </p>
-                                </div>
-                              )}
+                            <div className="divide-y divide-border">
+                              {conn.target.observedSignal && <div className="space-y-1 py-3 first:pt-0"><p className="text-sm font-semibold text-text-secondary">Recorded signal</p><p className="font-serif text-base leading-relaxed text-text-primary">{conn.target.observedSignal}</p></div>}
+                              {conn.target.recordedInterpretation && <div className="space-y-1 py-3"><p className="text-sm font-semibold text-text-secondary">Recorded interpretation</p><p className="text-sm leading-relaxed text-text-secondary">{conn.target.recordedInterpretation}</p></div>}
+                              {conn.target.emotionalTone && <div className="space-y-1 py-3 last:pb-0"><p className="text-sm font-semibold text-text-secondary">Emotional tone</p><p className="text-sm leading-relaxed text-text-secondary">{conn.target.emotionalTone}</p></div>}
                             </div>
-                          </div>
+                          </section>
                         </div>
 
-                        {/* Optional Reflection Question */}
                         {conn.reflectionQuestion && (
-                          <div className="bg-amber-50/40 border border-amber-200/60 rounded-xl p-3 flex items-start space-x-2.5 text-xs text-amber-950">
-                            <HelpCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                            <div className="space-y-0.5">
-                              <span className="font-semibold text-amber-900 block text-[11px]">
-                                Reflection Prompt
-                              </span>
-                              <p className="text-stone-700 italic leading-relaxed">
-                                {conn.reflectionQuestion}
-                              </p>
-                            </div>
+                          <div className="flex items-start gap-3 border-l-2 border-border-ai pl-4">
+                            <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+                            <div className="min-w-0 space-y-1"><p className="text-sm font-semibold text-text-secondary">Question to sit with</p><p className="font-serif text-base italic leading-relaxed text-text-primary">{conn.reflectionQuestion}</p></div>
                           </div>
                         )}
-                      </div>
+                      </article>
                     );
                   })}
                 </div>
               )}
             </div>
           )}
-        </>
+        </section>
       )}
     </div>
   );

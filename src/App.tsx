@@ -1,16 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth, signOutUser, subscribeUserEntries } from './lib/firebase';
 import { UserProfile, JournalEntry } from './types';
-import { Navbar } from './components/Navbar';
+import { Navbar, AppView } from './components/Navbar';
 import { AuthView } from './components/AuthView';
 import { JournalList } from './components/JournalList';
 import { JournalEditor } from './components/JournalEditor';
 import { EntryDetailModal } from './components/EntryDetailModal';
 import { PatternAnalysisSection } from './components/PatternAnalysisSection';
-import { Sparkles, Shield, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 export default function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeView: AppView = location.pathname === '/insights' ? 'insights' : 'journal';
+
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -22,10 +27,18 @@ export default function App() {
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
 
+  // Tracks whether this session has ever seen an authenticated user, so the
+  // sign-out branch below can distinguish a genuine sign-out (reset to
+  // /journal, preserving prior behavior) from an initial signed-out page
+  // load (no redirect, so a direct signed-out visit to /insights still
+  // renders AuthView at that URL instead of being forced to /journal).
+  const hasBeenSignedInRef = useRef(false);
+
   // Listen to Firebase Auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
+        hasBeenSignedInRef.current = true;
         setUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email,
@@ -34,17 +47,22 @@ export default function App() {
           isAnonymous: firebaseUser.isAnonymous,
         });
       } else {
+        const wasSignedIn = hasBeenSignedInRef.current;
+        hasBeenSignedInRef.current = false;
         setUser(null);
         setEntries([]);
         setSelectedEntry(null);
         setEditorOpen(false);
         setEditingEntry(null);
+        if (wasSignedIn) {
+          navigate('/journal', { replace: true });
+        }
       }
       setAuthLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [navigate]);
 
   // Listen to isolated real-time Firestore entries for the authenticated user
   useEffect(() => {
@@ -114,36 +132,56 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="w-10 h-10 rounded-2xl bg-stone-900 text-stone-100 flex items-center justify-center mx-auto shadow-xs">
-            <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
-          </div>
-          <p className="text-xs font-serif text-stone-600 font-medium">Reading the Signals...</p>
+      <div className="bg-background px-4 py-16 text-text-primary sm:py-24">
+        <div role="status" aria-live="polite" className="flex items-center justify-center gap-2.5">
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-accent-primary" aria-hidden="true" />
+          <span className="text-sm text-text-secondary">Opening your journal&hellip;</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-stone-900 flex flex-col font-sans selection:bg-amber-100 selection:text-stone-900">
+    <div className="min-h-screen bg-background text-text-primary flex flex-col font-sans">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-control focus:bg-surface focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-text-primary focus:shadow-dialog"
+      >
+        Skip to main content
+      </a>
+
+      {/* Route-level redirects only. Real /journal and /insights content
+          below is derived from the current location (activeView above);
+          these routes exist solely to send / and any unknown path to
+          /journal without rendering a duplicate view. */}
+      <Routes>
+        <Route path="/" element={<Navigate to="/journal" replace />} />
+        <Route path="/journal" element={null} />
+        <Route path="/insights" element={null} />
+        <Route path="*" element={<Navigate to="/journal" replace />} />
+      </Routes>
+
       {/* Top Navbar */}
       <Navbar
         user={user}
+        activeView={activeView}
+        onNavigate={(view) => navigate(`/${view}`)}
         onNewEntry={handleOpenNewEntry}
         onSignOut={handleSignOut}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-shell flex-1 px-4 pb-28 pt-6 sm:px-6 sm:pb-28 sm:pt-8 md:pb-8 lg:px-8">
         {errorMessage && (
-          <div className="mb-6 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-xs text-red-700">
+          <div role="alert" className="mb-6 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-xs text-red-700">
             <div className="flex items-center space-x-2">
               <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
               <span>{errorMessage}</span>
             </div>
             <button
+              type="button"
               onClick={() => setErrorMessage(null)}
+              aria-label="Dismiss synchronization error"
               className="text-stone-400 hover:text-stone-700 text-xs font-medium cursor-pointer"
             >
               Dismiss
@@ -154,39 +192,39 @@ export default function App() {
         {!user ? (
           <AuthView onAuthSuccess={() => {}} />
         ) : (
-          <div className="space-y-6">
-            {/* Dashboard Subheader */}
-            <div className="border-b border-stone-200/70 pb-4 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+          <div className={activeView === 'journal' ? 'mx-auto w-full max-w-journal space-y-8' : 'w-full space-y-6'}>
+            <div className="border-b border-border pb-4">
               <div>
-                <h2 className="text-xl sm:text-2xl font-serif font-bold text-stone-900 tracking-tight">
-                  Your Reflection Journal
+                <h2 className="font-serif text-xl font-bold tracking-tight text-text-primary sm:text-2xl">
+                  {activeView === 'journal' ? 'Journal' : 'Insights'}
                 </h2>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  Record moments, examine your reactions, and converse with your non-diagnostic AI partner.
+                <p className="mt-1 text-sm text-text-secondary">
+                  {activeView === 'journal'
+                    ? 'A private place to notice what changes over time.'
+                    : 'See recurring signals, changes over time, and questions worth exploring.'}
                 </p>
-              </div>
-
-              <div className="flex items-center space-x-2 text-[11px] text-stone-500 bg-stone-100/70 px-2.5 py-1 rounded-lg border border-stone-200/50 self-start sm:self-auto">
-                <Shield className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Isolated UID Vault</span>
               </div>
             </div>
 
-            {/* Journal Entries Grid / List */}
-            <JournalList
-              entries={entries}
-              loading={entriesLoading}
-              userId={user?.uid}
-              onSelectEntry={(entry) => setSelectedEntry(entry)}
-              onNewEntry={handleOpenNewEntry}
-            />
-
-            {/* Cross-Entry Signal Reasoning Section */}
-            {!entriesLoading && entries.length > 0 && (
-              <PatternAnalysisSection
+            {activeView === 'journal' ? (
+              <JournalList
                 entries={entries}
+                loading={entriesLoading}
+                userId={user.uid}
                 onSelectEntry={(entry) => setSelectedEntry(entry)}
+                onNewEntry={handleOpenNewEntry}
               />
+            ) : entriesLoading ? (
+              <p role="status" className="py-12 text-center text-sm text-text-muted">Loading your reflections…</p>
+            ) : entries.length > 0 ? (
+              <PatternAnalysisSection entries={entries} onSelectEntry={(entry) => setSelectedEntry(entry)} />
+            ) : (
+              <div className="rounded-feature border border-border bg-surface px-6 py-12 text-center">
+                <h3 className="font-serif text-lg font-semibold text-text-primary">Insights begin with your reflections</h3>
+                <p className="mx-auto mt-2 max-w-reading text-sm text-text-secondary">
+                  Write a reflection first, then return here to explore patterns and connections.
+                </p>
+              </div>
             )}
           </div>
         )}
@@ -220,8 +258,8 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-stone-200/60 bg-[#FAF7F2] py-4 text-center text-[11px] text-stone-400">
-        <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <footer className={`border-t border-border bg-surface-subtle py-4 text-center text-xs text-text-muted ${user ? 'mb-[calc(4rem+env(safe-area-inset-bottom))] md:mb-0' : ''}`}>
+        <div className="mx-auto flex max-w-shell flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6 lg:px-8">
           <span>Reading the Signals • Private Personal Reflection</span>
           <span>Non-diagnostic AI partner for self-inquiry</span>
         </div>

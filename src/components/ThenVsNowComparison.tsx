@@ -2,16 +2,15 @@ import React from 'react';
 import {
   JournalEntry,
   SignalTimelineResult,
+  TimelineShiftType,
 } from '../types';
 import {
-  Clock,
-  ArrowRight,
   Calendar,
-  ChevronRight,
-  ShieldCheck,
-  Milestone,
+  Clock,
+  FileText,
+  Info,
   Loader2,
-  AlertCircle,
+  RefreshCw,
   Sparkles,
 } from 'lucide-react';
 
@@ -22,6 +21,13 @@ interface ThenVsNowComparisonProps {
   onAnalyzeTimeline: () => void;
   onSelectEntry: (entry: JournalEntry) => void;
 }
+
+const SHIFT_TYPE_LABELS: Record<TimelineShiftType, string> = {
+  perspective: 'Change in perspective',
+  emotional_reaction: 'Change in emotional reaction',
+  interpretation: 'Change in interpretation',
+  focus: 'Change in focus',
+};
 
 export const ThenVsNowComparison: React.FC<ThenVsNowComparisonProps> = ({
   targetEntries,
@@ -41,201 +47,242 @@ export const ThenVsNowComparison: React.FC<ThenVsNowComparisonProps> = ({
   // Guard A: Fewer than 2 structured reflections in active scope
   if (targetEntries.length < 2) {
     return (
-      <div className="bg-stone-50/80 border border-stone-200 rounded-2xl p-8 text-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200/60 text-amber-800 flex items-center justify-center mx-auto">
-          <Clock className="w-6 h-6 text-amber-700" />
-        </div>
-        <div className="max-w-md mx-auto space-y-2">
-          <h4 className="font-serif font-bold text-stone-900 text-base">
-            Then vs Now Requires More Reflections
-          </h4>
-          <p className="text-xs text-stone-600 leading-relaxed">
-            Then vs Now requires at least 2 structured reflections in the active scope to identify longitudinal shifts.
-          </p>
-        </div>
-        <div className="inline-flex items-center space-x-2 text-xs text-stone-500 bg-white px-3.5 py-1.5 rounded-full border border-stone-200">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Current active scope: {targetEntries.length} {targetEntries.length === 1 ? 'reflection' : 'reflections'}</span>
-        </div>
-      </div>
+      <section id="then-vs-now-insufficient-scope" className="space-y-2 border-t border-border py-6">
+        <h4 className="font-serif text-base font-semibold text-text-primary">Add another reflection to compare</h4>
+        <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+          Then vs Now needs at least two reflections in the current scope so an earlier and a later moment can be compared.
+        </p>
+        <p className="text-xs text-text-muted">
+          Current scope: {targetEntries.length} {targetEntries.length === 1 ? 'reflection' : 'reflections'}.
+        </p>
+      </section>
     );
   }
 
-  // Guard B: Timeline not yet computed for this scope
-  if (timelineResult === null) {
-    return (
-      <div className="bg-stone-50 border border-stone-200/90 rounded-2xl p-8 text-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200/60 text-amber-800 flex items-center justify-center mx-auto">
-          <Milestone className="w-6 h-6 text-amber-700" />
-        </div>
-        <div className="max-w-md mx-auto space-y-1.5">
-          <h4 className="font-serif font-bold text-stone-800 text-sm">
-            Signal Timeline Not Yet Computed
-          </h4>
-          <p className="text-xs text-stone-500 leading-relaxed max-w-md mx-auto">
-            Signal Timeline has not yet been computed for this scope. Analyze your reflections across time to generate Then vs Now comparisons.
-          </p>
-        </div>
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={onAnalyzeTimeline}
-            disabled={loadingTimeline}
-            className="inline-flex items-center space-x-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-medium px-4 py-2.5 rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-500"
-          >
-            {loadingTimeline ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Analyzing Signal Timeline...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Analyze Signal Timeline</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Guard C: Insufficient longitudinal evidence detected
-  if (!timelineResult.hasSufficientEvidence) {
-    return (
-      <div className="bg-stone-50/80 border border-stone-200 rounded-2xl p-8 text-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-stone-100 text-stone-600 flex items-center justify-center mx-auto">
-          <AlertCircle className="w-6 h-6 text-stone-500" />
-        </div>
-        <div className="max-w-md mx-auto space-y-2">
-          <h4 className="font-serif font-bold text-stone-900 text-base">
-            Insufficient Longitudinal Evidence
-          </h4>
-          <p className="text-xs text-stone-600 leading-relaxed">
-            Insufficient longitudinal evidence detected to establish a grounded Then vs Now comparison for this scope.
-          </p>
-          {timelineResult.message && (
-            <p className="text-xs text-stone-500 bg-stone-100/80 p-3 rounded-xl border border-stone-200 text-left leading-relaxed">
-              {timelineResult.message}
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Guard D: Shifts array is empty
-  if (!timelineResult.shifts || timelineResult.shifts.length === 0) {
-    return (
-      <div className="bg-stone-50/80 border border-stone-200 rounded-2xl p-8 text-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-stone-100 text-stone-600 flex items-center justify-center mx-auto">
-          <Clock className="w-6 h-6 text-stone-400" />
-        </div>
-        <div className="max-w-md mx-auto space-y-2">
-          <h4 className="font-serif font-bold text-stone-900 text-base">
-            No Significant Shifts Identified
-          </h4>
-          <p className="text-xs text-stone-600 leading-relaxed">
-            No significant perspective or reaction shifts were identified across the selected reflections.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const hasResult = timelineResult !== null;
 
   return (
-    <div id="then-vs-now-container" className="space-y-6 animate-in fade-in duration-200">
-      {/* Header Overview */}
-      <div className="bg-gradient-to-br from-stone-50 via-stone-50/80 to-amber-50/40 border border-stone-200/90 rounded-2xl p-6 sm:p-7 space-y-2 relative overflow-hidden shadow-2xs">
-        <div className="flex items-center space-x-2 text-amber-900">
-          <div className="p-1.5 bg-amber-100/80 rounded-lg border border-amber-300/50">
-            <Clock className="w-4 h-4 text-amber-800" />
-          </div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-amber-950">
-            Longitudinal Comparison
-          </span>
-        </div>
-        <h3 className="text-lg sm:text-xl font-serif font-bold text-stone-900 tracking-tight">
-          Then vs Now
-        </h3>
-        <p className="text-xs text-stone-600 max-w-2xl leading-relaxed">
-          Side-by-side contrast of your recorded reactions, interpretations, and perspectives between earlier and later moments in time.
+    <div id="then-vs-now-container" className="space-y-6">
+      {/* Purpose + primary action */}
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+          Compare earlier and later reflections without assuming that one is better, worse, or more final than the other.
+        </p>
+        <button
+          id="then-vs-now-analyze-btn"
+          type="button"
+          onClick={onAnalyzeTimeline}
+          disabled={loadingTimeline}
+          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-text-muted disabled:shadow-none sm:w-auto"
+        >
+          {loadingTimeline ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <span>Comparing…</span>
+            </>
+          ) : hasResult ? (
+            <>
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              <span>Refresh comparison</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              <span>Create comparison</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* AI provenance */}
+      <div className="flex items-start gap-3 rounded-card bg-surface-ai px-4 py-3 text-sm text-text-secondary">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+        <p className="leading-relaxed">
+          This comparison is generated only from reflections in the current scope. Earlier and later are AI-identified interpretations, not proof of change — later does not mean better, worse, or more resolved, chronology alone does not establish causation, and results are not diagnoses, hidden motives, or fixed identity claims.
         </p>
       </div>
 
-      {/* Comparison Cards Deck */}
-      <div className="space-y-5">
-        {timelineResult.shifts.map((shift, idx) => {
-          const earlierEvidence = (shift.supportingEntries || []).filter(
-            (se) => se.roleInShift === 'earlier_state'
-          );
-          const laterEvidence = (shift.supportingEntries || []).filter(
-            (se) => se.roleInShift === 'later_state'
-          );
-          const contextEvidence = (shift.supportingEntries || []).filter(
-            (se) => se.roleInShift === 'context'
-          );
+      {/* Loading */}
+      {loadingTimeline && (
+        <div id="then-vs-now-loading-state" role="status" aria-live="polite" className="space-y-3 py-12 text-center">
+          <Loader2 className="mx-auto h-7 w-7 animate-spin text-accent-primary" aria-hidden="true" />
+          <p className="font-serif text-base font-semibold text-text-primary">Comparing these reflections…</p>
+          <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            AI is looking at earlier and later reflections in this scope to describe what may differ.
+          </p>
+        </div>
+      )}
 
-          // Check if explanation is distinct from observation
-          const hasDistinctExplanation = Boolean(
-            shift.explanation &&
-            shift.explanation.trim().toLowerCase() !== shift.observation.trim().toLowerCase()
-          );
+      {/* Guard B: not yet generated */}
+      {!loadingTimeline && timelineResult === null && (
+        <div id="then-vs-now-initial-prompt" className="space-y-2 border-t border-border py-8 text-center">
+          <Clock className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
+          <h4 className="font-serif text-base font-semibold text-text-primary">No comparison yet</h4>
+          <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            Create a comparison when you are ready to see earlier and later reflections from this scope side by side.
+          </p>
+        </div>
+      )}
 
-          const formattedShiftType = shift.shiftType
-            ? shift.shiftType.replace('_', ' ')
-            : 'Perspective Shift';
+      {/* Guard C: insufficient evidence */}
+      {!loadingTimeline && timelineResult !== null && !timelineResult.hasSufficientEvidence && (
+        <div id="then-vs-now-insufficient-evidence" className="space-y-2 border-t border-border py-8 text-center">
+          <Info className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
+          <h4 className="font-serif text-base font-semibold text-text-primary">No clear comparison surfaced</h4>
+          <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            {timelineResult.message || 'The reflections in this scope may not contain enough grounded contrast for a useful comparison. This does not mean nothing changed.'}
+          </p>
+        </div>
+      )}
 
-          return (
-            <div
-              key={idx}
-              className="bg-white border border-stone-200/90 rounded-2xl p-5 sm:p-6 space-y-4 shadow-2xs"
-            >
-              {/* Card Header: Shift Type Badge & Date Span */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3">
-                <div className="flex items-center space-x-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-800 bg-stone-100 px-2.5 py-0.5 rounded-md border border-stone-200/80">
-                    {formattedShiftType}
-                  </span>
-                  <span className="text-xs font-semibold text-stone-900">
-                    Shift {idx + 1}
-                  </span>
-                </div>
-                {shift.earlierDate && shift.laterDate && (
-                  <span className="text-[11px] text-stone-500 font-mono bg-stone-50 px-2.5 py-1 rounded-md border border-stone-200/70 inline-flex items-center space-x-1.5 self-start sm:self-auto">
-                    <Calendar className="w-3 h-3 text-stone-400" />
-                    <span>{shift.earlierDate} → {shift.laterDate}</span>
-                  </span>
-                )}
-              </div>
+      {/* Guard D: no shifts identified */}
+      {!loadingTimeline && timelineResult !== null && timelineResult.hasSufficientEvidence && (!timelineResult.shifts || timelineResult.shifts.length === 0) && (
+        <div id="then-vs-now-no-shifts" className="space-y-2 border-t border-border py-8 text-center">
+          <Info className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
+          <h4 className="font-serif text-base font-semibold text-text-primary">No clear comparison surfaced</h4>
+          <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            The reflections in this scope did not surface a clear earlier/later contrast. This does not mean nothing changed — it means the AI did not find enough grounded evidence to describe one.
+          </p>
+        </div>
+      )}
 
-              {/* Main Comparison Area: 2 Columns (Desktop) / Stacking (Mobile) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* LEFT: THEN */}
-                <div className="bg-stone-50/80 border border-stone-200/85 rounded-xl p-4 space-y-3 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[11px] text-stone-500 font-medium border-b border-stone-200/60 pb-1.5">
-                      <span className="inline-flex items-center space-x-1.5 uppercase tracking-wider text-[10px] font-bold text-stone-600">
-                        <Clock className="w-3.5 h-3.5 text-stone-400" />
-                        <span>THEN</span>
-                      </span>
-                      {shift.earlierDate && (
-                        <span className="font-mono text-stone-400">{shift.earlierDate}</span>
-                      )}
+      {/* Populated comparison */}
+      {!loadingTimeline && timelineResult !== null && timelineResult.hasSufficientEvidence && timelineResult.shifts && timelineResult.shifts.length > 0 && (
+        <section aria-labelledby="then-now-results-title" className="space-y-5 border-t border-border pt-5">
+          <h4 id="then-now-results-title" className="text-sm font-semibold text-text-secondary">
+            {timelineResult.shifts.length} {timelineResult.shifts.length === 1 ? 'comparison' : 'comparisons'}
+          </h4>
+
+          <div className="space-y-5">
+            {timelineResult.shifts.map((shift, idx) => {
+              const earlierEvidence = (shift.supportingEntries || []).filter(
+                (se) => se.roleInShift === 'earlier_state'
+              );
+              const laterEvidence = (shift.supportingEntries || []).filter(
+                (se) => se.roleInShift === 'later_state'
+              );
+              const contextEvidence = (shift.supportingEntries || []).filter(
+                (se) => se.roleInShift === 'context'
+              );
+
+              // Check if explanation is distinct from observation
+              const hasDistinctExplanation = Boolean(
+                shift.explanation &&
+                shift.explanation.trim().toLowerCase() !== shift.observation.trim().toLowerCase()
+              );
+
+              const shiftTypeLabel = SHIFT_TYPE_LABELS[shift.shiftType] || 'Recorded change';
+
+              return (
+                <article
+                  key={idx}
+                  aria-label={`Comparison ${idx + 1} of ${timelineResult.shifts.length}`}
+                  className="min-w-0 space-y-5 rounded-card border border-border bg-surface p-4 shadow-low sm:p-6"
+                >
+                  {/* Date context */}
+                  {shift.earlierDate && shift.laterDate && (
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-text-muted">
+                      <Calendar className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="[overflow-wrap:anywhere]">{shift.earlierDate}</span>
+                      <span aria-hidden="true">·</span>
+                      <span className="[overflow-wrap:anywhere]">{shift.laterDate}</span>
                     </div>
-                    <p className="text-xs text-stone-800 leading-relaxed font-serif pt-1">
-                      {shift.earlierState}
-                    </p>
+                  )}
+
+                  {/* Earlier / Later, equal weight */}
+                  <div className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-2 md:divide-x md:divide-border">
+                    <section aria-label="Earlier reflections" className="min-w-0 space-y-3 md:pr-6">
+                      <div className="space-y-0.5">
+                        <h6 className="text-sm font-semibold text-text-secondary">Earlier reflections</h6>
+                        {shift.earlierDate && (
+                          <p className="text-xs text-text-muted">{shift.earlierDate}</p>
+                        )}
+                      </div>
+                      <p className="font-serif text-base leading-relaxed text-text-primary">{shift.earlierState}</p>
+                      {earlierEvidence.length > 0 && (
+                        <div className="space-y-2 pt-1">
+                          <p className="text-xs font-semibold uppercase tracking-[0.06em] text-text-muted">Source reflections</p>
+                          <div className="flex min-w-0 flex-col gap-2">
+                            {earlierEvidence.map((se, sIdx) => {
+                              const isResolvable = targetEntries.some((e) => e.id === se.entryId);
+                              return (
+                                <button
+                                  key={sIdx}
+                                  type="button"
+                                  onClick={() => handleEvidenceClick(se.entryId)}
+                                  disabled={!isResolvable}
+                                  className="flex min-h-11 w-full min-w-0 max-w-full flex-col items-start gap-0.5 rounded-control border border-border bg-surface px-3 py-2 text-left transition-colors hover:border-border-strong hover:bg-surface-subtle disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                                >
+                                  <span className="flex min-w-0 max-w-full items-center gap-2 text-sm font-semibold text-text-primary">
+                                    <FileText className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
+                                    <span className="min-w-0 [overflow-wrap:anywhere]">{se.title}</span>
+                                  </span>
+                                  {se.date && <span className="pl-6 text-xs text-text-muted">{se.date}</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </section>
+
+                    <section aria-label="Later reflections" className="min-w-0 space-y-3 md:pl-6">
+                      <div className="space-y-0.5">
+                        <h6 className="text-sm font-semibold text-text-secondary">Later reflections</h6>
+                        {shift.laterDate && (
+                          <p className="text-xs text-text-muted">{shift.laterDate}</p>
+                        )}
+                      </div>
+                      <p className="font-serif text-base leading-relaxed text-text-primary">{shift.laterState}</p>
+                      {laterEvidence.length > 0 && (
+                        <div className="space-y-2 pt-1">
+                          <p className="text-xs font-semibold uppercase tracking-[0.06em] text-text-muted">Source reflections</p>
+                          <div className="flex min-w-0 flex-col gap-2">
+                            {laterEvidence.map((se, sIdx) => {
+                              const isResolvable = targetEntries.some((e) => e.id === se.entryId);
+                              return (
+                                <button
+                                  key={sIdx}
+                                  type="button"
+                                  onClick={() => handleEvidenceClick(se.entryId)}
+                                  disabled={!isResolvable}
+                                  className="flex min-h-11 w-full min-w-0 max-w-full flex-col items-start gap-0.5 rounded-control border border-border bg-surface px-3 py-2 text-left transition-colors hover:border-border-strong hover:bg-surface-subtle disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                                >
+                                  <span className="flex min-w-0 max-w-full items-center gap-2 text-sm font-semibold text-text-primary">
+                                    <FileText className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
+                                    <span className="min-w-0 [overflow-wrap:anywhere]">{se.title}</span>
+                                  </span>
+                                  {se.date && <span className="pl-6 text-xs text-text-muted">{se.date}</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </section>
                   </div>
 
-                  {/* Earlier Evidence Pills */}
-                  {earlierEvidence.length > 0 && (
-                    <div className="space-y-1.5 pt-2 border-t border-stone-200/60">
-                      <span className="text-[10px] font-medium text-stone-400 uppercase tracking-wider block">
-                        Earlier Evidence:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {earlierEvidence.map((se, sIdx) => {
+                  {/* What may differ */}
+                  <div className="space-y-3 border-t border-border pt-4">
+                    <div className="space-y-0.5">
+                      <h6 className="text-sm font-semibold text-text-secondary">What may differ</h6>
+                      <p className="text-xs text-text-muted">An AI-drawn observation, not proof of change.</p>
+                    </div>
+                    <p className="font-serif text-lg leading-relaxed text-text-primary">{shift.observation}</p>
+                    {hasDistinctExplanation && (
+                      <div className="space-y-1 pt-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.06em] text-text-muted">From the recorded reflections</p>
+                        <p className="text-sm leading-relaxed text-text-secondary">{shift.explanation}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Additional context */}
+                  {contextEvidence.length > 0 && (
+                    <div className="space-y-2 border-t border-border pt-4">
+                      <h6 className="text-sm font-semibold text-text-secondary">Additional context</h6>
+                      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        {contextEvidence.map((se, sIdx) => {
                           const isResolvable = targetEntries.some((e) => e.id === se.entryId);
                           return (
                             <button
@@ -243,124 +290,30 @@ export const ThenVsNowComparison: React.FC<ThenVsNowComparisonProps> = ({
                               type="button"
                               onClick={() => handleEvidenceClick(se.entryId)}
                               disabled={!isResolvable}
-                              className={`inline-flex items-center space-x-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border transition-all ${
-                                isResolvable
-                                  ? 'bg-white hover:bg-stone-100 text-stone-800 border-stone-200/90 shadow-2xs cursor-pointer group focus-visible:ring-2 focus-visible:ring-amber-500'
-                                  : 'bg-stone-100 text-stone-400 border-stone-200/50 cursor-not-allowed opacity-60'
-                              }`}
+                              className="flex min-h-11 w-full min-w-0 max-w-full flex-1 flex-col items-start gap-0.5 rounded-control border border-border bg-surface px-3 py-2 text-left transition-colors hover:border-border-strong hover:bg-surface-subtle disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
                             >
-                              <Calendar className="w-3 h-3 text-stone-400" />
-                              <span className="truncate max-w-[140px] font-medium">{se.title}</span>
-                              {isResolvable && (
-                                <ChevronRight className="w-3 h-3 text-stone-300 group-hover:text-stone-600" />
-                              )}
+                              <span className="flex min-w-0 max-w-full items-center gap-2 text-sm font-semibold text-text-primary">
+                                <FileText className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
+                                <span className="min-w-0 [overflow-wrap:anywhere]">{se.title}</span>
+                              </span>
+                              {se.date && <span className="pl-6 text-xs text-text-muted">{se.date}</span>}
                             </button>
                           );
                         })}
                       </div>
                     </div>
                   )}
-                </div>
 
-                {/* RIGHT: NOW */}
-                <div className="bg-amber-50/40 border border-amber-200/70 rounded-xl p-4 space-y-3 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[11px] text-amber-900 font-medium border-b border-amber-200/50 pb-1.5">
-                      <span className="inline-flex items-center space-x-1.5 uppercase tracking-wider text-[10px] font-bold text-amber-900">
-                        <ArrowRight className="w-3.5 h-3.5 text-amber-700" />
-                        <span>NOW</span>
-                      </span>
-                      {shift.laterDate && (
-                        <span className="font-mono text-amber-800/70">{shift.laterDate}</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-stone-900 leading-relaxed font-serif font-medium pt-1">
-                      {shift.laterState}
-                    </p>
-                  </div>
-
-                  {/* Later Evidence Pills */}
-                  {laterEvidence.length > 0 && (
-                    <div className="space-y-1.5 pt-2 border-t border-amber-200/50">
-                      <span className="text-[10px] font-medium text-amber-800/80 uppercase tracking-wider block">
-                        Later Evidence:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {laterEvidence.map((se, sIdx) => {
-                          const isResolvable = targetEntries.some((e) => e.id === se.entryId);
-                          return (
-                            <button
-                              key={sIdx}
-                              type="button"
-                              onClick={() => handleEvidenceClick(se.entryId)}
-                              disabled={!isResolvable}
-                              className={`inline-flex items-center space-x-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border transition-all ${
-                                isResolvable
-                                  ? 'bg-white hover:bg-amber-50 text-stone-850 border-amber-200/90 shadow-2xs cursor-pointer group focus-visible:ring-2 focus-visible:ring-amber-500'
-                                  : 'bg-stone-100 text-stone-400 border-stone-200/50 cursor-not-allowed opacity-60'
-                              }`}
-                            >
-                              <Calendar className="w-3 h-3 text-amber-700/60" />
-                              <span className="truncate max-w-[140px] font-medium">{se.title}</span>
-                              {isResolvable && (
-                                <ChevronRight className="w-3 h-3 text-amber-400 group-hover:text-amber-800" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Below Columns: WHAT CHANGED */}
-              <div className="bg-stone-50/70 border border-stone-200/70 rounded-xl p-3.5 space-y-2">
-                <div className="flex items-center space-x-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-500">
-                  <span>What Changed</span>
-                </div>
-                <p className="text-xs text-stone-900 font-medium leading-relaxed">
-                  {shift.observation}
-                </p>
-                {hasDistinctExplanation && (
-                  <p className="text-xs text-stone-600 leading-relaxed pt-1 border-t border-stone-200/50">
-                    <span className="font-semibold text-stone-700 mr-1">Context:</span>
-                    {shift.explanation}
+                  {/* Quiet shift-type / support metadata */}
+                  <p className="border-t border-border pt-3 text-xs text-text-muted">
+                    {shiftTypeLabel} · {shift.evidenceCount} supporting {shift.evidenceCount === 1 ? 'reflection' : 'reflections'}
                   </p>
-                )}
-
-                {/* Context Evidence if present */}
-                {contextEvidence.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
-                    <span className="text-[10px] font-medium text-stone-400 uppercase tracking-wider mr-1">
-                      Context Reflections:
-                    </span>
-                    {contextEvidence.map((se, sIdx) => {
-                      const isResolvable = targetEntries.some((e) => e.id === se.entryId);
-                      return (
-                        <button
-                          key={sIdx}
-                          type="button"
-                          onClick={() => handleEvidenceClick(se.entryId)}
-                          disabled={!isResolvable}
-                          className={`inline-flex items-center space-x-1 text-[11px] px-2 py-1 rounded-md border transition-all ${
-                            isResolvable
-                              ? 'bg-white hover:bg-stone-100 text-stone-700 border-stone-200 cursor-pointer group focus-visible:ring-2 focus-visible:ring-amber-500'
-                              : 'bg-stone-100 text-stone-400 border-stone-200/50 cursor-not-allowed opacity-60'
-                          }`}
-                        >
-                          <Calendar className="w-3 h-3 text-stone-400" />
-                          <span className="truncate max-w-[130px]">{se.title}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 };

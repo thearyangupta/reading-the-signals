@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useBeforeUnload } from 'react-router-dom';
 import { Loader2, PenLine, Save, Sparkles, X } from 'lucide-react';
 import { auth, createJournalEntry, updateJournalEntry } from '../lib/firebase';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
@@ -55,6 +56,14 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
     behaviorOrEvent !== initialValues.current.behaviorOrEvent ||
     feelingOrReaction !== initialValues.current.feelingOrReaction ||
     importantContext !== initialValues.current.importantContext;
+
+  const handleBeforeUnload = useCallback((event: BeforeUnloadEvent) => {
+    if (!isDirty) return;
+    event.preventDefault();
+    event.returnValue = '';
+  }, [isDirty]);
+
+  useBeforeUnload(handleBeforeUnload);
 
   const requestClose = () => {
     if (saving) return;

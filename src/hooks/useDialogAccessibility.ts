@@ -21,9 +21,11 @@ export function useDialogAccessibility(
     if (!enabled) return;
 
     onCloseRef.current = onClose;
-  }, [onClose]);
+  }, [enabled, onClose]);
 
   useEffect(() => {
+    if (!enabled) return;
+
     const previouslyFocused = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;

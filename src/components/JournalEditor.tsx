@@ -10,6 +10,7 @@ interface JournalEditorProps {
   initialEntry?: JournalEntry | null;
   onClose: () => void;
   onSaveSuccess: (entry: Partial<JournalEntry>) => void;
+  presentation?: 'modal' | 'page';
 }
 
 type EditorMode = 'freeform' | 'guided';
@@ -20,6 +21,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
   initialEntry,
   onClose,
   onSaveSuccess,
+  presentation = 'modal',
 }) => {
   const initialValues = useRef({
     title: initialEntry?.title || '',
@@ -80,6 +82,10 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
 
   const requestClose = () => {
     if (saving) return;
+    if (presentation === 'page') {
+      onClose();
+      return;
+    }
     if (isDirty) {
       discardReturnFocusRef.current = document.activeElement instanceof HTMLElement
         ? document.activeElement
@@ -101,6 +107,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
   const discardChanges = () => {
     if (discardIntent === 'navigation' && blocker.state === 'blocked') {
       blocker.proceed();
+      if (presentation === 'page') return;
     }
     onClose();
   };
@@ -113,12 +120,18 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
     requestClose();
   };
 
-  const dialogRef = useDialogAccessibility(handleDialogClose, titleInputRef);
+  const dialogRef = useDialogAccessibility(handleDialogClose, titleInputRef, presentation === 'modal');
   const isContentValidationError = Boolean(error && !title.trim() && !content.trim());
 
   useEffect(() => {
     if (discardOpen) continueWritingRef.current?.focus();
   }, [discardOpen]);
+
+  useEffect(() => {
+    if (presentation !== 'page') return;
+    const focusFrame = window.requestAnimationFrame(() => titleInputRef.current?.focus());
+    return () => window.cancelAnimationFrame(focusFrame);
+  }, [presentation]);
 
   const handleSubmit = async (generateSummary: boolean) => {
     if (!title.trim() && !content.trim()) {
@@ -206,15 +219,19 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
   const labelClass = 'mb-2 block text-sm font-semibold text-text-primary';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-text-primary/45 p-0 sm:p-4">
+    <div className={presentation === 'modal'
+      ? 'fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-text-primary/45 p-0 sm:p-4'
+      : 'mx-auto w-full max-w-editor'}>
       <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
+        ref={presentation === 'modal' ? dialogRef : undefined}
+        role={presentation === 'modal' ? 'dialog' : undefined}
+        aria-modal={presentation === 'modal' ? 'true' : undefined}
         aria-labelledby="journal-editor-title"
         aria-describedby="journal-editor-description"
-        tabIndex={-1}
-        className="relative flex h-dvh min-w-0 w-full max-w-full flex-col overflow-hidden bg-surface shadow-dialog sm:my-auto sm:h-auto sm:max-h-[92vh] sm:max-w-editor sm:rounded-feature sm:border sm:border-border"
+        tabIndex={presentation === 'modal' ? -1 : undefined}
+        className={presentation === 'modal'
+          ? 'relative flex h-dvh min-w-0 w-full max-w-full flex-col overflow-hidden bg-surface shadow-dialog sm:my-auto sm:h-auto sm:max-h-[92vh] sm:max-w-editor sm:rounded-feature sm:border sm:border-border'
+          : 'relative flex min-w-0 w-full flex-col overflow-hidden rounded-feature border border-border bg-surface shadow-card'}
       >
         <div inert={discardOpen ? true : undefined} className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex min-w-0 items-start justify-between gap-4 border-b border-border bg-surface px-4 py-4 sm:px-6">
@@ -240,7 +257,9 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
             </button>
           </header>
 
-          <div className="min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto">
+          <div className={presentation === 'modal'
+            ? 'min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto'
+            : 'min-w-0 overflow-x-clip'}>
             <div className="mx-auto min-w-0 w-full max-w-full space-y-8 px-4 py-6 sm:max-w-editor sm:px-8 sm:py-8">
               {error && (
                 <div id="journal-editor-error" role="alert" className="rounded-card border border-destructive/30 bg-destructive/5 p-3.5 text-sm text-destructive">
@@ -369,7 +388,9 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
         </div>
 
         {discardOpen && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-text-primary/35 p-4">
+          <div className={presentation === 'modal'
+            ? 'absolute inset-0 z-20 flex items-center justify-center bg-text-primary/35 p-4'
+            : 'fixed inset-0 z-50 flex items-center justify-center bg-text-primary/35 p-4'}>
             <div role="alertdialog" aria-modal="true" aria-labelledby="discard-title" aria-describedby="discard-description" className="w-full max-w-md rounded-feature border border-border bg-surface p-6 shadow-dialog">
               <h4 id="discard-title" className="font-serif text-xl font-semibold text-text-primary">Discard this reflection?</h4>
               <p id="discard-description" className="mt-2 text-sm text-text-secondary">You have changes that haven’t been saved.</p>

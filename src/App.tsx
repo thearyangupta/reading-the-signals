@@ -7,6 +7,7 @@ import { Navbar, AppView } from './components/Navbar';
 import { AuthView } from './components/AuthView';
 import { JournalList } from './components/JournalList';
 import { JournalEditor } from './components/JournalEditor';
+import { JournalEditorPage } from './components/JournalEditorPage';
 import { EntryDetailModal } from './components/EntryDetailModal';
 import { EntryDetailPage } from './components/EntryDetailPage';
 import { PatternAnalysisSection } from './components/PatternAnalysisSection';
@@ -17,6 +18,7 @@ export default function App() {
   const navigate = useNavigate();
   const routedEntryMatch = useMatch('/journal/:entryId');
   const routedEntryId = routedEntryMatch?.params.entryId;
+  const isWriteRoute = location.pathname === '/write';
   const activeView: AppView = location.pathname === '/insights' ? 'insights' : 'journal';
 
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -30,7 +32,9 @@ export default function App() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
+  const [pendingNewEntryId, setPendingNewEntryId] = useState<string | null>(null);
   const journalDetailNavigationRef = useRef<string | null>(null);
+  const writeNavigationRef = useRef<string | null>(null);
 
   // Tracks whether this session has ever seen an authenticated user, so the
   // sign-out branch below can distinguish a genuine sign-out (reset to
@@ -58,6 +62,7 @@ export default function App() {
         setEntries([]);
         setHasEntriesSnapshot(false);
         setSelectedEntry(null);
+        setPendingNewEntryId(null);
         setEditorOpen(false);
         setEditingEntry(null);
         if (wasSignedIn) {
@@ -114,6 +119,15 @@ export default function App() {
   };
 
   const handleOpenNewEntry = () => {
+    if (isWriteRoute) return;
+    if (location.pathname !== '/insights') {
+      const returnTo = routedEntryId ? location.pathname : '/journal';
+      writeNavigationRef.current = returnTo;
+      navigate('/write', {
+        state: { fromJournal: true, returnTo },
+      });
+      return;
+    }
     setEditingEntry(null);
     setEditorOpen(true);
   };
@@ -154,6 +168,39 @@ export default function App() {
     navigate('/journal');
   };
 
+  const isAllowedWriteReturn = (value: unknown): value is string =>
+    value === '/journal' || (typeof value === 'string' && /^\/journal\/[^/]+$/.test(value));
+
+  const handleWriteCancel = () => {
+    const returnTo = location.state?.returnTo;
+    if (
+      location.state?.fromJournal === true &&
+      isAllowedWriteReturn(returnTo) &&
+      writeNavigationRef.current === returnTo
+    ) {
+      writeNavigationRef.current = null;
+      navigate(-1);
+      return;
+    }
+    navigate('/journal');
+  };
+
+  useEffect(() => {
+    if (!pendingNewEntryId || location.pathname !== '/write') return;
+    if (!entries.some((entry) => entry.id === pendingNewEntryId)) return;
+
+    const entryId = pendingNewEntryId;
+    setPendingNewEntryId(null);
+    writeNavigationRef.current = null;
+    navigate(`/journal/${encodeURIComponent(entryId)}`, { replace: true });
+  }, [entries, location.pathname, navigate, pendingNewEntryId]);
+
+  useEffect(() => {
+    if (location.pathname !== '/write' && pendingNewEntryId) {
+      setPendingNewEntryId(null);
+    }
+  }, [location.pathname, pendingNewEntryId]);
+
   if (authLoading) {
     return (
       <div className="bg-background px-4 py-16 text-text-primary sm:py-24">
@@ -182,6 +229,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/journal" replace />} />
         <Route path="/journal" element={null} />
         <Route path="/journal/:entryId" element={null} />
+        <Route path="/write" element={null} />
         <Route path="/insights" element={null} />
         <Route path="*" element={<Navigate to="/journal" replace />} />
       </Routes>
@@ -190,6 +238,7 @@ export default function App() {
       <Navbar
         user={user}
         activeView={activeView}
+        writeActive={isWriteRoute}
         onNavigate={(view) => navigate(`/${view}`)}
         onNewEntry={handleOpenNewEntry}
         onSignOut={handleSignOut}
@@ -217,7 +266,19 @@ export default function App() {
         {!user ? (
           <AuthView onAuthSuccess={() => {}} />
         ) : (
-          routedEntryId ? (
+          isWriteRoute ? (
+            pendingNewEntryId ? (
+              <p role="status" className="py-12 text-center text-sm text-text-muted">Opening reflection&hellip;</p>
+            ) : (
+              <JournalEditorPage
+                userId={user.uid}
+                onCancel={handleWriteCancel}
+                onSaveSuccess={(savedEntry) => {
+                  if (savedEntry.id) setPendingNewEntryId(savedEntry.id);
+                }}
+              />
+            )
+          ) : routedEntryId ? (
             !hasEntriesSnapshot ? (
               <p role="status" className="py-12 text-center text-sm text-text-muted">Opening reflection&hellip;</p>
             ) : routedEntry ? (

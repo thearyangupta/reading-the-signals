@@ -16,6 +16,7 @@ export type AppView = 'journal' | 'insights';
 interface NavbarProps {
   user: UserProfile | null;
   activeView: AppView;
+  writeActive?: boolean;
   onNavigate: (view: AppView) => void;
   onNewEntry: () => void;
   onSignOut: () => void;
@@ -27,20 +28,21 @@ const accountName = (user: UserProfile) =>
 export const Navbar: React.FC<NavbarProps> = ({
   user,
   activeView,
+  writeActive = false,
   onNavigate,
   onNewEntry,
   onSignOut,
 }) => {
   const navButtonClass = (view: AppView) =>
     `min-h-11 border-b-2 px-3 text-sm transition-colors ${
-      activeView === view
+      activeView === view && !(view === 'journal' && writeActive)
         ? 'border-accent-primary font-semibold text-accent-primary'
         : 'border-transparent font-medium text-text-secondary hover:border-border-strong hover:text-text-primary'
     }`;
 
   const mobileNavButtonClass = (view: AppView) =>
     `min-h-14 border-t-2 px-1 text-xs transition-colors ${
-      activeView === view
+      activeView === view && !(view === 'journal' && writeActive)
         ? 'border-accent-primary font-semibold text-accent-primary'
         : 'border-transparent font-medium text-text-secondary'
     }`;
@@ -64,7 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {user && (
             <>
               <nav aria-label="Primary" className="hidden items-stretch gap-1 self-stretch md:flex">
-                <button type="button" aria-pressed={activeView === 'journal'} onClick={() => onNavigate('journal')} className={navButtonClass('journal')}>
+                <button type="button" aria-pressed={activeView === 'journal' && !writeActive} onClick={() => onNavigate('journal')} className={navButtonClass('journal')}>
                   Journal
                 </button>
                 <button type="button" aria-pressed={activeView === 'insights'} onClick={() => onNavigate('insights')} className={navButtonClass('insights')}>
@@ -75,6 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     id="new-reflection-button"
                     type="button"
                     onClick={onNewEntry}
+                    aria-current={writeActive ? 'page' : undefined}
                     className="inline-flex min-h-10 items-center gap-2 rounded-control bg-accent-primary px-4 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover"
                   >
                     <PenLine className="h-4 w-4" aria-hidden="true" />
@@ -122,10 +125,10 @@ export const Navbar: React.FC<NavbarProps> = ({
       {user && (
         <nav aria-label="Primary mobile" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/98 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(41,39,34,0.08)] md:hidden">
           <div className="mx-auto grid max-w-lg grid-cols-4 px-2">
-            <button type="button" aria-pressed={activeView === 'journal'} onClick={() => onNavigate('journal')} className={mobileNavButtonClass('journal')}>
+            <button type="button" aria-pressed={activeView === 'journal' && !writeActive} onClick={() => onNavigate('journal')} className={mobileNavButtonClass('journal')}>
               <span className="flex flex-col items-center justify-center gap-1"><BookOpenText className="h-5 w-5" aria-hidden="true" />Journal</span>
             </button>
-            <button type="button" onClick={onNewEntry} className="min-h-14 border-t-2 border-accent-primary px-1 text-xs font-semibold text-accent-primary">
+            <button type="button" onClick={onNewEntry} aria-current={writeActive ? 'page' : undefined} className="min-h-14 border-t-2 border-accent-primary px-1 text-xs font-semibold text-accent-primary">
               <span className="flex flex-col items-center justify-center gap-1"><PenLine className="h-5 w-5" aria-hidden="true" />Write</span>
             </button>
             <button type="button" aria-pressed={activeView === 'insights'} onClick={() => onNavigate('insights')} className={mobileNavButtonClass('insights')}>

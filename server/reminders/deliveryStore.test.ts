@@ -45,6 +45,23 @@ test('claims each user and local date at most once while active', () => {
   assert.equal(store.claim('user-1', '2026-09-05'), true);
 });
 
+test('keeps an existing claimed delivery blocked until explicit reconciliation', () => {
+  assert.deepEqual(planDailyReminderClaim({ status: 'claimed', attemptCount: 3 }), {
+    claimed: false,
+    attemptCount: 3,
+  });
+});
+
+test('guards sent and failed transitions and sanitizes failure codes', () => {
+  assert.equal(planDailyReminderSent(null).applied, false);
+  assert.equal(planDailyReminderSent({ status: 'failed', attemptCount: 1 }).applied, false);
+  assert.equal(planDailyReminderFailed({ status: 'sent', attemptCount: 1 }, 'should not apply').applied, false);
+  assert.equal(
+    planDailyReminderFailed({ status: 'claimed', attemptCount: 2 }, ' provider secret/value\nstack ').state?.lastErrorCode,
+    'PROVIDER_SECRET_VALUE_STACK'
+  );
+});
+
 test('sent delivery cannot be reclaimed', () => {
   const store = new FakeDeliveryStateStore();
   store.claim('user-1', '2026-09-04');

@@ -291,3 +291,7 @@ Pausing or deleting this Scheduler affects only background email checks. It does
 - [ ] Scheduler is absent or confirmed paused.
 - [ ] E7 first live send is restricted to one controlled, verified test account.
 - [ ] Kill-switch operator and rollback revision are recorded.
+
+## Deferred E8 reliability hardening
+
+A delivery left in `claimed` after a process crash or an uncertain post-send persistence failure is intentionally not reclaimed automatically. This preserves at-most-once delivery: changing it to `failed` could resend an email that the provider already accepted. E8 should define an operational reconciliation policy and, only with provider-delivery evidence or a safely bounded lease/idempotency design, stale-claim recovery.

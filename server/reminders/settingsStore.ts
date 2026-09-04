@@ -10,6 +10,8 @@ export interface ReminderSettingsSource {
   listEnabledReminderSettings(limit: number): Promise<ReminderSettingsCandidate[]>;
 }
 
+const MAX_REMINDER_SETTINGS_BATCH_SIZE = 100;
+
 export function extractUidFromDailyReminderPath(path: string): string | null {
   const segments = path.split('/');
   if (
@@ -27,10 +29,14 @@ export function extractUidFromDailyReminderPath(path: string): string | null {
 export function createReminderSettingsSource(db: Firestore): ReminderSettingsSource {
   return {
     async listEnabledReminderSettings(limit: number): Promise<ReminderSettingsCandidate[]> {
+      const boundedLimit = Math.min(
+        Math.max(Number.isInteger(limit) ? limit : 1, 1),
+        MAX_REMINDER_SETTINGS_BATCH_SIZE
+      );
       const snapshot = await db
         .collectionGroup('settings')
         .where('enabled', '==', true)
-        .limit(limit)
+        .limit(boundedLimit)
         .select('enabled', 'time', 'timeZone')
         .get();
 

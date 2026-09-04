@@ -88,13 +88,14 @@ export function createDailyEmailReminderProcessor(dependencies: DailyReminderPro
                 if (!claim.claimed) {
                   outcome = 'skipped';
                 } else {
+                  let providerAccepted = false;
                   try {
                     const message = dependencies.composeEmail({
                       to: recipient,
                       idempotencyKey: createDailyReminderIdempotencyKey(candidate.uid, eligibility.localDate),
                     });
                     await dependencies.emailTransport.send(message);
-                    outcome = await dependencies.deliveryStore.markDailyReminderSent(identity) ? 'sent' : 'failed';
+                    providerAccepted = true;
                   } catch (error) {
                     try {
                       await dependencies.deliveryStore.markDailyReminderFailed(identity, safeFailureCode(error));
@@ -102,6 +103,17 @@ export function createDailyEmailReminderProcessor(dependencies: DailyReminderPro
                       // Keep this user's failure isolated if persistence also fails.
                     }
                     outcome = 'failed';
+                  }
+
+                  // Once the provider has accepted the email, never make the claim
+                  // retryable if persisting "sent" fails or has an uncertain result.
+                  // Leaving it claimed favors at-most-once delivery until reconciliation.
+                  if (providerAccepted) {
+                    try {
+                      outcome = await dependencies.deliveryStore.markDailyReminderSent(identity) ? 'sent' : 'failed';
+                    } catch {
+                      outcome = 'failed';
+                    }
                   }
                 }
               }

@@ -55,6 +55,33 @@ test('handles local midnight, month boundary, and year boundary', () => {
   assert.equal(getLocalDayUtcRange(new Date('2026-12-31T23:59:59Z'), 'UTC')?.nextStartUtcMs, Date.parse('2027-01-01T00:00:00Z'));
 });
 
+test('handles leap day, quarter-hour offsets, and UTC date rollover', () => {
+  assert.deepEqual(getLocalDayUtcRange(new Date('2028-02-29T12:00:00Z'), 'UTC'), {
+    localDate: '2028-02-29',
+    startUtcMs: Date.parse('2028-02-29T00:00:00Z'),
+    nextStartUtcMs: Date.parse('2028-03-01T00:00:00Z'),
+  });
+  assert.deepEqual(getLocalDayUtcRange(new Date('2026-09-04T18:20:00Z'), 'Asia/Kathmandu'), {
+    localDate: '2026-09-05',
+    startUtcMs: Date.parse('2026-09-04T18:15:00Z'),
+    nextStartUtcMs: Date.parse('2026-09-05T18:15:00Z'),
+  });
+  assert.equal(
+    getReminderEligibilityContext(
+      enabledSettings('00:05', 'Pacific/Kiritimati'),
+      new Date('2026-09-04T10:05:00Z')
+    ).localDate,
+    '2026-09-05'
+  );
+});
+
+test('rejects invalid dates and wrong setting field types', () => {
+  assert.equal(getReminderEligibilityContext(enabledSettings('21:00', 'UTC'), new Date('invalid')).reason, 'invalid-now');
+  assert.equal(getReminderEligibilityContext({ enabled: true, time: 2100, timeZone: 'UTC' }, new Date()).reason, 'invalid-time');
+  assert.equal(getReminderEligibilityContext({ enabled: true, time: '21:00', timeZone: 5 }, new Date()).reason, 'invalid-time-zone');
+  assert.equal(getReminderEligibilityContext({ enabled: 'true', time: '21:00', timeZone: 'UTC' }, new Date()).reason, 'disabled');
+});
+
 test('handles DST spring-forward skipped time and 23-hour day', () => {
   const range = getLocalDayUtcRange(new Date('2026-03-08T12:00:00Z'), 'America/New_York');
   assert.deepEqual(range, {
@@ -66,6 +93,20 @@ test('handles DST spring-forward skipped time and 23-hour day', () => {
     getReminderEligibilityContext(
       enabledSettings('02:30', 'America/New_York'),
       new Date('2026-03-08T07:01:00Z')
+    ).due,
+    true
+  );
+  assert.equal(
+    getReminderEligibilityContext(
+      enabledSettings('03:00', 'America/New_York'),
+      new Date('2026-03-08T06:59:59Z')
+    ).due,
+    false
+  );
+  assert.equal(
+    getReminderEligibilityContext(
+      enabledSettings('03:00', 'America/New_York'),
+      new Date('2026-03-08T07:00:00Z')
     ).due,
     true
   );
@@ -82,6 +123,20 @@ test('handles DST fall-back repeated time and 25-hour day', () => {
     getReminderEligibilityContext(
       enabledSettings('01:30', 'America/New_York'),
       new Date('2026-11-01T06:15:00Z')
+    ).due,
+    true
+  );
+  assert.equal(
+    getReminderEligibilityContext(
+      enabledSettings('01:30', 'America/New_York'),
+      new Date('2026-11-01T05:29:59Z')
+    ).due,
+    false
+  );
+  assert.equal(
+    getReminderEligibilityContext(
+      enabledSettings('01:30', 'America/New_York'),
+      new Date('2026-11-01T05:30:00Z')
     ).due,
     true
   );

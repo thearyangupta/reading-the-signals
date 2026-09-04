@@ -14,7 +14,13 @@ export function createScheduledReminderHandler(dependencies: ScheduledReminderRo
       return;
     }
 
-    const auth = await dependencies.authenticate(request.header('authorization'));
+    let auth: SchedulerAuthenticationResult;
+    try {
+      auth = await dependencies.authenticate(request.header('authorization'));
+    } catch {
+      response.status(503).json({ error: 'Service unavailable.' });
+      return;
+    }
     if (!auth.authorized) {
       response.status(auth.status).json({ error: auth.status === 503 ? 'Service unavailable.' : 'Unauthorized.' });
       return;

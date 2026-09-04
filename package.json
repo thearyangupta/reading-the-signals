@@ -10,6 +10,7 @@
     "test:reminder-eligibility": "node --test server/reminders/eligibility.test.ts",
     "test:reminder-email": "node --test server/email/dailyReminderEmail.test.ts",
     "test:reminder-scheduler": "node --test server/reminders/scheduler.test.ts",
+    "test:reminder-hardening": "node --test server/reminders/hardening.test.ts",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",

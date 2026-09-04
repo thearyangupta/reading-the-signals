@@ -28,6 +28,41 @@
   --color-border-ai: #d8d0e8;
   --color-user-accent: #7a5942;
 
+  /* Auth dark palette only — a deep, near-black/teal ground and its
+     on-dark text tones. Deliberately teal/neutral, not violet. The Journal
+     archive has its OWN separate palette below (--color-journal-*) so this
+     one can be changed/experimented with independently without ever
+     recoloring Auth, and vice versa. */
+  --color-night: #0a0f0f;
+  --color-night-strong: #050707;
+  --color-night-bloom: #123634;
+  --color-night-panel: #0e1716;
+  --color-on-night: #f6f1ea;
+  --color-on-night-muted: #a7b2b0;
+  --color-night-border: #1e2b2a;
+
+  /* Journal dark palette — neutral graphite/charcoal editorial ink,
+     entirely separate from the Auth tokens above. ~85-90% of the Journal
+     surface should read as these neutrals; the dusty-violet accent pair
+     is used deliberately in a handful of places — AI-observation
+     label/glyph/rule, the active-nav indicator, title hover, search
+     focus, and one small localized edge-light on each card's visual
+     plane — never as a page-wide tint, glow, or gradient. Journal has its
+     own dedicated primary-ink token (rather than reusing Auth's
+     --color-on-night) since this palette specifies its own exact
+     warm-ivory value. Lifted one tuning pass lighter than the initial
+     graphite pass for more breathing room between layers. */
+  --color-journal-bg: #111114;
+  --color-journal-atmo: #151519;
+  --color-journal-panel: #1a1a1f;
+  --color-journal-panel-2: #202027;
+  --color-journal-border: #34343d;
+  --color-journal-ink: #f3efe8;
+  --color-journal-ink-muted: #aaa6a0;
+  --color-journal-ink-faint: #6f6d69;
+  --color-journal-accent: #81739d;
+  --color-journal-accent-bright: #b5a6d3;
+
   --font-sans: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-serif: "Source Serif 4", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
 
@@ -47,6 +82,12 @@
 
   --shadow-low: 0 1px 2px rgb(41 39 34 / 0.05), 0 4px 12px rgb(41 39 34 / 0.04);
   --shadow-dialog: 0 18px 50px rgb(41 39 34 / 0.16), 0 4px 16px rgb(41 39 34 / 0.08);
+
+  /* Quiet, layered "page" depth: a faint top highlight plus a restrained
+     drop shadow, so surfaces read as physical layers rather than flatter
+     panels with more blur. Used sparingly — E-Ink/Paper surfaces (Journal
+     entries, Write) intentionally stay flat with no shadow at all. */
+  --shadow-card: inset 0 1px 0 0 rgb(255 255 255 / 0.55), 0 1px 2px rgb(41 39 34 / 0.05), 0 1px 1px rgb(41 39 34 / 0.03);
 
   --container-reading: 45rem;
   --container-editor: 50rem;
@@ -77,6 +118,11 @@
   --duration-fast: 120ms;
   --duration-base: 180ms;
   --duration-slow: 240ms;
+
+  /* Atmospheric shell: an inline SVG fractal-noise tile, used at very low
+     opacity as paper grain. Defined once here so it isn't duplicated across
+     rules. */
+  --texture-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
 }
 
 @layer base {
@@ -91,6 +137,7 @@
   }
 
   body {
+    position: relative;
     min-height: 100vh;
     margin: 0;
     background: var(--color-background);
@@ -98,6 +145,26 @@
     font-family: var(--font-sans);
     font-size: 1rem;
     line-height: 1.65;
+  }
+
+  /* E-Ink/Paper atmosphere: a single, fixed, shell-level backdrop rather
+     than decoration repeated per component. No color pools or gradients
+     (E-Ink/Paper is explicitly gradient-free) — just a faint paper grain
+     and a barely-visible dot texture, so the warm-neutral background reads
+     as paper rather than a flat digital tint. Kept static (no animation)
+     so journal text stays the focal point. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgb(41 39 34 / 0.05) 1px, transparent 0),
+      var(--texture-grain);
+    background-repeat: repeat, repeat;
+    background-size: 26px 26px, 180px 180px;
+    background-attachment: fixed;
   }
 
   button,
@@ -134,6 +201,239 @@
     /* Prevent small utility classes from triggering mobile browser zoom. */
     font-size: 1rem !important;
   }
+}
+
+/* Brand mark: a slow, faint "detection" pulse on the outer ring only.
+   Neutralized automatically by the prefers-reduced-motion block below. */
+@keyframes signal-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.05; transform: scale(1.1); }
+}
+.signal-pulse-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: signal-pulse 4.5s var(--ease-enter) infinite;
+}
+
+/* Dark atmosphere: a single, simple, static near-black ground with a
+   restrained deep-teal glow, fine grain, and a faint dot texture —
+   inspired by the supplied "Elegant Dark Pattern" reference, simplified
+   to one soft glow rather than multiple skewed streak layers (kept
+   deliberately restrained/simple, and avoids reading as HUD). No violet —
+   the --color-night-bloom token above is deep teal. Static; nothing here
+   loops or drifts. `isolation: isolate` scopes z-index so the overlays
+   never land above real content. Shared between the Auth screen and the
+   Journal archive environment (JournalList) so the two feel like the same
+   private world — reused directly rather than re-implemented. */
+.auth-atmosphere {
+  position: relative;
+  isolation: isolate;
+  background: radial-gradient(120% 130% at 14% 4%, var(--color-night-bloom) 0%, var(--color-night) 45%, var(--color-night-strong) 100%);
+}
+.auth-atmosphere-glow {
+  position: absolute;
+  inset: -15%;
+  background: radial-gradient(38% 46% at 82% 14%, rgb(30 110 106 / 0.32) 0%, transparent 72%);
+  filter: blur(50px);
+  pointer-events: none;
+}
+.auth-atmosphere-grain {
+  position: absolute;
+  inset: 0;
+  background-image: var(--texture-grain);
+  background-repeat: repeat;
+  background-size: 180px 180px;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+.auth-atmosphere-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, rgb(246 241 234 / 0.06) 1px, transparent 0);
+  background-size: 22px 22px;
+  pointer-events: none;
+}
+
+/* Journal atmosphere — its own dark surface, deliberately NOT the Auth
+   gradient. The base is a flat neutral near-black (no colored gradient
+   baked into it, so the page can never read as a red/brown wash); the
+   oxblood accent lives only in a small, low-opacity, corner-positioned
+   glow layer — restrained enough that at a glance the page reads as
+   charcoal-black first. Grain/dots are already achromatic noise/warm-ivory
+   dust, so they need no color change of their own — they only ever looked
+   teal because of the atmosphere they sat on top of. */
+.journal-atmosphere {
+  position: relative;
+  isolation: isolate;
+  background: var(--color-journal-atmo);
+}
+.journal-atmosphere-glow {
+  /* Neutral light only — no hue at all, just a whisper of warm-ivory
+     brightness in one corner. Deliberately far lower opacity than any
+     previous version so depth reads as "tiny luminance difference," not
+     a colored wash. */
+  position: absolute;
+  inset: -15%;
+  background: radial-gradient(30% 36% at 82% 8%, rgb(243 239 232 / 0.035) 0%, transparent 72%);
+  filter: blur(60px);
+  pointer-events: none;
+}
+.journal-atmosphere-grain {
+  position: absolute;
+  inset: 0;
+  background-image: var(--texture-grain);
+  background-repeat: repeat;
+  background-size: 180px 180px;
+  opacity: 0.3;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+.journal-atmosphere-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, rgb(243 239 232 / 0.045) 1px, transparent 0);
+  background-size: 22px 22px;
+  pointer-events: none;
+}
+
+/* One small, localized violet edge-light on each card's visual plane
+   only — never the page atmosphere. Exists purely to help the eye read
+   depth in that region ("a little violet light in the material," not
+   "a purple card"); kept at very low opacity and confined to one corner. */
+.reflection-visual-edge-light {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(42% 50% at 88% 92%, rgb(129 115 157 / 0.1) 0%, transparent 68%);
+  pointer-events: none;
+}
+
+/* Journal archive card: real layered depth (perspective + translateZ on
+   three planes inside the visual surface), not just a flat card tilting.
+   REST is already dimensional — back/mid/front sit at different Z by
+   default; HOVER/FOCUS-WITHIN separates them further and lifts the whole
+   card slightly; then it settles. Custom properties let the mobile media
+   query below shrink the effect rather than duplicating every rule. */
+.reflection-visual-scene {
+  --rvs-perspective: 800px;
+  --rvs-back-z: -22px;
+  --rvs-mid-z: 0px;
+  --rvs-front-z: 18px;
+  --rvs-back-z-active: -32px;
+  --rvs-mid-z-active: 6px;
+  --rvs-front-z-active: 28px;
+  position: relative;
+  perspective: var(--rvs-perspective);
+}
+.reflection-visual-tilt,
+.reflection-visual-surface {
+  transform-style: preserve-3d;
+}
+.reflection-layer-back {
+  transform: translateZ(var(--rvs-back-z)) scale(1.06);
+  transition: transform 320ms var(--ease-enter);
+}
+.reflection-layer-mid {
+  transform: translateZ(var(--rvs-mid-z));
+  transition: transform 320ms var(--ease-enter);
+}
+.reflection-layer-front {
+  transform: translateZ(var(--rvs-front-z));
+  transition: transform 320ms var(--ease-enter);
+  filter: drop-shadow(0 3px 6px rgb(0 0 0 / 0.35));
+}
+.journal-archive-card:hover .reflection-layer-back,
+.journal-archive-card:focus-within .reflection-layer-back {
+  transform: translateZ(var(--rvs-back-z-active)) scale(1.08);
+}
+.journal-archive-card:hover .reflection-layer-mid,
+.journal-archive-card:focus-within .reflection-layer-mid {
+  transform: translateZ(var(--rvs-mid-z-active));
+}
+.journal-archive-card:hover .reflection-layer-front,
+.journal-archive-card:focus-within .reflection-layer-front {
+  transform: translateZ(var(--rvs-front-z-active));
+}
+@media (max-width: 639px) {
+  .reflection-visual-scene {
+    --rvs-perspective: 600px;
+    --rvs-back-z: -10px;
+    --rvs-mid-z: 0px;
+    --rvs-front-z: 8px;
+    --rvs-back-z-active: -10px;
+    --rvs-mid-z-active: 0px;
+    --rvs-front-z-active: 8px;
+  }
+}
+
+/* The outer card itself: a restrained tilt/lift, self-contained (its own
+   perspective() inside its own transform — independent of the visual
+   surface's shared-perspective layers above, which is fine since the two
+   effects only need to read as coordinated, not be mathematically
+   nested). */
+.journal-archive-card {
+  transition: transform 300ms var(--ease-enter), box-shadow 300ms var(--ease-enter), opacity 300ms var(--ease-enter);
+  transform: perspective(900px) rotateX(0deg) rotateY(0deg) translateY(0) scale(1);
+  /* Resting depth: on a dark card against a dark environment, an external
+     drop shadow barely reads — the real cue is a soft inner top highlight
+     (the card's own "edge catching light") plus a slightly deeper contact
+     shadow than the ambient page. */
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.04), 0 1px 3px rgb(0 0 0 / 0.5);
+}
+.journal-archive-card:hover,
+.journal-archive-card:focus-within {
+  transform: perspective(900px) rotateX(1.8deg) rotateY(-1.8deg) translateY(-6px) scale(1.018);
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.06), 0 20px 38px rgb(0 0 0 / 0.45), 0 6px 14px rgb(0 0 0 / 0.3);
+}
+
+/* Collection-level gallery depth: while hovering anywhere inside the
+   archive grid, cards NOT under the pointer recede very slightly — a
+   subconscious "the item you're looking at comes forward" cue, without a
+   fixed "selected" card and without a carousel. */
+.journal-archive-grid:hover .journal-archive-card:not(:hover) {
+  opacity: 0.86;
+  transform: perspective(900px) rotateX(0deg) rotateY(0deg) translateY(0) scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .journal-archive-card,
+  .journal-archive-card:hover,
+  .journal-archive-card:focus-within,
+  .journal-archive-grid:hover .journal-archive-card:not(:hover) {
+    transform: none;
+    box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.04), 0 1px 3px rgb(0 0 0 / 0.5);
+  }
+  .reflection-layer-back,
+  .reflection-layer-mid,
+  .reflection-layer-front,
+  .journal-archive-card:hover .reflection-layer-back,
+  .journal-archive-card:focus-within .reflection-layer-back,
+  .journal-archive-card:hover .reflection-layer-mid,
+  .journal-archive-card:focus-within .reflection-layer-mid,
+  .journal-archive-card:hover .reflection-layer-front,
+  .journal-archive-card:focus-within .reflection-layer-front {
+    transform: none;
+  }
+}
+
+/* Text-content reveal — fade + rise + blur-to-focus, used for the
+   kicker/headline and the auth-controls column. */
+@keyframes auth-reveal-in {
+  from { opacity: 0; transform: translateY(10px); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.auth-reveal {
+  animation: auth-reveal-in 520ms var(--ease-enter) both;
+}
+
+/* Entry-opening settle: a small fade + rise used where a reflection's
+   detail view appears, so it doesn't pop in abruptly. */
+@keyframes settle-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-settle-in {
+  animation: settle-in var(--duration-slow) var(--ease-enter) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

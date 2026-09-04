@@ -38,7 +38,7 @@ export const EntryDetailPage: React.FC<EntryDetailPageProps> = ({
   return (
     <div
       ref={pageRef}
-      className="flex min-w-0 flex-col overflow-hidden rounded-feature border border-border bg-surface shadow-card"
+      className="animate-settle-in flex min-w-0 flex-col overflow-hidden rounded-feature border border-border bg-surface shadow-card"
     >
       <EntryDetailContent
         userId={userId}

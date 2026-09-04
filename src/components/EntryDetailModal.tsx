@@ -51,7 +51,7 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
         aria-labelledby="entry-detail-title"
         aria-describedby="entry-detail-description"
         tabIndex={-1}
-        className="flex h-dvh min-h-0 min-w-0 w-full max-w-full flex-col overflow-hidden bg-surface shadow-dialog sm:my-auto sm:h-[calc(100dvh-2rem)] sm:max-h-[52rem] sm:max-w-[60rem] sm:rounded-feature sm:border sm:border-border"
+        className="animate-settle-in flex h-dvh min-h-0 min-w-0 w-full max-w-full flex-col overflow-hidden bg-surface shadow-dialog sm:my-auto sm:h-[calc(100dvh-2rem)] sm:max-h-[52rem] sm:max-w-[60rem] sm:rounded-feature sm:border sm:border-border"
       >
         <EntryDetailContent
           ref={contentRef}

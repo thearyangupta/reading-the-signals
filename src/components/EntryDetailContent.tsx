@@ -1,8 +1,9 @@
 import React, { useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Calendar, Edit3, Loader2, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
+import { Calendar, Edit3, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { auth, deleteJournalEntry, updateJournalEntry } from '../lib/firebase';
 import { JournalEntry } from '../types';
 import { ReflectionChat } from './ReflectionChat';
+import { SignalGlyph } from './SignalGlyph';
 
 interface EntryDetailContentProps {
   userId: string;
@@ -184,7 +185,7 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
       <>
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border bg-surface px-4 py-4 sm:px-8 sm:py-5">
           <div className="min-w-0">
-            <h3 id="entry-detail-title" className="[overflow-wrap:anywhere] font-serif text-xl font-semibold leading-tight text-text-primary sm:text-2xl">
+            <h3 id="entry-detail-title" className="[overflow-wrap:anywhere] font-serif text-2xl font-semibold leading-tight tracking-tight text-text-primary sm:text-3xl">
               {entry.title || 'Untitled Reflection'}
             </h3>
             <p id="entry-detail-description" className="mt-2 flex items-center gap-2 text-sm text-text-muted">
@@ -232,8 +233,8 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
             <section aria-labelledby="ai-observations-heading" className="border-t border-border pt-8">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="flex items-center gap-2 text-xs font-semibold text-accent-primary">
-                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-accent-primary">
+                    <SignalGlyph />
                     AI-generated
                   </p>
                   <h4 id="ai-observations-heading" className="mt-1 font-serif text-lg font-semibold text-text-primary">AI observations</h4>
@@ -250,7 +251,7 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
                 </button>
               </div>
 
-              <div className="mt-4 rounded-feature border border-border-ai bg-surface-ai px-4 py-5 sm:px-6">
+              <div className="mt-4 rounded-feature border border-border-ai border-l-4 border-l-accent-primary/60 bg-surface-ai px-4 py-5 sm:px-6">
                 {entry.summary ? (
                   <div className="space-y-5">
                     <dl className="space-y-4">

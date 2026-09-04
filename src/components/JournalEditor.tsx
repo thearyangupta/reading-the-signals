@@ -376,7 +376,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
                     value={content}
                     onChange={(event) => setContent(event.target.value)}
                     placeholder="Write freely about what happened, what you noticed, and what stayed with you…"
-                    className="box-border min-h-72 min-w-0 w-full max-w-full resize-y rounded-card border border-border bg-surface-user px-4 py-4 font-serif text-base leading-relaxed text-text-primary shadow-low placeholder:font-sans placeholder:text-text-muted sm:min-h-80 sm:text-lg"
+                    className="box-border min-h-72 min-w-0 w-full max-w-full resize-y rounded-card border border-border bg-surface-user px-4 py-4 font-serif text-base leading-relaxed text-text-primary placeholder:font-sans placeholder:text-text-muted sm:min-h-80 sm:text-lg"
                   />
                   <p id="entry-content-help" className="mt-2 text-xs text-text-muted">Your writing can be as brief or detailed as you need.</p>
                 </div>

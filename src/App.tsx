@@ -22,6 +22,11 @@ export default function App() {
   const routedEntryId = routedEntryMatch?.params.entryId;
   const isWriteRoute = location.pathname === '/write';
   const activeView: AppView = location.pathname === '/insights' ? 'insights' : 'journal';
+  // True only when the Journal archive grid itself is the rendered content
+  // (not Write, not a routed entry, not Insights) — the one screen whose
+  // dark archive background needs to reach the full viewport width rather
+  // than sit inside the normal constrained/padded <main>.
+  const isJournalGridView = !isWriteRoute && !routedEntryId && activeView === 'journal';
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -236,27 +241,51 @@ export default function App() {
     );
   }
 
+  // Route-level redirects only. Real /journal and /insights content below
+  // is derived from the current location (activeView above); these routes
+  // exist solely to send / and any unknown path to /journal without
+  // rendering a duplicate view. Shared between the signed-out and
+  // signed-in shells so URL normalization behaves identically either way.
+  const routeRedirects = (
+    <Routes>
+      <Route path="/" element={<Navigate to="/journal" replace />} />
+      <Route path="/journal" element={null} />
+      <Route path="/journal/:entryId" element={null} />
+      <Route path="/write" element={null} />
+      <Route path="/insights" element={null} />
+      <Route path="*" element={<Navigate to="/journal" replace />} />
+    </Routes>
+  );
+
+  const skipLink = (
+    <a
+      href="#main-content"
+      className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-control focus:bg-surface focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-text-primary focus:shadow-dialog"
+    >
+      Skip to main content
+    </a>
+  );
+
+  // Signed-out: a dedicated, full-screen Auth shell — no Navbar, no
+  // constrained/padded <main>, no Footer. AuthView owns the entire
+  // viewport and its own branding; it no longer needs to fight a
+  // max-width/padded parent for full-bleed layout.
+  if (!user) {
+    return (
+      <>
+        {skipLink}
+        {routeRedirects}
+        <main id="main-content" tabIndex={-1} className="w-full">
+          <AuthView onAuthSuccess={() => {}} />
+        </main>
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-text-primary flex flex-col font-sans">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-control focus:bg-surface focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-text-primary focus:shadow-dialog"
-      >
-        Skip to main content
-      </a>
-
-      {/* Route-level redirects only. Real /journal and /insights content
-          below is derived from the current location (activeView above);
-          these routes exist solely to send / and any unknown path to
-          /journal without rendering a duplicate view. */}
-      <Routes>
-        <Route path="/" element={<Navigate to="/journal" replace />} />
-        <Route path="/journal" element={null} />
-        <Route path="/journal/:entryId" element={null} />
-        <Route path="/write" element={null} />
-        <Route path="/insights" element={null} />
-        <Route path="*" element={<Navigate to="/journal" replace />} />
-      </Routes>
+      {skipLink}
+      {routeRedirects}
 
       {/* Top Navbar */}
       <Navbar
@@ -266,12 +295,27 @@ export default function App() {
         onNavigate={(view) => navigate(`/${view}`)}
         onNewEntry={handleOpenNewEntry}
         onSignOut={handleSignOut}
+        dark={isJournalGridView}
       />
 
       {/* Main Content Area */}
-      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-shell flex-1 px-4 pb-28 pt-6 sm:px-6 sm:pb-28 sm:pt-8 md:pb-8 lg:px-8">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={
+          isJournalGridView
+            ? 'w-full flex-1'
+            : 'mx-auto w-full max-w-shell flex-1 px-4 pb-28 pt-6 sm:px-6 sm:pb-28 sm:pt-8 md:pb-8 lg:px-8'
+        }
+      >
         {entriesSyncError && !(routedEntryId || (isWriteRoute && pendingNewEntryId)) && (
-          <div role="alert" className="mb-6 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-xs text-red-700">
+          <div
+            role="alert"
+            className={
+              'mb-6 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-xs text-red-700' +
+              (isJournalGridView ? ' mx-4 mt-6 sm:mx-6 sm:mt-8 lg:mx-8' : '')
+            }
+          >
             <div className="flex items-center space-x-2">
               <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
               <span>{entriesSyncError}</span>
@@ -287,10 +331,7 @@ export default function App() {
           </div>
         )}
 
-        {!user ? (
-          <AuthView onAuthSuccess={() => {}} />
-        ) : (
-          isWriteRoute ? (
+        {isWriteRoute ? (
             pendingNewEntryId ? (
               entriesSubscriptionStatus === 'error' ? (
                 <div className="rounded-feature border border-border bg-surface px-6 py-12 text-center">
@@ -346,20 +387,7 @@ export default function App() {
               </div>
             )
           ) : (
-          <div className={activeView === 'journal' ? 'mx-auto w-full max-w-journal space-y-8' : 'w-full space-y-6'}>
-            <div className="border-b border-border pb-4">
-              <div>
-                <h2 className="font-serif text-xl font-bold tracking-tight text-text-primary sm:text-2xl">
-                  {activeView === 'journal' ? 'Journal' : 'Insights'}
-                </h2>
-                <p className="mt-1 text-sm text-text-secondary">
-                  {activeView === 'journal'
-                    ? 'A private place to notice what changes over time.'
-                    : 'See recurring signals, changes over time, and questions worth exploring.'}
-                </p>
-              </div>
-            </div>
-
+          <div className={activeView === 'journal' ? 'w-full' : 'w-full space-y-6'}>
             {activeView === 'journal' ? (
               <JournalList
                 entries={entries}
@@ -371,21 +399,34 @@ export default function App() {
                 }}
                 onNewEntry={handleOpenNewEntry}
               />
-            ) : entriesSubscriptionStatus === 'loading' ? (
-              <p role="status" className="py-12 text-center text-sm text-text-muted">Loading your reflections…</p>
-            ) : entries.length > 0 ? (
-              <PatternAnalysisSection entries={entries} onSelectEntry={(entry) => setSelectedEntry(entry)} />
             ) : (
-              <div className="rounded-feature border border-border bg-surface px-6 py-12 text-center">
-                <h3 className="font-serif text-lg font-semibold text-text-primary">Insights begin with your reflections</h3>
-                <p className="mx-auto mt-2 max-w-reading text-sm text-text-secondary">
-                  Write a reflection first, then return here to explore patterns and connections.
-                </p>
-              </div>
+              <>
+                <div className="border-b border-border pb-4">
+                  <div>
+                    <h2 className="font-serif text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">Insights</h2>
+                    <p className="mt-1 text-sm text-text-secondary">
+                      See recurring signals, changes over time, and questions worth exploring.
+                    </p>
+                  </div>
+                </div>
+
+                {entriesSubscriptionStatus === 'loading' ? (
+                  <p role="status" className="py-12 text-center text-sm text-text-muted">Loading your reflections…</p>
+                ) : entries.length > 0 ? (
+                  <PatternAnalysisSection entries={entries} onSelectEntry={(entry) => setSelectedEntry(entry)} />
+                ) : (
+                  <div className="rounded-feature border border-border bg-surface px-6 py-12 text-center">
+                    <h3 className="font-serif text-lg font-semibold text-text-primary">Insights begin with your reflections</h3>
+                    <p className="mx-auto mt-2 max-w-reading text-sm text-text-secondary">
+                      Write a reflection first, then return here to explore patterns and connections.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
           )
-        )}
+        }
       </main>
 
       {/* Modals & Dialogs */}
@@ -415,8 +456,14 @@ export default function App() {
         />
       )}
 
-      {/* Footer */}
-      <footer className={`border-t border-border bg-surface-subtle py-4 text-center text-xs text-text-muted ${user ? 'mb-[calc(4rem+env(safe-area-inset-bottom))] md:mb-0' : ''}`}>
+      {/* Footer — dark, continuing the archive, only for the Journal grid view. */}
+      <footer
+        className={
+          (isJournalGridView ? 'border-t border-journal-border bg-journal-bg text-journal-ink-muted' : 'border-t border-border bg-surface-subtle text-text-muted') +
+          ' py-4 text-center text-xs' +
+          (user ? ' mb-[calc(4rem+env(safe-area-inset-bottom))] md:mb-0' : '')
+        }
+      >
         <div className="mx-auto flex max-w-shell flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6 lg:px-8">
           <span>Reading the Signals • Private Personal Reflection</span>
           <span>Non-diagnostic AI partner for self-inquiry</span>

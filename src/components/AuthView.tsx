@@ -41,35 +41,35 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
   };
 
   return (
-    <section className="auth-atmosphere relative isolate min-h-screen w-full overflow-hidden">
-      <div aria-hidden="true" className="auth-atmosphere-glow" />
-      <div aria-hidden="true" className="auth-atmosphere-grain" />
-      <div aria-hidden="true" className="auth-atmosphere-dots" />
+    <section className="journal-atmosphere relative isolate min-h-screen w-full overflow-hidden">
+      <div aria-hidden="true" className="journal-atmosphere-glow" />
+      <div aria-hidden="true" className="journal-atmosphere-grain" />
+      <div aria-hidden="true" className="journal-atmosphere-dots" />
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-shell flex-col justify-center gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-        <div className="auth-reveal max-w-xl">
-          <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-on-night-muted">
-            <SignalMark className="h-4 w-4 text-on-night [overflow:visible]" />
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-xl flex-col items-center justify-center gap-10 px-5 py-16 text-center sm:px-8 sm:py-20">
+        <div className="auth-reveal w-full">
+          <p className="flex items-center justify-center gap-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-journal-ink-muted">
+            <SignalMark className="h-4 w-4 text-journal-accent-bright [overflow:visible]" />
             Private Reflection Journal
           </p>
           <h1
-            className="mt-6 text-balance font-serif font-normal leading-[1.1] tracking-tight text-on-night"
+            className="mt-6 text-balance font-serif font-normal leading-[1.1] tracking-tight text-journal-ink"
             style={{ fontSize: 'clamp(2.25rem, 4.2vw, 3.5rem)' }}
           >
             Read what keeps returning.
           </h1>
         </div>
 
-        <div className="auth-reveal w-full max-w-sm space-y-5" style={{ animationDelay: '160ms' }}>
+        <div className="auth-reveal w-full max-w-md space-y-6" style={{ animationDelay: '160ms' }}>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-on-night-muted">Continue</p>
-            <p className="mt-2 text-sm leading-relaxed text-on-night-muted">
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-journal-accent-bright">Continue</p>
+            <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-journal-ink-muted">
               Your journal is private to your account. AI tools work only from the reflections included in your current scope.
             </p>
           </div>
 
           {error && (
-            <div role="alert" className="rounded-card border border-red-800/40 bg-red-950/40 p-4 text-sm text-red-200">
+            <div role="alert" className="rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -80,7 +80,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={loading || guestLoading}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-3 rounded-control bg-[var(--color-on-night)] px-4 py-3 text-sm font-semibold text-[var(--color-night-strong)] shadow-low transition-[background-color,transform] hover:bg-[#ece4d6] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-3 rounded-control border border-journal-border bg-journal-panel px-4 py-3 text-sm font-semibold text-journal-ink shadow-low transition-[background-color,border-color,transform] hover:border-journal-accent hover:bg-journal-panel-2/70 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 focus-visible:border-journal-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-journal-accent"
             >
               {loading ? (
                 <>
@@ -117,7 +117,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
               type="button"
               onClick={handleGuestSignIn}
               disabled={loading || guestLoading}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-[var(--color-night-border)] px-4 py-2.5 text-sm font-medium text-on-night-muted transition-[background-color,border-color,color,transform] hover:border-on-night/40 hover:bg-white/5 hover:text-on-night active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-journal-border bg-journal-panel/35 px-4 py-2.5 text-sm font-medium text-journal-ink transition-[background-color,border-color,color,transform] hover:border-journal-accent hover:bg-journal-panel active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 focus-visible:border-journal-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-journal-accent"
             >
               {guestLoading ? (
                 <>
@@ -130,8 +130,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
             </button>
           </div>
 
-          <p className="flex items-center gap-1.5 text-xs text-on-night-muted">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-positive" aria-hidden="true" />
+          <p className="flex items-center justify-center gap-1.5 text-xs text-journal-ink-muted">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-journal-accent-bright" aria-hidden="true" />
             Private to you &mdash; sign out anytime from the account menu.
           </p>
 

@@ -213,6 +213,11 @@
   outline: none;
 }
 
+#google-signin-button:focus-visible,
+#guest-signin-button:focus-visible {
+  outline: none;
+}
+
 /* Bring legacy arbitrary microcopy sizes up to the approved functional floor. */
 [class~="text-[9px]"],
 [class~="text-[10px]"],

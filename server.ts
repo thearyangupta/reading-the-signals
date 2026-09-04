@@ -5,7 +5,20 @@ import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 import firebaseConfig from './firebase-applet-config.json';
+import { createConfiguredDailyReminderEmailComposer } from './server/email/dailyReminderEmail.ts';
+import { createResendTransport } from './server/email/resendTransport.ts';
+import { createReminderAuthLookup } from './server/reminders/authRecipient.ts';
+import { createReminderDeliveryStore } from './server/reminders/deliveryStore.ts';
+import { createJournalEntryExistenceStore } from './server/reminders/eligibility.ts';
+import { createDailyEmailReminderProcessor } from './server/reminders/processDailyEmailReminders.ts';
+import { createScheduledReminderHandler } from './server/reminders/scheduledRoute.ts';
+import {
+  authenticateSchedulerRequest,
+  createGoogleSchedulerTokenVerifier,
+} from './server/reminders/schedulerAuth.ts';
+import { createReminderSettingsSource } from './server/reminders/settingsStore.ts';
 
 dotenv.config();
 
@@ -14,6 +27,7 @@ const adminApp = getApps().length > 0 ? getApps()[0] : initializeApp({
   projectId: firebaseConfig.projectId,
 });
 const adminAuth = getAuth(adminApp);
+const adminDb = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
 
 /**
  * Verifies Firebase Auth ID Token from request headers
@@ -42,6 +56,30 @@ const PORT = 3000;
 // 1. Top-Level Request Deserialization (Ordering Guarantee)
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+const schedulerTokenVerifier = createGoogleSchedulerTokenVerifier();
+const reminderSettingsSource = createReminderSettingsSource(adminDb);
+const reminderAuthLookup = createReminderAuthLookup(adminAuth);
+const journalEntryExistenceStore = createJournalEntryExistenceStore(adminDb);
+const reminderDeliveryStore = createReminderDeliveryStore(adminDb);
+
+app.all('/internal/daily-email-reminders', createScheduledReminderHandler({
+  authenticate: (authorizationHeader) =>
+    authenticateSchedulerRequest(authorizationHeader, process.env, schedulerTokenVerifier),
+  createProcessor: () => {
+    const emailTransport = createResendTransport(process.env);
+    const composeEmail = createConfiguredDailyReminderEmailComposer(process.env);
+    return createDailyEmailReminderProcessor({
+      settingsSource: reminderSettingsSource,
+      authLookup: reminderAuthLookup,
+      journalLookup: journalEntryExistenceStore,
+      deliveryStore: reminderDeliveryStore,
+      emailTransport,
+      composeEmail,
+      now: () => new Date(),
+    });
+  },
+}));
 
 // Lazy Gemini client initialization with defensive error handling
 let aiClient: GoogleGenAI | null = null;

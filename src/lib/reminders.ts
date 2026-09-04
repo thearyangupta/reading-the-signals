@@ -1,7 +1,15 @@
-import { JournalEntry } from '../types';
+import type { JournalEntry } from '../types';
 
 const REMINDER_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const MAX_NEXT_REMINDER_SEARCH_MINUTES = 72 * 60;
+const LOCAL_DAY_SEARCH_BEFORE_MS = 36 * 60 * 60 * 1000;
+const LOCAL_DAY_SEARCH_AFTER_MS = 60 * 60 * 60 * 1000;
+
+export interface LocalDayUtcRange {
+  localDate: string;
+  startUtcMs: number;
+  nextStartUtcMs: number;
+}
 
 export function isValidReminderTime(time: string): boolean {
   return REMINDER_TIME_PATTERN.test(time);
@@ -56,6 +64,50 @@ function getZonedDayKey(date: Date, formatter: Intl.DateTimeFormat): string | nu
 export function getLocalDayKey(date: Date, timeZone: string): string | null {
   const formatter = createZonedFormatter(timeZone, false);
   return formatter ? getZonedDayKey(date, formatter) : null;
+}
+
+function findLocalDayBoundary(
+  formatter: Intl.DateTimeFormat,
+  localDate: string,
+  firstInstantAfterDay: boolean
+): number | null {
+  const [year, month, day] = localDate.split('-').map(Number);
+  const nominalUtcMidnight = Date.UTC(year, month - 1, day);
+  let low = nominalUtcMidnight - LOCAL_DAY_SEARCH_BEFORE_MS;
+  let high = nominalUtcMidnight + LOCAL_DAY_SEARCH_AFTER_MS;
+
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2);
+    const middleDay = getZonedDayKey(new Date(middle), formatter);
+    if (!middleDay) return null;
+
+    const isBeforeBoundary = firstInstantAfterDay
+      ? middleDay <= localDate
+      : middleDay < localDate;
+    if (isBeforeBoundary) low = middle + 1;
+    else high = middle;
+  }
+
+  const boundaryDay = getZonedDayKey(new Date(low), formatter);
+  if (!boundaryDay) return null;
+  if (firstInstantAfterDay ? boundaryDay <= localDate : boundaryDay !== localDate) return null;
+  return low;
+}
+
+export function getLocalDayUtcRange(now: Date, timeZone: string): LocalDayUtcRange | null {
+  if (!Number.isFinite(now.getTime())) return null;
+
+  const formatter = createZonedFormatter(timeZone, false);
+  if (!formatter) return null;
+
+  const localDate = getZonedDayKey(now, formatter);
+  if (!localDate) return null;
+
+  const startUtcMs = findLocalDayBoundary(formatter, localDate, false);
+  const nextStartUtcMs = findLocalDayBoundary(formatter, localDate, true);
+  if (startUtcMs === null || nextStartUtcMs === null || nextStartUtcMs <= startUtcMs) return null;
+
+  return { localDate, startUtcMs, nextStartUtcMs };
 }
 
 export function hasReminderTimeOccurredForLocalDay(

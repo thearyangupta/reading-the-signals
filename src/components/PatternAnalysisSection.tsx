@@ -1007,7 +1007,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
     <div id="cross-entry-analysis-section" className="min-w-0 space-y-8">
       {selectedTool === null ? (
         <div className="min-w-0 space-y-10">
-          <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+          <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">
             AI observations are grounded in your recorded reflections.
           </p>
 
@@ -1019,23 +1019,23 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             }}
             type="button"
             onClick={() => handleOpenTool('ask_journal')}
-            className="group flex min-h-11 w-full min-w-0 flex-col items-start gap-3 rounded-card border border-border-ai bg-surface-ai px-5 py-6 text-left transition-colors hover:border-accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 sm:px-7 sm:py-7"
+            className="group flex min-h-11 w-full min-w-0 flex-col items-start gap-3 rounded-card border border-journal-border bg-journal-panel px-5 py-6 text-left transition-colors hover:border-journal-accent-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 sm:px-7 sm:py-7"
           >
-            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-surface text-accent-primary">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-journal-panel-2 text-journal-accent-bright">
               <MessageSquareQuote className="h-5 w-5" aria-hidden="true" />
             </span>
             <span className="min-w-0 space-y-2">
-              <span className="block font-serif text-xl font-semibold leading-tight text-text-primary sm:text-2xl">
+              <span className="block font-serif text-xl font-semibold leading-tight text-journal-ink sm:text-2xl">
                 Ask My Journal
               </span>
-              <span className="block max-w-reading [overflow-wrap:anywhere] text-sm leading-relaxed text-text-secondary">
+              <span className="block max-w-reading [overflow-wrap:anywhere] text-sm leading-relaxed text-journal-ink-muted">
                 Ask a question about your reflections. Explore something you&rsquo;ve been writing about &mdash; recurring situations, reactions, changes, or something specific you want to understand.
               </span>
-              <span className="block max-w-reading [overflow-wrap:anywhere] text-xs leading-relaxed text-text-muted">
+              <span className="block max-w-reading [overflow-wrap:anywhere] text-xs leading-relaxed text-journal-ink-faint">
                 For example: &ldquo;What patterns keep appearing?&rdquo; or &ldquo;How has my perspective changed?&rdquo;
               </span>
             </span>
-            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent-primary">
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-journal-accent-bright">
               <span>Ask my journal</span>
               <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
             </span>
@@ -1044,14 +1044,14 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           {INSIGHT_GROUPS.map((group) => (
             <React.Fragment key={group.label}>
               {group.label === 'Recurring Signals' && (
-                <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-journal-ink-muted">
                   Explore further
                 </h3>
               )}
               <section aria-labelledby={`insight-group-${group.label.toLowerCase().replaceAll(' ', '-')}`} className="min-w-0 space-y-3">
                 <h3
                   id={`insight-group-${group.label.toLowerCase().replaceAll(' ', '-')}`}
-                  className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted"
+                  className="text-xs font-semibold uppercase tracking-[0.12em] text-journal-ink-muted"
                 >
                   {group.label}
                 </h3>
@@ -1066,20 +1066,20 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                         }}
                         type="button"
                         onClick={() => handleOpenTool(tool.id)}
-                        className="group flex min-h-11 min-w-0 w-full items-start gap-4 rounded-card border border-border bg-surface px-4 py-4 text-left shadow-low transition-colors hover:border-border-strong hover:bg-surface-subtle sm:px-5 sm:py-5"
+                        className="group flex min-h-11 min-w-0 w-full items-start gap-4 rounded-card border border-journal-border bg-journal-panel px-4 py-4 text-left shadow-low transition-colors hover:border-journal-accent hover:bg-journal-panel-2 sm:px-5 sm:py-5"
                       >
-                        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-surface-ai text-accent-primary">
+                        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-journal-panel-2 text-journal-accent-bright">
                           <Icon className="h-5 w-5" aria-hidden={true} />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block font-serif text-lg font-semibold leading-tight text-text-primary">
+                          <span className="block font-serif text-lg font-semibold leading-tight text-journal-ink">
                             {tool.name}
                           </span>
-                          <span className="mt-1 block [overflow-wrap:anywhere] text-sm leading-relaxed text-text-secondary">
+                          <span className="mt-1 block [overflow-wrap:anywhere] text-sm leading-relaxed text-journal-ink-muted">
                             {tool.description}
                           </span>
                         </span>
-                        <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-text-muted transition-colors group-hover:text-accent-primary" aria-hidden="true" />
+                        <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-journal-ink-muted transition-colors group-hover:text-journal-accent-bright" aria-hidden="true" />
                       </button>
                     );
                   })}
@@ -1090,36 +1090,36 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
         </div>
       ) : (
         <>
-          <div ref={detailNavigationRef} className="flex min-w-0 flex-col items-start gap-2 border-b border-border pb-4 sm:flex-row sm:items-center sm:gap-3">
+          <div ref={detailNavigationRef} className="flex min-w-0 flex-col items-start gap-2 border-b border-journal-border pb-4 sm:flex-row sm:items-center sm:gap-3">
             <button
               type="button"
               onClick={handleBackToInsights}
-              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-2 text-sm font-semibold text-text-secondary hover:bg-surface-subtle hover:text-text-primary"
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-2 text-sm font-semibold text-journal-ink-muted hover:bg-journal-panel-2 hover:text-journal-ink"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               Back to Insights
             </button>
-            <h3 ref={detailHeadingRef} tabIndex={-1} className="min-w-0 [overflow-wrap:anywhere] font-serif text-lg font-semibold text-text-primary">
+            <h3 ref={detailHeadingRef} tabIndex={-1} className="min-w-0 [overflow-wrap:anywhere] font-serif text-lg font-semibold text-journal-ink">
               {INSIGHT_TOOL_NAMES[selectedTool]}
             </h3>
           </div>
 
       {/* Structured Signal Eligibility & Analysis Scope Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-stone-50/90 px-3.5 py-3 rounded-xl border border-stone-200/70 shadow-2xs">
-        <div className="flex items-center space-x-2 text-stone-600 flex-wrap gap-y-1">
-          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-journal-panel px-3.5 py-3 rounded-xl border border-journal-border shadow-low">
+        <div className="flex items-center space-x-2 text-journal-ink-muted flex-wrap gap-y-1">
+          <ShieldCheck className="w-4 h-4 text-positive shrink-0" />
           <span>
             <strong>{structuredEntries.length}</strong> of {entries.length} {entries.length === 1 ? 'entry' : 'entries'} have structured summaries.
           </span>
-          <span className="text-stone-300 hidden sm:inline">•</span>
-          <span className="text-[11px] text-stone-500">
-            Analyzing: <strong className="text-stone-800">{targetEntries.length} {targetEntries.length === 1 ? 'entry' : 'entries'}</strong> ({scopeMode === 'all' ? 'All eligible' : 'Custom selection'})
+          <span className="text-journal-ink-faint hidden sm:inline">•</span>
+          <span className="text-[11px] text-journal-ink-faint">
+            Analyzing: <strong className="text-journal-ink">{targetEntries.length} {targetEntries.length === 1 ? 'entry' : 'entries'}</strong> ({scopeMode === 'all' ? 'All eligible' : 'Custom selection'})
           </span>
         </div>
 
         {/* Scope Selector Control */}
         <div className="flex items-center space-x-2 shrink-0 self-start sm:self-auto">
-          <div className="inline-flex rounded-lg bg-stone-200/70 p-0.5 border border-stone-300/60">
+          <div className="inline-flex rounded-lg bg-journal-panel-2 p-0.5 border border-journal-border">
             <button
               id="scope-all-btn"
               type="button"
@@ -1127,8 +1127,8 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               onClick={handleResetToAll}
               className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-all cursor-pointer ${
                 scopeMode === 'all'
-                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                  : 'text-stone-600 hover:text-stone-900'
+                  ? 'bg-journal-panel text-journal-ink shadow-xs font-semibold'
+                  : 'text-journal-ink-muted hover:text-journal-ink'
               }`}
             >
               All entries ({structuredEntries.length})
@@ -1140,11 +1140,11 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               onClick={handleSwitchToSelectedScope}
               className={`flex items-center space-x-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all cursor-pointer ${
                 scopeMode === 'selected'
-                  ? 'bg-white text-stone-900 shadow-2xs font-semibold'
-                  : 'text-stone-600 hover:text-stone-900'
+                  ? 'bg-journal-panel text-journal-ink shadow-xs font-semibold'
+                  : 'text-journal-ink-muted hover:text-journal-ink'
               }`}
             >
-              <Filter className="w-3 h-3 text-amber-700" />
+              <Filter className="w-3 h-3 text-amber-400" />
               <span>Selected ({selectedEntryIds.length})</span>
             </button>
           </div>
@@ -1154,7 +1154,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               id="open-scope-selector-modal-btn"
               type="button"
               onClick={handleOpenScopeModal}
-              className="text-[11px] text-amber-800 hover:text-amber-950 font-medium underline underline-offset-2 cursor-pointer"
+              className="text-[11px] text-amber-300 hover:text-amber-100 font-medium underline underline-offset-2 cursor-pointer"
             >
               Edit scope
             </button>
@@ -1163,9 +1163,9 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       </div>
 
       {targetEntries.length < 2 && selectedTool !== 'ask_journal' && (
-        <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between gap-2">
+        <div className="p-3 bg-amber-500/10 border border-amber-700/40 rounded-xl text-xs text-amber-200 flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
               {targetEntries.length === 0
                 ? 'Select at least 1 reflection to analyze in active scope.'
@@ -1176,7 +1176,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             <button
               type="button"
               onClick={handleOpenScopeModal}
-              className="text-amber-900 font-semibold underline text-xs cursor-pointer shrink-0"
+              className="text-amber-200 font-semibold underline text-xs cursor-pointer shrink-0"
             >
               Select Reflections
             </button>
@@ -1185,9 +1185,9 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       )}
 
       {targetEntries.length === 0 && selectedTool === 'ask_journal' && (
-        <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between gap-2">
+        <div className="p-3 bg-amber-500/10 border border-amber-700/40 rounded-xl text-xs text-amber-200 flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
               Select at least 1 reflection to ask questions about your journal.
             </span>
@@ -1196,7 +1196,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             <button
               type="button"
               onClick={handleOpenScopeModal}
-              className="text-amber-900 font-semibold underline text-xs cursor-pointer shrink-0"
+              className="text-amber-200 font-semibold underline text-xs cursor-pointer shrink-0"
             >
               Select Reflections
             </button>
@@ -1208,7 +1208,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       {isScopeModalOpen && (
         <ScopeDialogAccessibility onClose={handleCloseScopeModal} initialFocusRef={scopeCloseButtonRef}>
           {(scopeDialogRef) => (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
               <div
                 ref={scopeDialogRef}
                 role="dialog"
@@ -1216,12 +1216,12 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                 aria-labelledby="scope-dialog-title"
                 aria-describedby="scope-dialog-description"
                 tabIndex={-1}
-                className="bg-white w-full max-w-lg rounded-2xl border border-stone-200 shadow-xl overflow-hidden flex flex-col max-h-[85vh]"
+                className="bg-journal-panel w-full max-w-lg rounded-feature border border-journal-border shadow-dialog overflow-hidden flex flex-col max-h-[85vh]"
               >
-            <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/60">
+            <div className="p-4 border-b border-journal-border flex items-center justify-between bg-journal-panel-2/40">
               <div className="flex items-center space-x-2">
-                <Filter className="w-4 h-4 text-amber-700" />
-                <h3 id="scope-dialog-title" className="font-serif font-bold text-stone-900 text-sm">
+                <Filter className="w-4 h-4 text-amber-400" />
+                <h3 id="scope-dialog-title" className="font-serif font-bold text-journal-ink text-sm">
                   Select Reflections for Cross-Entry Analysis
                 </h3>
               </div>
@@ -1230,38 +1230,38 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                 type="button"
                 onClick={handleCloseScopeModal}
                 aria-label="Close reflection scope selector"
-                className="min-h-11 min-w-11 inline-flex items-center justify-center p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors cursor-pointer"
+                className="min-h-11 min-w-11 inline-flex items-center justify-center p-1 rounded-lg text-journal-ink-muted hover:text-journal-ink hover:bg-journal-panel-2 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between text-xs text-stone-600">
+            <div className="p-3 bg-journal-panel-2/30 border-b border-journal-border flex items-center justify-between text-xs text-journal-ink-muted">
               <span id="scope-dialog-description">
-                Selected: <strong className="text-stone-900">{draftSelectedEntryIds.length}</strong> of {structuredEntries.length} reflections
+                Selected: <strong className="text-journal-ink">{draftSelectedEntryIds.length}</strong> of {structuredEntries.length} reflections
               </span>
               <div className="space-x-2">
                 <button
                   type="button"
                   onClick={handleSelectAllDraftScope}
-                  className="text-amber-800 hover:text-amber-950 font-medium underline text-[11px] cursor-pointer"
+                  className="text-amber-300 hover:text-amber-100 font-medium underline text-[11px] cursor-pointer"
                 >
                   Select All
                 </button>
-                <span className="text-stone-300">|</span>
+                <span className="text-journal-ink-faint">|</span>
                 <button
                   type="button"
                   onClick={handleClearDraftScopeSelection}
-                  className="text-stone-500 hover:text-stone-800 underline text-[11px] cursor-pointer"
+                  className="text-journal-ink-muted hover:text-journal-ink underline text-[11px] cursor-pointer"
                 >
                   Clear All
                 </button>
               </div>
             </div>
 
-            <div className="p-4 overflow-y-auto space-y-2 divide-y divide-stone-100">
+            <div className="p-4 overflow-y-auto space-y-2 divide-y divide-journal-border">
               {structuredEntries.length === 0 ? (
-                <div className="py-6 text-center text-xs text-stone-400">
+                <div className="py-6 text-center text-xs text-journal-ink-faint">
                   No structured reflections available yet.
                 </div>
               ) : (
@@ -1270,25 +1270,25 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                   return (
                     <label
                       key={entry.id}
-                      className="flex items-start space-x-3 pt-2.5 pb-1 cursor-pointer hover:bg-stone-50/80 p-2 rounded-xl transition-colors group"
+                      className="flex items-start space-x-3 pt-2.5 pb-1 cursor-pointer hover:bg-journal-panel-2/60 p-2 rounded-xl transition-colors group"
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => handleToggleDraftSelection(entry.id)}
-                        className="mt-0.5 rounded border-stone-300 text-amber-700 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                        className="mt-0.5 rounded border-journal-border text-journal-accent-bright focus:ring-journal-accent-bright w-4 h-4 cursor-pointer"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-medium text-stone-900 truncate group-hover:text-amber-950">
+                          <p className="text-xs font-medium text-journal-ink truncate group-hover:text-journal-accent-bright">
                             {entry.title || 'Untitled Reflection'}
                           </p>
-                          <span className="text-[10px] text-stone-400 shrink-0 font-mono">
+                          <span className="text-[10px] text-journal-ink-faint shrink-0 font-mono">
                             {entry.date}
                           </span>
                         </div>
                         {entry.summary?.theme && (
-                          <p className="text-[11px] text-stone-500 truncate mt-0.5">
+                          <p className="text-[11px] text-journal-ink-muted truncate mt-0.5">
                             Theme: {entry.summary.theme}
                           </p>
                         )}
@@ -1299,21 +1299,21 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               )}
             </div>
 
-            <div className="p-3.5 border-t border-stone-100 bg-stone-50 flex items-center justify-between">
-              <span className="text-[11px] text-stone-500">
+            <div className="p-3.5 border-t border-journal-border bg-journal-panel-2/40 flex items-center justify-between">
+              <span className="text-[11px] text-journal-ink-muted">
                 {draftSelectedEntryIds.length === 0 ? (
-                  <span className="text-amber-700 font-medium">Select at least 1 reflection</span>
+                  <span className="text-amber-300 font-medium">Select at least 1 reflection</span>
                 ) : draftSelectedEntryIds.length === 1 ? (
-                  <span className="text-emerald-700 font-medium">✓ 1 reflection selected</span>
+                  <span className="text-emerald-400 font-medium">✓ 1 reflection selected</span>
                 ) : (
-                  <span className="text-emerald-700 font-medium">✓ Ready for cross-entry analysis ({draftSelectedEntryIds.length})</span>
+                  <span className="text-emerald-400 font-medium">✓ Ready for cross-entry analysis ({draftSelectedEntryIds.length})</span>
                 )}
               </span>
               <div className="space-x-2">
                 <button
                   type="button"
                   onClick={handleResetToAll}
-                  className="px-3 py-1.5 rounded-lg text-xs text-stone-600 hover:text-stone-800 bg-white border border-stone-200 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg text-xs text-journal-ink-muted hover:text-journal-ink bg-journal-panel border border-journal-border cursor-pointer"
                 >
                   Reset to All
                 </button>
@@ -1322,10 +1322,10 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                   type="button"
                   onClick={handleApplyScope}
                   disabled={draftSelectedEntryIds.length === 0}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-medium text-white transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                     draftSelectedEntryIds.length === 0
-                      ? 'bg-stone-300 cursor-not-allowed'
-                      : 'bg-stone-900 hover:bg-stone-800'
+                      ? 'bg-journal-panel-2 text-journal-ink-faint cursor-not-allowed'
+                      : 'bg-accent-primary text-white hover:bg-accent-primary-hover'
                   }`}
                 >
                   Apply Scope ({draftSelectedEntryIds.length})
@@ -1342,7 +1342,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       {selectedTool === 'patterns' && (
         <div id="recurring-patterns-tab-content" className="space-y-6">
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+            <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">
               Notice recurring reactions, interpretations, and signals across your reflections.
             </p>
             <button
@@ -1352,7 +1352,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               disabled={loadingPatterns || !isMultiEntryScopeValid}
               className={`inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control px-4 py-2.5 text-sm font-semibold shadow-xs transition-colors sm:w-auto ${
                 !isMultiEntryScopeValid
-                  ? 'cursor-not-allowed border border-border bg-surface-subtle text-text-muted opacity-70'
+                  ? 'cursor-not-allowed border border-journal-border bg-journal-panel-2 text-journal-ink-faint opacity-70'
                   : 'cursor-pointer bg-accent-primary text-white hover:bg-accent-primary-hover'
               }`}
             >
@@ -1377,18 +1377,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
           {/* Patterns Error State */}
           {patternsError && (
-            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
+            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-500/30 bg-red-950/40 p-4 text-sm text-red-200 sm:flex-row sm:items-center">
               <div className="flex min-w-0 items-start gap-3">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
                 <div>
                   <p className="font-semibold">AI observations could not be generated</p>
-                  <p className="mt-1 leading-relaxed text-red-700">{patternsError}</p>
+                  <p className="mt-1 leading-relaxed text-red-200">{patternsError}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleAnalyzePatterns}
-                className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-sm font-semibold text-red-700 underline underline-offset-2 hover:bg-red-100 hover:text-red-900"
+                className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-sm font-semibold text-red-300 underline underline-offset-2 hover:bg-red-500/10 hover:text-red-100"
               >
                 Retry
               </button>
@@ -1398,39 +1398,39 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           {/* Patterns Content */}
           {loadingPatterns ? (
             <div role="status" aria-live="polite" className="space-y-3 py-12 text-center">
-              <Loader2 className="mx-auto h-7 w-7 animate-spin text-accent-primary" aria-hidden="true" />
-              <p className="font-serif text-base font-semibold text-text-primary">
+              <Loader2 className="mx-auto h-7 w-7 animate-spin text-journal-accent-bright" aria-hidden="true" />
+              <p className="font-serif text-base font-semibold text-journal-ink">
                 Looking across the reflections in this scope…
               </p>
-              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
                 AI is looking for recurring signals supported by more than one of your recorded reflections.
               </p>
             </div>
           ) : patternsResult ? (
-            <section aria-labelledby="patterns-ai-observations-title" className="space-y-5 border-t border-border pt-5">
+            <section aria-labelledby="patterns-ai-observations-title" className="space-y-5 border-t border-journal-border pt-5">
               <div className="space-y-1">
-                <h4 id="patterns-ai-observations-title" className="font-serif text-lg font-semibold text-text-primary">
+                <h4 id="patterns-ai-observations-title" className="font-serif text-lg font-semibold text-journal-ink">
                   AI observations
                 </h4>
-                <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+                <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">
                   Generated only from the reflections included in the current scope. Treat these as prompts for reflection, not facts or diagnoses.
                 </p>
               </div>
 
               {patternsResult.message && (
-                <div className="flex items-start gap-3 rounded-card bg-surface-ai px-4 py-3 text-sm text-text-secondary">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+                <div className="flex items-start gap-3 rounded-card border border-journal-border bg-journal-panel px-4 py-3 text-sm text-journal-ink-muted">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-journal-accent-bright" aria-hidden="true" />
                   <p className="leading-relaxed">{patternsResult.message}</p>
                 </div>
               )}
 
               {!patternsResult.hasSufficientEvidence || patternsResult.patterns.length === 0 ? (
                 <div className="space-y-2 py-8 text-center">
-                  <CheckCircle2 className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
-                  <h5 className="font-serif text-base font-semibold text-text-primary">
+                  <CheckCircle2 className="mx-auto h-6 w-6 text-journal-ink-faint" aria-hidden="true" />
+                  <h5 className="font-serif text-base font-semibold text-journal-ink">
                     No recurring signals yet
                   </h5>
-                  <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                  <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
                     The reflections in this scope do not yet offer enough consistent support for a recurring observation. More writing over time may make meaningful connections easier to notice.
                   </p>
                 </div>
@@ -1440,21 +1440,21 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                     <article
                       key={idx}
                       id={`pattern-card-${idx}`}
-                      className="space-y-4 rounded-card border border-border bg-surface p-5 shadow-low sm:p-6"
+                      className="space-y-4 rounded-card border border-journal-border bg-journal-panel p-5 shadow-low sm:p-6"
                     >
                       <div className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-accent-primary">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-journal-accent-bright">
                           Observation {idx + 1}
                         </p>
-                        <h5 className="font-serif text-lg font-semibold leading-snug text-text-primary">
+                        <h5 className="font-serif text-lg font-semibold leading-snug text-journal-ink">
                           {pat.observation}
                         </h5>
-                        <p className="text-sm leading-relaxed text-text-secondary">
+                        <p className="text-sm leading-relaxed text-journal-ink-muted">
                           {pat.explanation}
                         </p>
                       </div>
 
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-xs text-text-muted">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-journal-border pt-3 text-xs text-journal-ink-faint">
                         <span>
                           {pat.evidenceCount} supporting {pat.evidenceCount === 1 ? 'reflection' : 'reflections'}
                         </span>
@@ -1465,7 +1465,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
                       {Array.isArray(pat.supportingEntries) && pat.supportingEntries.length > 0 && (
                         <div className="space-y-2">
-                          <p className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                          <p className="flex items-center gap-2 text-sm font-semibold text-journal-ink">
                             <FileText className="h-4 w-4 text-user-accent" aria-hidden="true" />
                             <span>Supporting reflections</span>
                           </p>
@@ -1475,15 +1475,15 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                                 key={sIdx}
                                 type="button"
                                 onClick={() => handleOpenSupportingEntry(se.entryId)}
-                                className="group inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-control border border-border bg-surface-user px-3 py-2 text-left text-sm text-text-primary transition-colors hover:border-border-strong hover:bg-surface-subtle sm:w-auto"
+                                className="group inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-control border border-journal-border bg-journal-panel-2 px-3 py-2 text-left text-sm text-journal-ink transition-colors hover:border-journal-accent hover:bg-journal-panel sm:w-auto"
                                 title={`Open reflection: ${se.title}`}
                               >
                                 <Calendar className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
                                 <span className="min-w-0 flex-1 truncate font-medium sm:max-w-[220px]">
                                   {se.title}
                                 </span>
-                                {se.date && <span className="shrink-0 text-xs text-text-muted">{se.date}</span>}
-                                <ChevronRight className="h-4 w-4 shrink-0 text-text-muted group-hover:text-text-primary" aria-hidden="true" />
+                                {se.date && <span className="shrink-0 text-xs text-journal-ink-faint">{se.date}</span>}
+                                <ChevronRight className="h-4 w-4 shrink-0 text-journal-ink-faint group-hover:text-journal-ink" aria-hidden="true" />
                               </button>
                             ))}
                           </div>
@@ -1495,12 +1495,12 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               )}
             </section>
           ) : (
-            <div className="space-y-2 border-t border-border py-8 text-center">
-              <Sparkles className="mx-auto h-5 w-5 text-accent-primary" aria-hidden="true" />
-              <h4 className="font-serif text-base font-semibold text-text-primary">
+            <div className="space-y-2 border-t border-journal-border py-8 text-center">
+              <Sparkles className="mx-auto h-5 w-5 text-journal-accent-bright" aria-hidden="true" />
+              <h4 className="font-serif text-base font-semibold text-journal-ink">
                 No AI observations yet
               </h4>
-              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
                 Surface Patterns to look for recurring signals supported by the reflections in your current scope.
               </p>
             </div>
@@ -1512,7 +1512,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       {selectedTool === 'contradictions' && (
         <div id="perspective-differences-tab-content" className="space-y-6">
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+            <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">
               Notice where similar situations in your reflections were interpreted or felt differently.
             </p>
             <button
@@ -1522,7 +1522,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               disabled={loadingContradictions || !isMultiEntryScopeValid}
               className={`inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control px-4 py-2.5 text-sm font-semibold shadow-xs transition-colors sm:w-auto ${
                 !isMultiEntryScopeValid
-                  ? 'cursor-not-allowed border border-border bg-surface-subtle text-text-muted opacity-70'
+                  ? 'cursor-not-allowed border border-journal-border bg-journal-panel-2 text-journal-ink-faint opacity-70'
                   : 'cursor-pointer bg-accent-primary text-white hover:bg-accent-primary-hover'
               }`}
             >
@@ -1546,8 +1546,8 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           </div>
 
           {/* AI provenance */}
-          <div className="flex items-start gap-3 rounded-card bg-surface-ai px-4 py-3 text-sm text-text-secondary">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+          <div className="flex items-start gap-3 rounded-card border border-journal-border bg-journal-panel px-4 py-3 text-sm text-journal-ink-muted">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-journal-accent-bright" aria-hidden="true" />
             <p className="leading-relaxed">
               Based only on reflections in the current scope. AI is identifying places where similar situations were interpreted or felt differently — a difference does not mean a contradiction, and neither interpretation is necessarily more correct. This is not a diagnosis, not a claim about hidden motives or fixed identity, and similarity or chronology does not prove causation.
             </p>
@@ -1555,18 +1555,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
           {/* Differences Error State */}
           {contradictionsError && (
-            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
+            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-500/30 bg-red-950/40 p-4 text-sm text-red-200 sm:flex-row sm:items-center">
               <div className="flex min-w-0 items-start gap-3">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
                 <div>
                   <p className="font-semibold">AI observations could not be generated</p>
-                  <p className="mt-1 leading-relaxed text-red-700">{contradictionsError}</p>
+                  <p className="mt-1 leading-relaxed text-red-200">{contradictionsError}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleAnalyzeContradictions}
-                className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-sm font-semibold text-red-700 underline underline-offset-2 hover:bg-red-100 hover:text-red-900"
+                className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-sm font-semibold text-red-300 underline underline-offset-2 hover:bg-red-500/10 hover:text-red-100"
               >
                 Retry
               </button>
@@ -1576,26 +1576,26 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           {/* Differences Content */}
           {loadingContradictions ? (
             <div role="status" aria-live="polite" className="space-y-3 py-12 text-center">
-              <Loader2 className="mx-auto h-7 w-7 animate-spin text-accent-primary" aria-hidden="true" />
-              <p className="font-serif text-base font-semibold text-text-primary">Finding differences…</p>
-              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+              <Loader2 className="mx-auto h-7 w-7 animate-spin text-journal-accent-bright" aria-hidden="true" />
+              <p className="font-serif text-base font-semibold text-journal-ink">Finding differences…</p>
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
                 AI is looking for similar situations in this scope that were interpreted or felt differently.
               </p>
             </div>
           ) : contradictionsResult ? (
-            <section aria-label="Differences results" className="space-y-5 border-t border-border pt-5">
+            <section aria-label="Differences results" className="space-y-5 border-t border-journal-border pt-5">
               {contradictionsResult.message && (
-                <div className="flex items-start gap-3 rounded-card bg-surface-ai px-4 py-3 text-sm text-text-secondary">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+                <div className="flex items-start gap-3 rounded-card border border-journal-border bg-journal-panel px-4 py-3 text-sm text-journal-ink-muted">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-journal-accent-bright" aria-hidden="true" />
                   <p className="leading-relaxed">{contradictionsResult.message}</p>
                 </div>
               )}
 
               {!contradictionsResult.hasSufficientEvidence || contradictionsResult.contradictions.length === 0 ? (
                 <div className="space-y-2 py-8 text-center">
-                  <CheckCircle2 className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
-                  <h5 className="font-serif text-base font-semibold text-text-primary">No clear differences surfaced</h5>
-                  <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                  <CheckCircle2 className="mx-auto h-6 w-6 text-journal-ink-faint" aria-hidden="true" />
+                  <h5 className="font-serif text-base font-semibold text-journal-ink">No clear differences surfaced</h5>
+                  <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
                     The reflections in this scope may not contain enough grounded contrast for a useful comparison, or more reflections may be needed before a difference can be observed.
                   </p>
                 </div>
@@ -1605,21 +1605,21 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                     <article
                       key={idx}
                       id={`contradiction-card-${idx}`}
-                      className="space-y-4 rounded-card border border-border bg-surface p-5 shadow-low sm:p-6"
+                      className="space-y-4 rounded-card border border-journal-border bg-journal-panel p-5 shadow-low sm:p-6"
                     >
                       <div className="space-y-2">
-                        <h4 className="font-serif text-lg font-semibold leading-snug text-text-primary">
+                        <h4 className="font-serif text-lg font-semibold leading-snug text-journal-ink">
                           {contra.observation}
                         </h4>
                         <div className="space-y-1">
-                          <p className="text-xs font-semibold uppercase tracking-[0.06em] text-text-muted">What may differ</p>
-                          <p className="text-sm leading-relaxed text-text-secondary">{contra.explanation}</p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.06em] text-journal-ink-faint">What may differ</p>
+                          <p className="text-sm leading-relaxed text-journal-ink-muted">{contra.explanation}</p>
                         </div>
                       </div>
 
                       {Array.isArray(contra.supportingEntries) && contra.supportingEntries.length > 0 && (
-                        <div className="space-y-2 border-t border-border pt-4">
-                          <p className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                        <div className="space-y-2 border-t border-journal-border pt-4">
+                          <p className="flex items-center gap-2 text-sm font-semibold text-journal-ink">
                             <FileText className="h-4 w-4 text-user-accent" aria-hidden="true" />
                             <span>Supporting reflections</span>
                           </p>
@@ -1629,14 +1629,14 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                                 key={sIdx}
                                 type="button"
                                 onClick={() => handleOpenSupportingEntry(se.entryId)}
-                                className="flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-control border border-border bg-surface-user px-3 py-2 text-left text-sm text-text-primary transition-colors hover:border-border-strong hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
+                                className="flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-control border border-journal-border bg-journal-panel-2 px-3 py-2 text-left text-sm text-journal-ink transition-colors hover:border-journal-accent hover:bg-journal-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
                                 title={`Open reflection: ${se.title}`}
                               >
                                 <Calendar className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
                                 <span className="min-w-0 flex-1 [overflow-wrap:anywhere] font-medium">
                                   {se.title}
                                 </span>
-                                {se.date && <span className="shrink-0 text-xs text-text-muted">{se.date}</span>}
+                                {se.date && <span className="shrink-0 text-xs text-journal-ink-faint">{se.date}</span>}
                               </button>
                             ))}
                           </div>
@@ -1644,18 +1644,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                       )}
 
                       {contra.clarifyingQuestion && (
-                        <div className="space-y-1 border-t border-border pt-4">
-                          <div className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
-                            <Compass className="h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+                        <div className="space-y-1 border-t border-journal-border pt-4">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-journal-ink-muted">
+                            <Compass className="h-4 w-4 shrink-0 text-journal-accent-bright" aria-hidden="true" />
                             <span>Question to sit with</span>
                           </div>
-                          <p className="font-serif text-base italic leading-relaxed text-text-primary">
+                          <p className="font-serif text-base italic leading-relaxed text-journal-ink">
                             {contra.clarifyingQuestion}
                           </p>
                         </div>
                       )}
 
-                      <p className="border-t border-border pt-3 text-xs text-text-muted">
+                      <p className="border-t border-journal-border pt-3 text-xs text-journal-ink-faint">
                         {contra.evidenceCount} supporting {contra.evidenceCount === 1 ? 'reflection' : 'reflections'}
                       </p>
                     </article>
@@ -1664,10 +1664,10 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               )}
             </section>
           ) : (
-            <div className="space-y-2 border-t border-border py-8 text-center">
-              <Split className="mx-auto h-5 w-5 text-accent-primary" aria-hidden="true" />
-              <h4 className="font-serif text-base font-semibold text-text-primary">No differences yet</h4>
-              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            <div className="space-y-2 border-t border-journal-border py-8 text-center">
+              <Split className="mx-auto h-5 w-5 text-journal-accent-bright" aria-hidden="true" />
+              <h4 className="font-serif text-base font-semibold text-journal-ink">No differences yet</h4>
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
                 Find differences when you are ready to notice where similar situations in this scope were interpreted or felt differently.
               </p>
             </div>
@@ -1679,7 +1679,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       {selectedTool === 'timeline' && (
         <div id="signal-timeline-tab-content" className="min-w-0 space-y-6">
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+            <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">
               Notice how recorded reactions, interpretations, or focus may differ across reflections over time.
             </p>
             <button
@@ -1689,7 +1689,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               disabled={loadingTimeline || !isMultiEntryScopeValid}
               className={`inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control px-4 py-2.5 text-sm font-semibold shadow-xs transition-colors sm:w-auto ${
                 !isMultiEntryScopeValid
-                  ? 'cursor-not-allowed border border-border bg-surface-subtle text-text-muted opacity-70'
+                  ? 'cursor-not-allowed border border-journal-border bg-journal-panel-2 text-journal-ink-faint opacity-70'
                   : 'cursor-pointer bg-accent-primary text-white hover:bg-accent-primary-hover'
               }`}
             >
@@ -1713,9 +1713,9 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           </div>
 
           {timelineError && (
-            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
+            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-500/30 bg-red-950/40 p-4 text-sm text-red-200 sm:flex-row sm:items-center">
               <div className="flex min-w-0 items-start gap-3">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
                 <div>
                   <p className="font-semibold">AI observations could not be generated</p>
                   <p className="mt-1 leading-relaxed">{timelineError}</p>
@@ -1724,7 +1724,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               <button
                 type="button"
                 onClick={handleAnalyzeTimeline}
-                className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-3 text-sm font-semibold text-red-700 underline underline-offset-2 hover:bg-red-100 hover:text-red-900"
+                className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-3 text-sm font-semibold text-red-300 underline underline-offset-2 hover:bg-red-500/10 hover:text-red-100"
               >
                 <RefreshCw className="h-4 w-4" aria-hidden="true" />
                 <span>Retry</span>
@@ -1734,23 +1734,23 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
           {loadingTimeline ? (
             <div role="status" aria-live="polite" className="space-y-3 py-12 text-center">
-              <Loader2 className="mx-auto h-7 w-7 animate-spin text-accent-primary" aria-hidden="true" />
-              <p className="font-serif text-base font-semibold text-text-primary">Looking across these reflections…</p>
-              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+              <Loader2 className="mx-auto h-7 w-7 animate-spin text-journal-accent-bright" aria-hidden="true" />
+              <p className="font-serif text-base font-semibold text-journal-ink">Looking across these reflections…</p>
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
                 AI is considering where recorded reactions, interpretations, or focus may differ over time.
               </p>
             </div>
           ) : timelineResult ? (
-            <section aria-labelledby="timeline-ai-observations-title" className="space-y-6 border-t border-border pt-5">
+            <section aria-labelledby="timeline-ai-observations-title" className="space-y-6 border-t border-journal-border pt-5">
               <div className="space-y-1">
-                <h4 id="timeline-ai-observations-title" className="font-serif text-lg font-semibold text-text-primary">AI observations</h4>
-                <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+                <h4 id="timeline-ai-observations-title" className="font-serif text-lg font-semibold text-journal-ink">AI observations</h4>
+                <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">
                   Generated only from reflections in the current scope. These are interpretive observations: chronology does not prove causation, later does not mean better or worse, and the results are not diagnoses, fixed identity claims, or explanations of hidden motives.
                 </p>
               </div>
 
               {timelineResult.message && (
-                <div className="flex items-start gap-3 border-l-2 border-border pl-4 text-sm text-text-secondary">
+                <div className="flex items-start gap-3 border-l-2 border-journal-border pl-4 text-sm text-journal-ink-muted">
                   <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                   <p className="leading-relaxed">{timelineResult.message}</p>
                 </div>
@@ -1758,63 +1758,63 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
               {!timelineResult.hasSufficientEvidence || timelineResult.shifts.length === 0 ? (
                 <div className="space-y-2 py-8 text-center">
-                  <CheckCircle2 className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
-                  <h5 className="font-serif text-base font-semibold text-text-primary">No clear changes surfaced</h5>
-                  <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+                  <CheckCircle2 className="mx-auto h-6 w-6 text-journal-ink-faint" aria-hidden="true" />
+                  <h5 className="font-serif text-base font-semibold text-journal-ink">No clear changes surfaced</h5>
+                  <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
                     The selected reflections did not provide enough contrast for a useful observation. This does not imply that nothing changed outside what was recorded.
                   </p>
                 </div>
               ) : (
-                <ul className="relative min-w-0 space-y-8 pl-7 before:absolute before:bottom-4 before:left-[7px] before:top-4 before:w-px before:bg-border sm:pl-9">
+                <ul className="relative min-w-0 space-y-8 pl-7 before:absolute before:bottom-4 before:left-[7px] before:top-4 before:w-px before:bg-journal-border sm:pl-9">
                   {presentationTimelineShifts.map((shift: SignalTimelineShift, idx: number) => (
                     <li
                       key={`${shift.earlierDate ?? 'undated'}-${shift.laterDate ?? 'undated'}-${idx}`}
                       id={`timeline-shift-card-${idx}`}
-                      className="relative min-w-0 space-y-6 border-b border-border pb-8 last:border-b-0 last:pb-0"
+                      className="relative min-w-0 space-y-6 border-b border-journal-border pb-8 last:border-b-0 last:pb-0"
                     >
-                      <span className="absolute -left-7 top-1 h-4 w-4 rounded-full border-4 border-background bg-accent-primary sm:-left-9" aria-hidden="true" />
+                      <span className="absolute -left-7 top-1 h-4 w-4 rounded-full border-4 border-journal-bg bg-journal-accent-bright sm:-left-9" aria-hidden="true" />
 
                       <header className="min-w-0 space-y-2">
-                        <p className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-semibold text-text-secondary">
-                          <Calendar className="h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+                        <p className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-semibold text-journal-ink-muted">
+                          <Calendar className="h-4 w-4 shrink-0 text-journal-accent-bright" aria-hidden="true" />
                           <span className="[overflow-wrap:anywhere]">
                             {shift.earlierDate && shift.laterDate
                               ? `${shift.earlierDate} – ${shift.laterDate}`
                               : shift.earlierDate || shift.laterDate || 'Date context unavailable'}
                           </span>
                         </p>
-                        <h5 className="max-w-reading font-serif text-lg font-semibold leading-relaxed text-text-primary">
+                        <h5 className="max-w-reading font-serif text-lg font-semibold leading-relaxed text-journal-ink">
                           {shift.observation}
                         </h5>
                       </header>
 
-                      <div className="grid min-w-0 grid-cols-1 gap-5 border-y border-border py-5 md:grid-cols-2">
+                      <div className="grid min-w-0 grid-cols-1 gap-5 border-y border-journal-border py-5 md:grid-cols-2">
                         <section className="min-w-0 space-y-2">
-                          <h6 className="text-sm font-semibold text-text-secondary">Earlier reflection</h6>
-                          {shift.earlierDate && <p className="text-[13px] text-text-muted">{shift.earlierDate}</p>}
-                          <p className="font-serif text-base leading-relaxed text-text-primary">{shift.earlierState}</p>
+                          <h6 className="text-sm font-semibold text-journal-ink-muted">Earlier reflection</h6>
+                          {shift.earlierDate && <p className="text-[13px] text-journal-ink-faint">{shift.earlierDate}</p>}
+                          <p className="font-serif text-base leading-relaxed text-journal-ink">{shift.earlierState}</p>
                         </section>
-                        <section className="min-w-0 space-y-2 md:border-l md:border-border md:pl-5">
-                          <h6 className="text-sm font-semibold text-text-secondary">Later reflection</h6>
-                          {shift.laterDate && <p className="text-[13px] text-text-muted">{shift.laterDate}</p>}
-                          <p className="font-serif text-base leading-relaxed text-text-primary">{shift.laterState}</p>
+                        <section className="min-w-0 space-y-2 md:border-l md:border-journal-border md:pl-5">
+                          <h6 className="text-sm font-semibold text-journal-ink-muted">Later reflection</h6>
+                          {shift.laterDate && <p className="text-[13px] text-journal-ink-faint">{shift.laterDate}</p>}
+                          <p className="font-serif text-base leading-relaxed text-journal-ink">{shift.laterState}</p>
                         </section>
                       </div>
 
                       <div className="space-y-2">
-                        <h6 className="text-sm font-semibold text-text-secondary">From the recorded reflections</h6>
-                        <p className="max-w-reading text-sm leading-relaxed text-text-secondary">{shift.explanation}</p>
+                        <h6 className="text-sm font-semibold text-journal-ink-muted">From the recorded reflections</h6>
+                        <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">{shift.explanation}</p>
                       </div>
 
-                      <div className="flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-text-muted">
-                        <p><span className="font-semibold text-text-secondary">Type:</span> {formatShiftTypeLabel(shift.shiftType)}</p>
-                        <p><span className="font-semibold text-text-secondary">Journal support:</span> {shift.evidenceCount} {shift.evidenceCount === 1 ? 'reflection' : 'reflections'}</p>
+                      <div className="flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-journal-ink-faint">
+                        <p><span className="font-semibold text-journal-ink-muted">Type:</span> {formatShiftTypeLabel(shift.shiftType)}</p>
+                        <p><span className="font-semibold text-journal-ink-muted">Journal support:</span> {shift.evidenceCount} {shift.evidenceCount === 1 ? 'reflection' : 'reflections'}</p>
                       </div>
 
                       {Array.isArray(shift.supportingEntries) && shift.supportingEntries.length > 0 && (
                         <section className="min-w-0 space-y-2" aria-label="Supporting reflections">
-                          <h6 className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
-                            <FileText className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                          <h6 className="flex items-center gap-2 text-sm font-semibold text-journal-ink-muted">
+                            <FileText className="h-4 w-4 text-journal-ink-faint" aria-hidden="true" />
                             Supporting reflections
                           </h6>
                           <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1823,18 +1823,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                                 key={sIdx}
                                 type="button"
                                 onClick={() => handleOpenSupportingEntry(se.entryId)}
-                                className="flex min-h-11 min-w-0 max-w-full items-start gap-3 rounded-control border border-border bg-surface px-3 py-2.5 text-left text-sm text-text-primary transition-colors hover:bg-surface-subtle"
+                                className="flex min-h-11 min-w-0 max-w-full items-start gap-3 rounded-control border border-journal-border bg-journal-panel px-3 py-2.5 text-left text-sm text-journal-ink transition-colors hover:bg-journal-panel-2"
                                 title="Click to view entry details"
                               >
-                                <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+                                <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-journal-ink-faint" aria-hidden="true" />
                                 <span className="min-w-0 flex-1">
                                   <span className="block [overflow-wrap:anywhere] font-semibold">{se.title}</span>
-                                  <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-text-muted">
+                                  <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-journal-ink-faint">
                                     {se.date && <span>{se.date}</span>}
                                     <span>{formatTimelineRole(se.roleInShift)}</span>
                                   </span>
                                 </span>
-                                <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+                                <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-journal-ink-faint" aria-hidden="true" />
                               </button>
                             ))}
                           </div>
@@ -1846,10 +1846,10 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               )}
             </section>
           ) : (
-            <div className="space-y-2 border-t border-border py-8 text-center">
-              <Milestone className="mx-auto h-6 w-6 text-text-muted" aria-hidden="true" />
-              <h4 className="font-serif text-base font-semibold text-text-primary">No AI observations yet</h4>
-              <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            <div className="space-y-2 border-t border-journal-border py-8 text-center">
+              <Milestone className="mx-auto h-6 w-6 text-journal-ink-faint" aria-hidden="true" />
+              <h4 className="font-serif text-base font-semibold text-journal-ink">No AI observations yet</h4>
+              <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
                 Find changes over time when you are ready to compare what you recorded across this scope.
               </p>
             </div>

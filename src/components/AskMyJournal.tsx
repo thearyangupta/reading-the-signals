@@ -71,28 +71,28 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
   return (
     <div id="ask-my-journal-tab" className="space-y-6">
       {/* Purpose */}
-      <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+      <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">
         Ask about something you&rsquo;ve noticed, felt, or written about.
       </p>
 
       {!isScopeEmpty && (
-        <p className="text-xs text-text-muted">
+        <p className="text-xs text-journal-ink-faint">
           Using {targetEntries.length} {targetEntries.length === 1 ? 'reflection' : 'reflections'} in your current scope.
         </p>
       )}
 
       {/* AI provenance */}
-      <div className="flex items-start gap-3 rounded-card bg-surface-ai px-4 py-3 text-sm text-text-secondary">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+      <div className="flex items-start gap-3 rounded-card border border-journal-border bg-journal-panel px-4 py-3 text-sm text-journal-ink-muted">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-journal-accent-bright" aria-hidden="true" />
         <p className="leading-relaxed">
           Answers are based only on the reflections in your current scope, using the structured summaries already created from them. There may not be enough evidence to answer every question. Responses are an AI-generated interpretation, not objective fact &mdash; they do not diagnose, determine hidden motives, or define who you are.
         </p>
       </div>
 
       {isScopeEmpty ? (
-        <div className="space-y-2 border-t border-border py-6 text-center">
-          <h4 className="font-serif text-base font-semibold text-text-primary">Add a reflection to ask a question</h4>
-          <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+        <div className="space-y-2 border-t border-journal-border py-6 text-center">
+          <h4 className="font-serif text-base font-semibold text-journal-ink">Add a reflection to ask a question</h4>
+          <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
             Ask My Journal needs at least one summarized reflection in the current scope before it can answer.
           </p>
         </div>
@@ -100,7 +100,7 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Composer */}
           <div className="space-y-2">
-            <label htmlFor="ask-journal-question-input" className="block text-sm font-semibold text-text-primary">
+            <label htmlFor="ask-journal-question-input" className="block text-sm font-semibold text-journal-ink">
               What would you like to understand?
             </label>
             <textarea
@@ -113,12 +113,12 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
               aria-describedby="ask-journal-character-count"
               placeholder="Ask about something in your reflections&hellip;"
               disabled={loading}
-              className="w-full resize-none rounded-control border border-border bg-surface p-3.5 text-base leading-relaxed text-text-primary placeholder:text-text-muted transition-colors focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary disabled:opacity-60"
+              className="w-full resize-none rounded-control border border-journal-border bg-journal-panel/40 p-3.5 text-base leading-relaxed text-journal-ink placeholder:text-journal-ink-faint transition-colors focus:border-journal-accent-bright focus:outline-none focus:ring-1 focus:ring-journal-accent-bright disabled:opacity-60"
             />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span
                 id="ask-journal-character-count"
-                className={`text-xs ${question.length > 500 ? 'font-semibold text-destructive' : 'text-text-muted'}`}
+                className={`text-xs ${question.length > 500 ? 'font-semibold text-red-400' : 'text-journal-ink-faint'}`}
               >
                 {question.length}/500
               </span>
@@ -126,7 +126,7 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
                 type="submit"
                 id="ask-journal-submit-btn"
                 disabled={!canSubmit}
-                className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-text-muted disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
+                className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:bg-journal-panel-2 disabled:text-journal-ink-faint disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
               >
                 {loading ? (
                   <>
@@ -145,7 +145,7 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
 
           {/* Suggested questions */}
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-text-secondary">Questions you could ask</p>
+            <p className="text-sm font-semibold text-journal-ink-muted">Questions you could ask</p>
             <div className="flex flex-wrap gap-2">
               {SUGGESTED_QUESTIONS.map((suggestion, sIdx) => (
                 <button
@@ -153,7 +153,7 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
                   type="button"
                   onClick={() => handleChipClick(suggestion)}
                   disabled={loading}
-                  className="min-h-11 max-w-full rounded-control border border-border bg-surface px-3 py-2 text-left text-sm leading-snug text-text-secondary transition-colors hover:border-border-strong hover:bg-surface-subtle hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                  className="min-h-11 max-w-full rounded-control border border-journal-border bg-journal-panel-2/40 px-3 py-2 text-left text-sm leading-snug text-journal-ink-muted transition-colors hover:border-journal-accent hover:bg-journal-panel-2 hover:text-journal-ink disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
                   {suggestion}
                 </button>
@@ -165,8 +165,8 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
 
       {/* Error */}
       {error && (
-        <div role="alert" className="flex items-start gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
+        <div role="alert" className="flex items-start gap-3 rounded-card border border-red-500/30 bg-red-950/40 p-4 text-sm text-red-200">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
           <div>
             <p className="font-semibold">I couldn&rsquo;t answer that</p>
             <p className="mt-1 leading-relaxed">{error}</p>
@@ -177,48 +177,48 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
       {/* Loading */}
       {loading && (
         <div role="status" aria-live="polite" className="space-y-2 py-8 text-center">
-          <Loader2 className="mx-auto h-6 w-6 animate-spin text-accent-primary" aria-hidden="true" />
-          <p className="text-sm leading-relaxed text-text-secondary">Looking through your reflections&hellip;</p>
+          <Loader2 className="mx-auto h-6 w-6 animate-spin text-journal-accent-bright" aria-hidden="true" />
+          <p className="text-sm leading-relaxed text-journal-ink-muted">Looking through your reflections&hellip;</p>
         </div>
       )}
 
       {/* Answer */}
       {!loading && result && (
-        <div className="space-y-6 border-t border-border pt-6">
+        <div className="space-y-6 border-t border-journal-border pt-6">
           <div className="space-y-2">
-            <h4 className="font-serif text-lg font-semibold text-text-primary">Answer</h4>
+            <h4 className="font-serif text-lg font-semibold text-journal-ink">Answer</h4>
             {!result.hasSufficientEvidence && (
-              <p className="text-sm text-text-muted">
+              <p className="text-sm text-journal-ink-faint">
                 Not enough evidence in this scope to fully answer this question.
               </p>
             )}
-            <p className="whitespace-pre-line font-serif text-base leading-relaxed text-text-primary">
+            <p className="whitespace-pre-line font-serif text-base leading-relaxed text-journal-ink">
               {result.answer}
             </p>
           </div>
 
           {Array.isArray(result.evidence) && result.evidence.length > 0 && (
-            <div className="space-y-3 border-t border-border pt-4">
-              <h5 className="font-serif text-base font-semibold text-text-primary">From your reflections</h5>
+            <div className="space-y-3 border-t border-journal-border pt-4">
+              <h5 className="font-serif text-base font-semibold text-journal-ink">From your reflections</h5>
               <div className="space-y-3">
                 {result.evidence.map((ev, evIdx) => {
                   const resolvable = targetEntries.some((e) => e.id === ev.entryId);
                   return (
-                    <article key={evIdx} className="min-w-0 space-y-2 rounded-card border border-border bg-surface p-4">
+                    <article key={evIdx} className="min-w-0 space-y-2 rounded-card border border-journal-border bg-journal-panel p-4">
                       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                        <span className="min-w-0 [overflow-wrap:anywhere] font-serif text-base font-semibold text-text-primary">
+                        <span className="min-w-0 [overflow-wrap:anywhere] font-serif text-base font-semibold text-journal-ink">
                           {ev.title}
                         </span>
-                        {ev.date && <span className="shrink-0 text-xs text-text-muted">{ev.date}</span>}
+                        {ev.date && <span className="shrink-0 text-xs text-journal-ink-faint">{ev.date}</span>}
                       </div>
                       {ev.reason && (
-                        <p className="text-sm leading-relaxed text-text-secondary">{ev.reason}</p>
+                        <p className="text-sm leading-relaxed text-journal-ink-muted">{ev.reason}</p>
                       )}
                       <button
                         type="button"
                         onClick={() => handleEvidenceClick(ev.entryId)}
                         disabled={!resolvable}
-                        className="inline-flex min-h-11 items-center gap-2 rounded-control px-2 text-sm font-semibold text-accent-secondary transition-colors hover:bg-surface-subtle hover:text-text-primary disabled:cursor-not-allowed disabled:text-text-muted disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                        className="inline-flex min-h-11 items-center gap-2 rounded-control px-2 text-sm font-semibold text-journal-accent-bright transition-colors hover:bg-journal-panel-2 hover:text-journal-ink disabled:cursor-not-allowed disabled:text-journal-ink-faint disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                       >
                         <FileText className="h-4 w-4 shrink-0" aria-hidden="true" />
                         <span>{resolvable ? 'View reflection' : 'Not available in this scope'}</span>
@@ -231,19 +231,19 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
           )}
 
           {result.clarificationQuestion && (
-            <div className="space-y-1 border-t border-border pt-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
-                <Compass className="h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+            <div className="space-y-1 border-t border-journal-border pt-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-journal-ink-muted">
+                <Compass className="h-4 w-4 shrink-0 text-journal-accent-bright" aria-hidden="true" />
                 <span>A question to sit with</span>
               </div>
-              <p className="font-serif text-base italic leading-relaxed text-text-primary">
+              <p className="font-serif text-base italic leading-relaxed text-journal-ink">
                 {result.clarificationQuestion}
               </p>
             </div>
           )}
 
           {result.message && (
-            <p className="border-t border-border pt-4 text-sm italic leading-relaxed text-text-muted">
+            <p className="border-t border-journal-border pt-4 text-sm italic leading-relaxed text-journal-ink-faint">
               {result.message}
             </p>
           )}

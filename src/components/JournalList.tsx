@@ -274,8 +274,8 @@ export const JournalList: React.FC<JournalListProps> = ({
   if (loading) {
     return (
       <div role="status" aria-live="polite" className="space-y-3 py-20 text-center">
-        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent-primary" />
-        <p className="text-sm font-medium text-text-muted">Loading your private reflection journal…</p>
+        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-journal-border border-t-accent-primary" />
+        <p className="text-sm font-medium text-journal-ink-muted">Loading your private reflection journal…</p>
       </div>
     );
   }

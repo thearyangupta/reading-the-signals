@@ -24,10 +24,11 @@ export default function App() {
   const routedEntryId = routedEntryMatch?.params.entryId;
   const isWriteRoute = location.pathname === '/write';
   const activeView: AppView = location.pathname === '/insights' ? 'insights' : 'journal';
-  // True when the Journal archive grid, Write view, or Insights view is active — keeping the dark
-  // editorial canvas unified across the core authenticated journaling workflows.
+  // True when the Journal archive grid, Write view, Insights view, or a single
+  // reflection's Entry Detail route is active — keeping the dark editorial
+  // canvas unified across the core authenticated journaling workflows.
   const isJournalGridView = !isWriteRoute && !routedEntryId && activeView === 'journal';
-  const isDarkCanvas = isJournalGridView || isWriteRoute || activeView === 'insights';
+  const isDarkCanvas = isJournalGridView || isWriteRoute || activeView === 'insights' || Boolean(routedEntryId);
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -284,7 +285,7 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen ${isDarkCanvas ? 'bg-journal-bg' : 'bg-background'} text-text-primary flex flex-col font-sans`}>
+    <div className={`min-h-screen ${isDarkCanvas ? 'bg-journal-bg text-journal-ink' : 'bg-background text-text-primary'} flex flex-col font-sans`}>
       {skipLink}
       {routeRedirects}
 
@@ -322,19 +323,19 @@ export default function App() {
           <div
             role="alert"
             className={
-              'mb-6 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-xs text-red-700' +
+              'mb-6 p-3.5 bg-red-950/40 border border-red-500/30 rounded-xl flex items-center justify-between text-xs text-red-200' +
               (isDarkCanvas ? ' mx-4 mt-6 sm:mx-6 sm:mt-8 lg:mx-8' : '')
             }
           >
             <div className="flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               <span>{entriesSyncError}</span>
             </div>
             <button
               type="button"
               onClick={() => setEntriesSyncError(null)}
               aria-label="Dismiss synchronization error"
-              className="text-stone-400 hover:text-stone-700 text-xs font-medium cursor-pointer"
+              className="text-red-300 hover:text-red-100 text-xs font-medium cursor-pointer"
             >
               Dismiss
             </button>
@@ -344,15 +345,15 @@ export default function App() {
         {isWriteRoute ? (
             pendingNewEntryId ? (
               entriesSubscriptionStatus === 'error' ? (
-                <div className="rounded-feature border border-border bg-surface px-6 py-12 text-center">
-                  <h2 className="font-serif text-xl font-semibold text-text-primary">Your reflection was saved, but we couldn't reopen it yet.</h2>
-                  <p className="mx-auto mt-2 max-w-reading text-sm text-text-secondary">Your journal couldn't be synchronized right now.</p>
-                  <button type="button" onClick={handlePendingCreateFailureBack} className="mt-5 min-h-11 rounded-control border border-border bg-surface px-4 text-sm font-semibold text-text-primary hover:bg-surface-subtle">
+                <div className="rounded-feature border border-journal-border bg-journal-panel px-6 py-12 text-center">
+                  <h2 className="font-serif text-xl font-semibold text-journal-ink">Your reflection was saved, but we couldn't reopen it yet.</h2>
+                  <p className="mx-auto mt-2 max-w-reading text-sm text-journal-ink-muted">Your journal couldn't be synchronized right now.</p>
+                  <button type="button" onClick={handlePendingCreateFailureBack} className="mt-5 min-h-11 rounded-control border border-journal-border bg-journal-panel-2 px-4 text-sm font-semibold text-journal-ink hover:bg-journal-panel">
                     Back to Journal
                   </button>
                 </div>
               ) : (
-                <p role="status" className="py-12 text-center text-sm text-text-muted">Opening reflection&hellip;</p>
+                <p role="status" className="py-12 text-center text-sm text-journal-ink-muted">Opening reflection&hellip;</p>
               )
             ) : (
               <JournalEditorPage
@@ -365,12 +366,12 @@ export default function App() {
             )
           ) : routedEntryId ? (
             entriesSubscriptionStatus === 'loading' ? (
-              <p role="status" className="py-12 text-center text-sm text-text-muted">Opening reflection&hellip;</p>
+              <p role="status" className="py-12 text-center text-sm text-journal-ink-muted">Opening reflection&hellip;</p>
             ) : entriesSubscriptionStatus === 'error' ? (
-              <div className="rounded-feature border border-border bg-surface px-6 py-12 text-center">
-                <h2 className="font-serif text-xl font-semibold text-text-primary">We couldn't sync your journal right now.</h2>
-                <p className="mx-auto mt-2 max-w-reading text-sm text-text-secondary">Your journal couldn't be loaded. Please try again later.</p>
-                <button type="button" onClick={() => navigate('/journal')} className="mt-5 min-h-11 rounded-control border border-border bg-surface px-4 text-sm font-semibold text-text-primary hover:bg-surface-subtle">
+              <div className="rounded-feature border border-journal-border bg-journal-panel px-6 py-12 text-center">
+                <h2 className="font-serif text-xl font-semibold text-journal-ink">We couldn't sync your journal right now.</h2>
+                <p className="mx-auto mt-2 max-w-reading text-sm text-journal-ink-muted">Your journal couldn't be loaded. Please try again later.</p>
+                <button type="button" onClick={() => navigate('/journal')} className="mt-5 min-h-11 rounded-control border border-journal-border bg-journal-panel-2 px-4 text-sm font-semibold text-journal-ink hover:bg-journal-panel">
                   Back to Journal
                 </button>
               </div>
@@ -389,9 +390,9 @@ export default function App() {
                 }}
               />
             ) : (
-              <div className="rounded-feature border border-border bg-surface px-6 py-12 text-center">
-                <h2 className="font-serif text-xl font-semibold text-text-primary">This reflection isn't available.</h2>
-                <button type="button" onClick={() => navigate('/journal')} className="mt-5 min-h-11 rounded-control border border-border bg-surface px-4 text-sm font-semibold text-text-primary hover:bg-surface-subtle">
+              <div className="rounded-feature border border-journal-border bg-journal-panel px-6 py-12 text-center">
+                <h2 className="font-serif text-xl font-semibold text-journal-ink">This reflection isn't available.</h2>
+                <button type="button" onClick={() => navigate('/journal')} className="mt-5 min-h-11 rounded-control border border-journal-border bg-journal-panel-2 px-4 text-sm font-semibold text-journal-ink hover:bg-journal-panel">
                   Back to Journal
                 </button>
               </div>

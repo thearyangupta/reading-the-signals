@@ -267,12 +267,12 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
 
     return (
       <>
-        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border bg-surface px-4 py-4 sm:px-8 sm:py-5">
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-journal-border bg-journal-panel px-4 py-4 sm:px-8 sm:py-5">
           <div className="min-w-0">
-            <h3 id="entry-detail-title" className="[overflow-wrap:anywhere] font-serif text-2xl font-semibold leading-tight tracking-tight text-text-primary sm:text-3xl">
+            <h3 id="entry-detail-title" className="[overflow-wrap:anywhere] font-serif text-2xl font-semibold leading-tight tracking-tight text-journal-ink sm:text-3xl">
               {entry.title || 'Untitled Reflection'}
             </h3>
-            <p id="entry-detail-description" className="mt-2 flex items-center gap-2 text-sm text-text-muted">
+            <p id="entry-detail-description" className="mt-2 flex items-center gap-2 text-sm text-journal-ink-faint">
               <Calendar className="h-4 w-4" aria-hidden="true" />
               <time dateTime={entry.date}>{formatEntryDate(entry.date)}</time>
             </p>
@@ -288,82 +288,82 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
         >
           <div className="mx-auto min-w-0 w-full max-w-[54rem] space-y-10 px-4 py-6 sm:px-8 sm:py-10">
             {error && (
-              <div role="alert" className="rounded-card border border-destructive/30 bg-destructive/5 p-3.5 text-sm text-destructive">
+              <div role="alert" className="rounded-card border border-destructive/40 bg-destructive/15 p-3.5 text-sm text-red-300">
                 {error}
               </div>
             )}
 
             <section aria-labelledby="your-reflection-heading">
-              <h4 id="your-reflection-heading" className="text-sm font-semibold text-text-secondary">Your reflection</h4>
-              <div className="mt-3 max-w-reading whitespace-pre-wrap [overflow-wrap:anywhere] font-serif text-lg leading-[1.8] text-text-primary">
-                {entry.content || <span className="font-sans text-sm text-text-muted">No freeform reflection was recorded.</span>}
+              <h4 id="your-reflection-heading" className="text-sm font-semibold text-journal-ink-muted">Your reflection</h4>
+              <div className="mt-3 max-w-reading whitespace-pre-wrap [overflow-wrap:anywhere] font-serif text-lg leading-[1.8] text-journal-ink">
+                {entry.content || <span className="font-sans text-sm text-journal-ink-faint">No freeform reflection was recorded.</span>}
               </div>
             </section>
 
             {guidedFields.length > 0 && (
-              <section aria-labelledby="guided-details-heading" className="border-t border-border pt-8">
-                <h4 id="guided-details-heading" className="font-serif text-lg font-semibold text-text-primary">Guided details</h4>
+              <section aria-labelledby="guided-details-heading" className="border-t border-journal-border pt-8">
+                <h4 id="guided-details-heading" className="font-serif text-lg font-semibold text-journal-ink">Guided details</h4>
                 <dl className="mt-5 space-y-5">
                   {guidedFields.map(([label, value]) => (
                     <div key={label} className="grid gap-1 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-5">
-                      <dt className="text-sm font-semibold text-text-secondary">{label}</dt>
-                      <dd className="[overflow-wrap:anywhere] font-serif text-base leading-relaxed text-text-primary">{value}</dd>
+                      <dt className="text-sm font-semibold text-journal-ink-muted">{label}</dt>
+                      <dd className="[overflow-wrap:anywhere] font-serif text-base leading-relaxed text-journal-ink">{value}</dd>
                     </div>
                   ))}
                 </dl>
               </section>
             )}
 
-            <section aria-labelledby="ai-observations-heading" className="border-t border-border pt-8">
+            <section aria-labelledby="ai-observations-heading" className="border-t border-journal-border pt-8">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-accent-primary">
+                  <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-journal-accent-bright">
                     <SignalGlyph />
                     AI-generated
                   </p>
-                  <h4 id="ai-observations-heading" className="mt-1 font-serif text-lg font-semibold text-text-primary">AI observations</h4>
+                  <h4 id="ai-observations-heading" className="mt-1 font-serif text-lg font-semibold text-journal-ink">AI observations</h4>
                 </div>
                 <button
                   id="regenerate-summary-button"
                   type="button"
                   onClick={handleGenerateSummary}
                   disabled={summarizing}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-control border border-border-ai bg-surface px-3 text-sm font-semibold text-accent-primary hover:bg-surface-ai disabled:opacity-50 sm:self-auto"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-control border border-journal-border bg-journal-panel px-3 text-sm font-semibold text-journal-accent-bright hover:bg-journal-panel-2 disabled:opacity-50 sm:self-auto"
                 >
                   <RefreshCw className={'h-4 w-4 ' + (summarizing ? 'animate-spin' : '')} aria-hidden="true" />
                   <span>{summarizing ? 'Generating…' : entry.summary ? 'Regenerate observations' : 'Add AI observations'}</span>
                 </button>
               </div>
 
-              <div className="mt-4 rounded-feature border border-border-ai border-l-4 border-l-accent-primary/60 bg-surface-ai px-4 py-5 sm:px-6">
+              <div className="mt-4 rounded-feature border border-journal-border border-l-4 border-l-journal-accent/70 bg-journal-panel px-4 py-5 sm:px-6">
                 {entry.summary ? (
                   <div className="space-y-5">
                     <dl className="space-y-4">
                       {summaryFields.map(([label, value]) => (
                         <div key={label} className="grid gap-1 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-5">
-                          <dt className="text-sm font-semibold text-accent-primary">{label}</dt>
-                          <dd className="[overflow-wrap:anywhere] text-sm leading-relaxed text-text-primary">{value}</dd>
+                          <dt className="text-sm font-semibold text-journal-accent-bright">{label}</dt>
+                          <dd className="[overflow-wrap:anywhere] text-sm leading-relaxed text-journal-ink">{value}</dd>
                         </div>
                       ))}
                     </dl>
                     {Array.isArray(entry.summary.subjects) && entry.summary.subjects.length > 0 && (
                       <div>
-                        <p className="text-sm font-semibold text-accent-primary">Explicit subjects and entities</p>
-                        <p className="mt-1 [overflow-wrap:anywhere] text-sm leading-relaxed text-text-primary">
+                        <p className="text-sm font-semibold text-journal-accent-bright">Explicit subjects and entities</p>
+                        <p className="mt-1 [overflow-wrap:anywhere] text-sm leading-relaxed text-journal-ink">
                           {entry.summary.subjects.join(', ')}
                         </p>
                       </div>
                     )}
                     {candidateSignals.length > 0 && (
-                      <section aria-labelledby="candidate-signals-heading" className="border-t border-border-ai pt-5">
-                        <h5 id="candidate-signals-heading" className="text-sm font-semibold text-accent-primary">
+                      <section aria-labelledby="candidate-signals-heading" className="border-t border-journal-border pt-5">
+                        <h5 id="candidate-signals-heading" className="text-sm font-semibold text-journal-accent-bright">
                           Signals you may want to remember
                         </h5>
-                        <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                        <p className="mt-1 text-xs leading-relaxed text-journal-ink-faint">
                           These are AI suggestions. Nothing is stored as a remembered signal until you choose Remember.
                         </p>
                         {signalError && (
-                          <p role="alert" className="mt-3 rounded-control border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                          <p role="alert" className="mt-3 rounded-control border border-destructive/40 bg-destructive/15 p-3 text-sm text-red-300">
                             {signalError}
                           </p>
                         )}
@@ -374,9 +374,9 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
                             const pending = pendingSignalKeys.includes(identity);
 
                             return (
-                              <li key={`${identity}-${index}`} className="rounded-card border border-border-ai bg-surface px-4 py-3">
-                                <p className="text-sm font-semibold text-text-primary">{candidate.text}</p>
-                                <p className="mt-1 text-sm leading-relaxed text-text-secondary">{candidate.suggestedAction}</p>
+                              <li key={`${identity}-${index}`} className="rounded-card border border-journal-border bg-journal-panel-2 px-4 py-3">
+                                <p className="text-sm font-semibold text-journal-ink">{candidate.text}</p>
+                                <p className="mt-1 text-sm leading-relaxed text-journal-ink-muted">{candidate.suggestedAction}</p>
                                 <div className="mt-3 flex items-center gap-3">
                                   <button
                                     type="button"
@@ -384,7 +384,7 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
                                     onClick={() => rememberedSignal
                                       ? handleForgetSignal(candidate, rememberedSignal.id)
                                       : handleRememberSignal(candidate)}
-                                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-control border border-border bg-surface px-3 text-sm font-semibold text-accent-primary hover:bg-surface-ai disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-control border border-journal-border bg-journal-panel px-3 text-sm font-semibold text-journal-accent-bright hover:bg-journal-panel-2 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
                                     {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                                     {pending
@@ -403,17 +403,17 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm leading-relaxed text-text-secondary">
+                  <p className="text-sm leading-relaxed text-journal-ink-muted">
                     No AI observations have been added. Your reflection remains complete without them.
                   </p>
                 )}
               </div>
             </section>
 
-            <section aria-labelledby="reflection-dialogue-heading" className="border-t border-border pt-8">
+            <section aria-labelledby="reflection-dialogue-heading" className="border-t border-journal-border pt-8">
               <div className="mb-4">
-                <h4 id="reflection-dialogue-heading" className="font-serif text-lg font-semibold text-text-primary">Reflection dialogue</h4>
-                <p className="mt-1 text-sm text-text-secondary">Continue exploring this reflection through conversation.</p>
+                <h4 id="reflection-dialogue-heading" className="font-serif text-lg font-semibold text-journal-ink">Reflection dialogue</h4>
+                <p className="mt-1 text-sm text-journal-ink-muted">Continue exploring this reflection through conversation.</p>
               </div>
               <ReflectionChat
                 userId={userId}
@@ -424,17 +424,17 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
               />
             </section>
 
-            <section aria-labelledby="entry-actions-heading" className="border-t border-border pt-6">
+            <section aria-labelledby="entry-actions-heading" className="border-t border-journal-border pt-6">
               <h4 id="entry-actions-heading" className="sr-only">Reflection actions</h4>
               {confirmDelete ? (
-                <div role="group" aria-label={'Delete ' + (entry.title || 'this reflection') + '?'} className="rounded-card border border-destructive/30 bg-destructive/5 p-4">
-                  <p className="font-semibold text-text-primary">Delete this reflection?</p>
-                  <p className="mt-1 text-sm text-text-secondary">This action cannot be undone.</p>
+                <div role="group" aria-label={'Delete ' + (entry.title || 'this reflection') + '?'} className="rounded-card border border-destructive/40 bg-destructive/15 p-4">
+                  <p className="font-semibold text-journal-ink">Delete this reflection?</p>
+                  <p className="mt-1 text-sm text-journal-ink-muted">This action cannot be undone.</p>
                   <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row">
-                    <button ref={cancelDeleteRef} type="button" onClick={cancelDelete} className="min-h-11 rounded-control border border-border bg-surface px-4 text-base font-semibold text-text-primary hover:bg-surface-subtle sm:text-sm">
+                    <button ref={cancelDeleteRef} type="button" onClick={cancelDelete} className="min-h-11 rounded-control border border-journal-border bg-journal-panel px-4 text-base font-semibold text-journal-ink hover:bg-journal-panel-2 sm:text-sm">
                       Cancel
                     </button>
-                    <button id="confirm-delete-button" type="button" onClick={handleDeleteEntry} disabled={deleting} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-4 text-base font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-50 sm:text-sm">
+                    <button id="confirm-delete-button" type="button" onClick={handleDeleteEntry} disabled={deleting} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-4 text-base font-semibold text-red-400 hover:bg-red-500/10 disabled:opacity-50 sm:text-sm">
                       {deleting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                       {deleting ? 'Deleting…' : 'Delete reflection'}
                     </button>
@@ -442,11 +442,11 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
                 </div>
               ) : (
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <button id="edit-entry-button" type="button" onClick={() => onEdit(entry)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-border bg-surface px-4 text-base font-semibold text-text-primary hover:bg-surface-subtle sm:text-sm">
+                  <button id="edit-entry-button" type="button" onClick={() => onEdit(entry)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-journal-border bg-journal-panel px-4 text-base font-semibold text-journal-ink hover:bg-journal-panel-2 sm:text-sm">
                     <Edit3 className="h-4 w-4" aria-hidden="true" />
                     Edit reflection
                   </button>
-                  <button ref={deleteButtonRef} id="delete-entry-button" type="button" onClick={() => setConfirmDelete(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-3 text-base font-medium text-destructive hover:bg-destructive/5 sm:text-sm">
+                  <button ref={deleteButtonRef} id="delete-entry-button" type="button" onClick={() => setConfirmDelete(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-3 text-base font-medium text-red-400 hover:bg-red-500/10 sm:text-sm">
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                     Delete reflection
                   </button>

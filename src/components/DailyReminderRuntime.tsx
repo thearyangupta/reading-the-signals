@@ -110,24 +110,24 @@ export const DailyReminderRuntime: React.FC<DailyReminderRuntimeProps> = ({
         aria-modal="true"
         aria-labelledby="daily-reminder-title"
         aria-describedby="daily-reminder-description"
-        className="relative w-full max-w-sm rounded-feature border border-border bg-surface p-6 shadow-dialog"
+        className="relative w-full max-w-sm rounded-feature border border-journal-border bg-journal-panel p-6 shadow-dialog"
       >
         <button
           type="button"
           onClick={() => setReminderOpen(false)}
           aria-label="Dismiss daily reminder"
-          className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-control text-text-muted hover:bg-surface-subtle hover:text-text-primary"
+          className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-control text-journal-ink-faint hover:bg-journal-panel-2 hover:text-journal-ink"
         >
           <X className="h-5 w-5" aria-hidden="true" />
         </button>
 
-        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent-primary">
+        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-journal-panel-2 text-journal-accent-bright">
           <BellRing className="h-5 w-5" aria-hidden="true" />
         </div>
-        <h2 id="daily-reminder-title" className="pr-8 font-serif text-xl font-semibold text-text-primary">
+        <h2 id="daily-reminder-title" className="pr-8 font-serif text-xl font-semibold text-journal-ink">
           A signal is missing today.
         </h2>
-        <p id="daily-reminder-description" className="mt-2 text-sm leading-relaxed text-text-secondary">
+        <p id="daily-reminder-description" className="mt-2 text-sm leading-relaxed text-journal-ink-muted">
           Take a moment to reflect on your day.
         </p>
         <button

@@ -43,7 +43,7 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-text-primary/45 p-0 sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/70 p-0 sm:p-4">
       <div
         ref={dialogRef}
         role="dialog"
@@ -51,7 +51,7 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
         aria-labelledby="entry-detail-title"
         aria-describedby="entry-detail-description"
         tabIndex={-1}
-        className="animate-settle-in flex h-dvh min-h-0 min-w-0 w-full max-w-full flex-col overflow-hidden bg-surface shadow-dialog sm:my-auto sm:h-[calc(100dvh-2rem)] sm:max-h-[52rem] sm:max-w-[60rem] sm:rounded-feature sm:border sm:border-border"
+        className="animate-settle-in flex h-dvh min-h-0 min-w-0 w-full max-w-full flex-col overflow-hidden bg-journal-panel shadow-dialog sm:my-auto sm:h-[calc(100dvh-2rem)] sm:max-h-[52rem] sm:max-w-[60rem] sm:rounded-feature sm:border sm:border-journal-border"
       >
         <EntryDetailContent
           ref={contentRef}
@@ -67,7 +67,7 @@ export const EntryDetailModal: React.FC<EntryDetailModalProps> = ({
               type="button"
               onClick={onClose}
               aria-label="Close reflection details"
-              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control text-text-muted hover:bg-surface-subtle hover:text-text-primary"
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control text-journal-ink-faint hover:bg-journal-panel-2 hover:text-journal-ink"
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>

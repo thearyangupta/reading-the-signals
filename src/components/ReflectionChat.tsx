@@ -215,16 +215,16 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
   };
 
   return (
-    <div className="flex min-w-0 w-full flex-col rounded-card border border-border border-l-4 border-l-accent-primary/60 bg-surface-ai/40">
+    <div className="flex min-w-0 w-full flex-col rounded-card border border-journal-border border-l-4 border-l-journal-accent/70 bg-journal-panel/40">
       {/* Header bar */}
-      <div className="flex min-w-0 items-center justify-between border-b border-border-ai bg-surface px-4 py-3">
+      <div className="flex min-w-0 items-center justify-between border-b border-journal-border bg-journal-panel px-4 py-3">
         <div className="flex min-w-0 items-center space-x-2">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-ai text-accent-primary">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-journal-panel-2 text-journal-accent-bright">
             <SignalGlyph />
           </div>
           <div className="min-w-0">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-accent-primary">AI observations in dialogue</h4>
-            <p className="text-xs text-text-muted">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-journal-accent-bright">AI observations in dialogue</h4>
+            <p className="text-xs text-journal-ink-faint">
               A non-diagnostic reflection conversation
             </p>
           </div>
@@ -235,12 +235,12 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
       <div role="log" aria-live="polite" aria-label="Reflection dialogue" className="min-w-0 space-y-3.5 p-4">
         {messages.length === 0 ? (
           <div className="flex min-w-0 flex-col items-center justify-center space-y-3 px-4 py-6 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-subtle text-text-muted">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-journal-panel-2 text-journal-ink-faint">
               <Bot className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-primary">Start a deeper reflection</p>
-              <p className="mt-1 max-w-xs text-xs text-text-muted">
+              <p className="text-xs font-medium text-journal-ink">Start a deeper reflection</p>
+              <p className="mt-1 max-w-xs text-xs text-journal-ink-faint">
                 Explore the situation from different angles, inspect your feelings, or separate facts from assumptions.
               </p>
             </div>
@@ -252,9 +252,9 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
                   key={idx}
                   type="button"
                   onClick={() => handleSendMessage(prompt)}
-                  className="flex min-h-11 items-center gap-1.5 rounded-control border border-border bg-surface px-3 py-2 text-left text-xs text-text-secondary shadow-low transition-colors hover:bg-surface-subtle hover:text-text-primary"
+                  className="flex min-h-11 items-center gap-1.5 rounded-control border border-journal-border bg-journal-panel-2 px-3 py-2 text-left text-xs text-journal-ink-muted shadow-low transition-colors hover:bg-journal-panel hover:text-journal-ink"
                 >
-                  <Lightbulb className="h-3 w-3 shrink-0 text-accent-primary" aria-hidden="true" />
+                  <Lightbulb className="h-3 w-3 shrink-0 text-journal-accent-bright" aria-hidden="true" />
                   <span>{prompt}</span>
                 </button>
               ))}
@@ -272,8 +272,8 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
                   <div
                     className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${
                       isUser
-                        ? 'bg-text-primary text-surface'
-                        : 'border border-border-ai bg-surface-ai text-accent-primary'
+                        ? 'bg-journal-ink text-journal-bg'
+                        : 'border border-journal-border bg-journal-panel-2 text-journal-accent-bright'
                     }`}
                   >
                     {isUser ? <User className="h-3.5 w-3.5" aria-hidden="true" /> : <Bot className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -282,12 +282,12 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
                   <div
                     className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
                       isUser
-                        ? 'rounded-tr-xs bg-text-primary text-surface shadow-low'
-                        : 'rounded-tl-xs border border-border-ai bg-surface-ai text-text-primary shadow-low'
+                        ? 'rounded-tr-xs bg-journal-ink text-journal-bg shadow-low'
+                        : 'rounded-tl-xs border border-journal-border bg-journal-panel-2 text-journal-ink shadow-low'
                     }`}
                   >
                     <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{msg.content}</p>
-                    <div className={`mt-1 text-right text-xs ${isUser ? 'text-surface/60' : 'text-text-muted'}`}>
+                    <div className={`mt-1 text-right text-xs ${isUser ? 'text-journal-bg/60' : 'text-journal-ink-faint'}`}>
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
@@ -299,18 +299,18 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
 
         {loading && (
           <div role="status" className="flex items-start space-x-2.5">
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border-ai bg-surface-ai text-accent-primary">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-journal-border bg-journal-panel-2 text-journal-accent-bright">
               <Bot className="h-3.5 w-3.5" aria-hidden="true" />
             </div>
-            <div className="flex items-center space-x-2 rounded-2xl rounded-tl-xs border border-border-ai bg-surface-ai px-3.5 py-2.5 shadow-low">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-accent-primary" aria-hidden="true" />
-              <span className="text-xs text-text-secondary">Reflecting on your observation…</span>
+            <div className="flex items-center space-x-2 rounded-2xl rounded-tl-xs border border-journal-border bg-journal-panel-2 px-3.5 py-2.5 shadow-low">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-journal-accent-bright" aria-hidden="true" />
+              <span className="text-xs text-journal-ink-muted">Reflecting on your observation…</span>
             </div>
           </div>
         )}
 
         {error && (
-          <div role="alert" className="flex items-center space-x-2 rounded-card border border-destructive/30 bg-destructive/5 p-2.5 text-xs text-destructive">
+          <div role="alert" className="flex items-center space-x-2 rounded-card border border-destructive/40 bg-destructive/15 p-2.5 text-xs text-red-300">
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="flex-1">{error}</span>
             <button
@@ -327,7 +327,7 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
       </div>
 
       {/* Input Form */}
-      <div ref={composerRef} className="border-t border-border-ai bg-surface p-2.5">
+      <div ref={composerRef} className="border-t border-journal-border bg-journal-panel p-2.5">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -345,7 +345,7 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
             onChange={(e) => setInput(e.target.value)}
             disabled={loading}
             placeholder="Type a reflection question or feeling..."
-            className="min-h-11 min-w-0 flex-1 rounded-control border border-border bg-surface px-3.5 py-2.5 text-base text-text-primary placeholder:text-text-muted sm:text-sm"
+            className="min-h-11 min-w-0 flex-1 rounded-control border border-journal-border bg-journal-panel-2/40 px-3.5 py-2.5 text-base text-journal-ink placeholder:text-journal-ink-faint sm:text-sm"
           />
           <button
             id="send-reflection-message-button"

@@ -72,12 +72,12 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
   // Guard: Fewer than 2 structured reflections in active scope
   if (targetEntries.length < 2) {
     return (
-      <section id="reflection-wrapped-insufficient-scope" className="space-y-2 border-t border-border py-6">
-        <h4 className="font-serif text-base font-semibold text-text-primary">Add another reflection to see a recap</h4>
-        <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+      <section id="reflection-wrapped-insufficient-scope" className="space-y-2 border-t border-journal-border py-6">
+        <h4 className="font-serif text-base font-semibold text-journal-ink">Add another reflection to see a recap</h4>
+        <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">
           Reflection Wrapped needs at least two reflections in the current scope to summarize patterns and shifts.
         </p>
-        <p className="text-xs text-text-muted">
+        <p className="text-xs text-journal-ink-faint">
           Current scope: {targetEntries.length} {targetEntries.length === 1 ? 'reflection' : 'reflections'}.
         </p>
       </section>
@@ -98,54 +98,54 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
   return (
     <div id="reflection-wrapped-container" className="space-y-8">
       {/* Purpose */}
-      <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+      <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">
         Review the signals, reactions, and shifts that appeared across your current reflection scope.
       </p>
 
       {/* Quiet deterministic scope snapshot */}
-      <p className="text-xs text-text-muted">
+      <p className="text-xs text-journal-ink-faint">
         {chronologicalEntries.length} {chronologicalEntries.length === 1 ? 'reflection' : 'reflections'} · {formatDate(firstEntry.date)} – {formatDate(lastEntry.date)}
       </p>
 
       {/* AI provenance */}
-      <div className="flex items-start gap-3 rounded-card bg-surface-ai px-4 py-3 text-sm text-text-secondary">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" aria-hidden="true" />
+      <div className="flex items-start gap-3 rounded-card border border-journal-border bg-journal-panel px-4 py-3 text-sm text-journal-ink-muted">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-journal-accent-bright" aria-hidden="true" />
         <p className="leading-relaxed">
           This recap summarizes only the reflections in your current scope. Patterns and perspective-shift observations below come from AI analysis; the reaction overview uses summaries already stored with each reflection. None of this is an objective fact, a diagnosis, a claim about hidden motives, or a fixed identity — and the order reflections appear in does not prove causation or personal progress.
         </p>
       </div>
 
       {/* Emotional & reaction overview */}
-      <div className="space-y-4 border-t border-border pt-6">
+      <div className="space-y-4 border-t border-journal-border pt-6">
         <div className="space-y-1">
-          <h4 className="font-serif text-lg font-semibold text-text-primary">Emotional &amp; reaction overview</h4>
-          <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+          <h4 className="font-serif text-lg font-semibold text-journal-ink">Emotional &amp; reaction overview</h4>
+          <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">
             A chronological view of the reactions already captured in your saved reflection summaries.
           </p>
         </div>
 
         <div className="space-y-3">
           {chronologicalEntries.map((entry) => (
-            <article key={entry.id} className="min-w-0 space-y-2 rounded-card border border-border bg-surface p-4 sm:p-5">
+            <article key={entry.id} className="min-w-0 space-y-2 rounded-card border border-journal-border bg-journal-panel p-4 sm:p-5">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <h5 className="min-w-0 [overflow-wrap:anywhere] font-serif text-base font-semibold text-text-primary">
+                <h5 className="min-w-0 [overflow-wrap:anywhere] font-serif text-base font-semibold text-journal-ink">
                   {entry.title}
                 </h5>
-                <span className="shrink-0 text-xs text-text-muted">{formatDate(entry.date)}</span>
+                <span className="shrink-0 text-xs text-journal-ink-faint">{formatDate(entry.date)}</span>
               </div>
               {entry.summary?.emotionalTone && (
-                <p className="text-sm text-text-secondary">
-                  <span className="font-semibold text-text-primary">Tone: </span>
+                <p className="text-sm text-journal-ink-muted">
+                  <span className="font-semibold text-journal-ink">Tone: </span>
                   {entry.summary.emotionalTone}
                 </p>
               )}
               {entry.summary?.feelingOrReaction && (
-                <p className="text-sm leading-relaxed text-text-secondary">{entry.summary.feelingOrReaction}</p>
+                <p className="text-sm leading-relaxed text-journal-ink-muted">{entry.summary.feelingOrReaction}</p>
               )}
               <button
                 type="button"
                 onClick={() => onSelectEntry(entry)}
-                className="inline-flex min-h-11 items-center gap-2 rounded-control px-2 text-sm font-semibold text-accent-secondary transition-colors hover:bg-surface-subtle hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="inline-flex min-h-11 items-center gap-2 rounded-control px-2 text-sm font-semibold text-journal-accent-bright transition-colors hover:bg-journal-panel-2 hover:text-journal-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 <FileText className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>View reflection</span>
@@ -155,24 +155,24 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
         </div>
 
         {emotionalShifts.length > 0 && (
-          <div className="space-y-3 border-t border-border pt-4">
-            <h5 className="font-serif text-base font-semibold text-text-primary">Related perspective or reaction shifts</h5>
+          <div className="space-y-3 border-t border-journal-border pt-4">
+            <h5 className="font-serif text-base font-semibold text-journal-ink">Related perspective or reaction shifts</h5>
             <div className="space-y-3">
               {emotionalShifts.map((shift, sIdx) => (
-                <article key={sIdx} className="min-w-0 space-y-3 rounded-card border border-border bg-surface p-4">
-                  <p className="text-sm leading-relaxed text-text-primary">{shift.observation}</p>
-                  <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:divide-x sm:divide-border">
+                <article key={sIdx} className="min-w-0 space-y-3 rounded-card border border-journal-border bg-journal-panel p-4">
+                  <p className="text-sm leading-relaxed text-journal-ink">{shift.observation}</p>
+                  <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:divide-x sm:divide-journal-border">
                     <div className="min-w-0 space-y-1 sm:pr-4">
-                      <p className="text-xs font-semibold text-text-muted">
+                      <p className="text-xs font-semibold text-journal-ink-faint">
                         Earlier reflection{shift.earlierDate ? ` · ${shift.earlierDate}` : ''}
                       </p>
-                      <p className="font-serif text-sm leading-relaxed text-text-primary">{shift.earlierState}</p>
+                      <p className="font-serif text-sm leading-relaxed text-journal-ink">{shift.earlierState}</p>
                     </div>
                     <div className="min-w-0 space-y-1 sm:pl-4">
-                      <p className="text-xs font-semibold text-text-muted">
+                      <p className="text-xs font-semibold text-journal-ink-faint">
                         Later reflection{shift.laterDate ? ` · ${shift.laterDate}` : ''}
                       </p>
-                      <p className="font-serif text-sm leading-relaxed text-text-primary">{shift.laterState}</p>
+                      <p className="font-serif text-sm leading-relaxed text-journal-ink">{shift.laterState}</p>
                     </div>
                   </div>
                 </article>
@@ -183,11 +183,11 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
       </div>
 
       {/* Patterns that appeared */}
-      <div className="space-y-4 border-t border-border pt-6">
+      <div className="space-y-4 border-t border-journal-border pt-6">
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div className="space-y-1">
-            <h4 className="font-serif text-lg font-semibold text-text-primary">Patterns that appeared</h4>
-            <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+            <h4 className="font-serif text-lg font-semibold text-journal-ink">Patterns that appeared</h4>
+            <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">
               Recurring signals or reaction loops observed across multiple reflections in this scope.
             </p>
           </div>
@@ -195,7 +195,7 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
             type="button"
             onClick={onAnalyzePatterns}
             disabled={loadingPatterns}
-            className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-text-muted disabled:shadow-none sm:w-auto"
+            className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:bg-journal-panel-2 disabled:text-journal-ink-faint disabled:shadow-none sm:w-auto"
           >
             {loadingPatterns ? (
               <>
@@ -218,38 +218,38 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
 
         {loadingPatterns ? (
           <div role="status" aria-live="polite" className="space-y-3 py-10 text-center">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-accent-primary" aria-hidden="true" />
-            <p className="text-sm leading-relaxed text-text-secondary">Finding patterns…</p>
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-journal-accent-bright" aria-hidden="true" />
+            <p className="text-sm leading-relaxed text-journal-ink-muted">Finding patterns…</p>
           </div>
         ) : patternsResult === null ? (
           <div className="space-y-1 py-6 text-center">
-            <h5 className="font-serif text-base font-semibold text-text-primary">No patterns yet</h5>
-            <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            <h5 className="font-serif text-base font-semibold text-journal-ink">No patterns yet</h5>
+            <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
               Find patterns when you are ready to look for recurring signals across this scope.
             </p>
           </div>
         ) : !hasPatterns ? (
           <div className="space-y-1 py-6 text-center">
-            <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
               No clear recurring patterns have been surfaced for this scope yet.
             </p>
           </div>
         ) : (
           <div className="space-y-4">
             {patternsResult!.patterns.map((pattern, pIdx) => (
-              <article key={pIdx} className="min-w-0 space-y-3 rounded-card border border-border bg-surface p-4 sm:p-5">
+              <article key={pIdx} className="min-w-0 space-y-3 rounded-card border border-journal-border bg-journal-panel p-4 sm:p-5">
                 <div className="space-y-2">
-                  <h5 className="font-serif text-base font-semibold leading-snug text-text-primary">
+                  <h5 className="font-serif text-base font-semibold leading-snug text-journal-ink">
                     {pattern.observation}
                   </h5>
                   {pattern.explanation && (
-                    <p className="text-sm leading-relaxed text-text-secondary">{pattern.explanation}</p>
+                    <p className="text-sm leading-relaxed text-journal-ink-muted">{pattern.explanation}</p>
                   )}
                 </div>
 
                 {Array.isArray(pattern.supportingEntries) && pattern.supportingEntries.length > 0 && (
-                  <div className="space-y-2 border-t border-border pt-3">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                  <div className="space-y-2 border-t border-journal-border pt-3">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-journal-ink">
                       <FileText className="h-4 w-4 text-user-accent" aria-hidden="true" />
                       <span>Supporting reflections</span>
                     </p>
@@ -259,19 +259,19 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
                           key={sIdx}
                           type="button"
                           onClick={() => handleOpenEntryById(se.entryId)}
-                          className="flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-control border border-border bg-surface-user px-3 py-2 text-left text-sm text-text-primary transition-colors hover:border-border-strong hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
+                          className="flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-control border border-journal-border bg-journal-panel-2 px-3 py-2 text-left text-sm text-journal-ink transition-colors hover:border-journal-accent hover:bg-journal-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
                           title={`Open reflection: ${se.title}`}
                         >
                           <Calendar className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
                           <span className="min-w-0 flex-1 [overflow-wrap:anywhere] font-medium">{se.title}</span>
-                          {se.date && <span className="shrink-0 text-xs text-text-muted">{se.date}</span>}
+                          {se.date && <span className="shrink-0 text-xs text-journal-ink-faint">{se.date}</span>}
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <p className="border-t border-border pt-3 text-xs text-text-muted">
+                <p className="border-t border-journal-border pt-3 text-xs text-journal-ink-faint">
                   {pattern.evidenceCount} supporting {pattern.evidenceCount === 1 ? 'reflection' : 'reflections'}
                   {pattern.evidenceStrength ? ` · ${pattern.evidenceStrength} support` : ''}
                 </p>
@@ -282,11 +282,11 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
       </div>
 
       {/* Perspective shifts noticed */}
-      <div className="space-y-4 border-t border-border pt-6">
+      <div className="space-y-4 border-t border-journal-border pt-6">
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div className="space-y-1">
-            <h4 className="font-serif text-lg font-semibold text-text-primary">Perspective shifts noticed</h4>
-            <p className="max-w-reading text-sm leading-relaxed text-text-secondary">
+            <h4 className="font-serif text-lg font-semibold text-journal-ink">Perspective shifts noticed</h4>
+            <p className="max-w-reading text-sm leading-relaxed text-journal-ink-muted">
               Documented shifts in perspective, interpretation, or focus across the reflections in this scope.
             </p>
           </div>
@@ -294,7 +294,7 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
             type="button"
             onClick={onAnalyzeTimeline}
             disabled={loadingTimeline}
-            className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:text-text-muted disabled:shadow-none sm:w-auto"
+            className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-control bg-accent-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:bg-journal-panel-2 disabled:text-journal-ink-faint disabled:shadow-none sm:w-auto"
           >
             {loadingTimeline ? (
               <>
@@ -317,53 +317,53 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
 
         {loadingTimeline ? (
           <div role="status" aria-live="polite" className="space-y-3 py-10 text-center">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-accent-primary" aria-hidden="true" />
-            <p className="text-sm leading-relaxed text-text-secondary">Finding shifts…</p>
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-journal-accent-bright" aria-hidden="true" />
+            <p className="text-sm leading-relaxed text-journal-ink-muted">Finding shifts…</p>
           </div>
         ) : timelineResult === null ? (
           <div className="space-y-1 py-6 text-center">
-            <h5 className="font-serif text-base font-semibold text-text-primary">No perspective shifts yet</h5>
-            <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            <h5 className="font-serif text-base font-semibold text-journal-ink">No perspective shifts yet</h5>
+            <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
               Find perspective shifts when you are ready to look for change across this scope.
             </p>
           </div>
         ) : !hasTimeline ? (
           <div className="space-y-1 py-6 text-center">
-            <p className="mx-auto max-w-reading text-sm leading-relaxed text-text-secondary">
+            <p className="mx-auto max-w-reading text-sm leading-relaxed text-journal-ink-muted">
               No clear perspective shifts have been surfaced for this scope yet.
             </p>
           </div>
         ) : (
           <div className="space-y-4">
             {timelineResult!.shifts.map((shift, idx) => (
-              <article key={idx} className="min-w-0 space-y-4 rounded-card border border-border bg-surface p-4 sm:p-5">
+              <article key={idx} className="min-w-0 space-y-4 rounded-card border border-journal-border bg-journal-panel p-4 sm:p-5">
                 <div className="space-y-2">
-                  <h5 className="font-serif text-base font-semibold leading-snug text-text-primary">
+                  <h5 className="font-serif text-base font-semibold leading-snug text-journal-ink">
                     {shift.observation}
                   </h5>
                   {shift.explanation && (
-                    <p className="text-sm leading-relaxed text-text-secondary">{shift.explanation}</p>
+                    <p className="text-sm leading-relaxed text-journal-ink-muted">{shift.explanation}</p>
                   )}
                 </div>
 
-                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:divide-x sm:divide-border">
+                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:divide-x sm:divide-journal-border">
                   <div className="min-w-0 space-y-1 sm:pr-4">
-                    <p className="text-xs font-semibold text-text-muted">
+                    <p className="text-xs font-semibold text-journal-ink-faint">
                       Earlier reflection{shift.earlierDate ? ` · ${shift.earlierDate}` : ''}
                     </p>
-                    <p className="font-serif text-sm leading-relaxed text-text-primary">{shift.earlierState}</p>
+                    <p className="font-serif text-sm leading-relaxed text-journal-ink">{shift.earlierState}</p>
                   </div>
                   <div className="min-w-0 space-y-1 sm:pl-4">
-                    <p className="text-xs font-semibold text-text-muted">
+                    <p className="text-xs font-semibold text-journal-ink-faint">
                       Later reflection{shift.laterDate ? ` · ${shift.laterDate}` : ''}
                     </p>
-                    <p className="font-serif text-sm leading-relaxed text-text-primary">{shift.laterState}</p>
+                    <p className="font-serif text-sm leading-relaxed text-journal-ink">{shift.laterState}</p>
                   </div>
                 </div>
 
                 {Array.isArray(shift.supportingEntries) && shift.supportingEntries.length > 0 && (
-                  <div className="space-y-2 border-t border-border pt-3">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                  <div className="space-y-2 border-t border-journal-border pt-3">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-journal-ink">
                       <FileText className="h-4 w-4 text-user-accent" aria-hidden="true" />
                       <span>Supporting reflections</span>
                     </p>
@@ -373,14 +373,14 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
                           key={sIdx}
                           type="button"
                           onClick={() => handleOpenEntryById(se.entryId)}
-                          className="flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-control border border-border bg-surface-user px-3 py-2 text-left text-sm text-text-primary transition-colors hover:border-border-strong hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
+                          className="flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-control border border-journal-border bg-journal-panel-2 px-3 py-2 text-left text-sm text-journal-ink transition-colors hover:border-journal-accent hover:bg-journal-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:w-auto"
                           title={`Open reflection: ${se.title}`}
                         >
                           <Calendar className="h-4 w-4 shrink-0 text-user-accent" aria-hidden="true" />
                           <span className="min-w-0 flex-1 [overflow-wrap:anywhere] font-medium">{se.title}</span>
-                          {se.date && <span className="shrink-0 text-xs text-text-muted">{se.date}</span>}
+                          {se.date && <span className="shrink-0 text-xs text-journal-ink-faint">{se.date}</span>}
                           {se.roleInShift && (
-                            <span className="shrink-0 text-xs text-text-muted">
+                            <span className="shrink-0 text-xs text-journal-ink-faint">
                               ({se.roleInShift === 'earlier_state' ? 'earlier' : se.roleInShift === 'later_state' ? 'later' : 'context'})
                             </span>
                           )}
@@ -390,7 +390,7 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
                   </div>
                 )}
 
-                <p className="border-t border-border pt-3 text-xs text-text-muted">
+                <p className="border-t border-journal-border pt-3 text-xs text-journal-ink-faint">
                   {SHIFT_TYPE_LABELS[shift.shiftType] || 'recorded change'} · {shift.evidenceCount} supporting {shift.evidenceCount === 1 ? 'reflection' : 'reflections'}
                 </p>
               </article>
@@ -400,7 +400,7 @@ export const ReflectionWrapped: React.FC<ReflectionWrappedProps> = ({
       </div>
 
       {/* Closing grounding note */}
-      <p className="border-t border-border pt-6 text-sm italic leading-relaxed text-text-muted">
+      <p className="border-t border-journal-border pt-6 text-sm italic leading-relaxed text-journal-ink-faint">
         These observations are prompts for reflection, not conclusions about you.
       </p>
     </div>

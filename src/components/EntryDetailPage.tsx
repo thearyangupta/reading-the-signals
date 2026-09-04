@@ -38,7 +38,7 @@ export const EntryDetailPage: React.FC<EntryDetailPageProps> = ({
   return (
     <div
       ref={pageRef}
-      className="animate-settle-in flex min-w-0 flex-col overflow-hidden rounded-feature border border-border bg-surface shadow-card"
+      className="animate-settle-in flex min-w-0 flex-col overflow-hidden rounded-feature border border-journal-border bg-journal-panel shadow-card"
     >
       <EntryDetailContent
         userId={userId}
@@ -52,7 +52,7 @@ export const EntryDetailPage: React.FC<EntryDetailPageProps> = ({
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-control px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-surface-subtle hover:text-text-primary"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-control px-3 text-sm font-semibold text-journal-ink-muted transition-colors hover:bg-journal-panel-2 hover:text-journal-ink"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             <span className="hidden sm:inline">Back to Journal</span>

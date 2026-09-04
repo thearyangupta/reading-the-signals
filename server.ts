@@ -437,7 +437,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 /**
  * Endpoint: /api/summarize
- * Generates a structured 8-part summary of a reflection journal entry.
+ * Generates a structured summary of a reflection journal entry.
  */
 app.post('/api/summarize', async (req: Request, res: Response) => {
   try {
@@ -465,7 +465,7 @@ Additional Context: ${importantContext || 'Not specified'}
 `.trim();
 
     const summaryPrompt = `Analyze the user's reflection entry and generate an extended structured summary object.
-Respond ONLY with a valid JSON object containing these exact 8 keys:
+Respond ONLY with a valid JSON object containing these exact 9 keys:
 1. "situation": Concise summary of the circumstance or setting.
 2. "behaviorOrEvent": The specific observable action, event, or interaction that occurred.
 3. "feelingOrReaction": The user's expressed emotional response, thought pattern, or reaction.
@@ -474,6 +474,7 @@ Respond ONLY with a valid JSON object containing these exact 8 keys:
 6. "theme": A concise normalized theme that could help compare similar entries later (e.g., "receiving feedback at work", "deadline uncertainty", "conflict with a teammate"). If a meaningful normalized theme cannot be determined without speculation, return "".
 7. "emotionalTone": A concise description of the user's expressed tone in this entry, grounded only in what the user wrote. If the emotional tone is not explicitly stated or clearly supported by their words, return "".
 8. "interpretation": The meaning or interpretation the USER explicitly or clearly assigns to the situation in their own words. Summarize only the user's stated or clearly expressed interpretation; never infer another person's motives, intentions, beliefs, or internal state; if uncertain, return "".
+9. "candidateSignals": An array of 0 to 3 concise facts, preferences, plans, or intentions explicitly stated by the user that could be useful to remember for a future action. Each item must contain exactly "text" and "suggestedAction". If nothing is clearly useful to remember, return [].
 
 Conservative Extraction Rules:
 - Never invent a value merely to satisfy the schema.
@@ -483,6 +484,11 @@ Conservative Extraction Rules:
 - If the user does not explicitly or clearly assign a meaning/interpretation to the situation, return interpretation: "".
 - For interpretation: summarize only the user's stated or clearly expressed interpretation, never infer another person's motives or internal state, and if uncertain use "".
 - For subjects: include only people, roles, objects, places, or recurring entities explicitly supported by the reflection; do not invent identities.
+- For candidateSignals: use only information explicitly stated in this entry. Never infer diagnoses, motives, hidden intentions, personality traits, another person's feelings, or unsupported assumptions.
+- Include a candidate only when it has clear potential future usefulness. Do not extract generic emotional observations without a practical future relevance.
+- Keep each candidate's text concise and factual. Return at most 3 candidates, and return candidateSignals: [] rather than inventing a candidate.
+- Each suggestedAction must follow naturally from its explicit signal and remain modest, conditional, non-manipulative, non-diagnostic, and safe. Prefer phrasing such as "If you're...", "Consider...", "You could...", or "If it feels appropriate...".
+- Never claim a guaranteed outcome or imply knowledge of the user's current circumstances. Do not use claims such as "This will impress them", "They will like you", "You should definitely", or "This proves that".
 - Ensure the summary remains strictly faithful to the user's explicit words without adding psychoanalysis, diagnostic claims, or speculation.`;
 
     const summarySchema = {
@@ -513,6 +519,29 @@ Conservative Extraction Rules:
           description:
             'The meaning or interpretation the USER explicitly assigns to the situation in their own words (never inferring others\' motives or internal states), or an empty string "" if not explicitly expressed or if uncertain.',
         },
+        candidateSignals: {
+          type: 'ARRAY',
+          maxItems: '3',
+          description:
+            'Zero to three concise, potentially useful facts, preferences, plans, or intentions explicitly stated in this reflection. Return [] when no valid candidate exists.',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              text: {
+                type: 'STRING',
+                maxLength: '200',
+                description: 'A concise fact, preference, plan, or intention explicitly stated by the user.',
+              },
+              suggestedAction: {
+                type: 'STRING',
+                maxLength: '300',
+                description:
+                  'A modest, conditional, safe, and non-manipulative future action that follows naturally from the explicit signal.',
+              },
+            },
+            required: ['text', 'suggestedAction'],
+          },
+        },
       },
       required: [
         'situation',
@@ -523,6 +552,7 @@ Conservative Extraction Rules:
         'theme',
         'emotionalTone',
         'interpretation',
+        'candidateSignals',
       ],
     };
 

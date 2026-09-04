@@ -1,7 +1,15 @@
 import React, { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Calendar, Edit3, Loader2, RefreshCw, Trash2 } from 'lucide-react';
-import { auth, deleteJournalEntry, updateJournalEntry } from '../lib/firebase';
-import { JournalEntry } from '../types';
+import {
+  auth,
+  deleteJournalEntry,
+  forgetSignal,
+  normalizeCandidateSignalText,
+  rememberSignal,
+  subscribeUserRememberedSignals,
+  updateJournalEntry,
+} from '../lib/firebase';
+import { CandidateSignal, JournalEntry, RememberedSignal } from '../types';
 import { ReflectionChat } from './ReflectionChat';
 import { SignalGlyph } from './SignalGlyph';
 
@@ -51,11 +59,15 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
     const [deleting, setDeleting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [rememberedSignals, setRememberedSignals] = useState<RememberedSignal[]>([]);
+    const [pendingSignalKeys, setPendingSignalKeys] = useState<string[]>([]);
+    const [signalError, setSignalError] = useState<string | null>(null);
     const cancelDeleteRef = useRef<HTMLButtonElement>(null);
     const deleteButtonRef = useRef<HTMLButtonElement>(null);
     const summaryRequestIdRef = useRef(0);
     const summaryAbortControllerRef = useRef<AbortController | null>(null);
     const summaryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingSignalKeysRef = useRef(new Set<string>());
 
     const cancelDelete = () => {
       setConfirmDelete(false);
@@ -76,6 +88,70 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
       summaryAbortControllerRef.current?.abort();
       if (summaryTimeoutRef.current) clearTimeout(summaryTimeoutRef.current);
     }, []);
+
+    useEffect(() => subscribeUserRememberedSignals(
+      userId,
+      setRememberedSignals,
+      () => setSignalError('Unable to load remembered signals. Please try again.'),
+    ), [userId]);
+
+    const candidateIdentity = (candidate: CandidateSignal) =>
+      `${entry.id}|${normalizeCandidateSignalText(candidate.text)}`;
+
+    const findRememberedSignal = (candidate: CandidateSignal) => {
+      const normalizedText = normalizeCandidateSignalText(candidate.text);
+      return rememberedSignals.find((signal) =>
+        signal.sourceEntryId === entry.id &&
+        normalizeCandidateSignalText(signal.text) === normalizedText
+      );
+    };
+
+    const handleRememberSignal = async (candidate: CandidateSignal) => {
+      const identity = candidateIdentity(candidate);
+      if (pendingSignalKeysRef.current.has(identity)) return;
+
+      pendingSignalKeysRef.current.add(identity);
+      setPendingSignalKeys((current) => [...current, identity]);
+      setSignalError(null);
+      try {
+        const signalId = await rememberSignal(userId, entry.id, candidate);
+        setRememberedSignals((current) => [
+          {
+            id: signalId,
+            sourceEntryId: entry.id,
+            text: candidate.text.trim(),
+            suggestedAction: candidate.suggestedAction.trim(),
+            createdAt: Date.now(),
+          },
+          ...current.filter((signal) => signal.id !== signalId),
+        ]);
+      } catch (err) {
+        console.error('Failed to remember signal:', err);
+        setSignalError('Could not remember this signal. Please try again.');
+      } finally {
+        pendingSignalKeysRef.current.delete(identity);
+        setPendingSignalKeys((current) => current.filter((key) => key !== identity));
+      }
+    };
+
+    const handleForgetSignal = async (candidate: CandidateSignal, signalId: string) => {
+      const identity = candidateIdentity(candidate);
+      if (pendingSignalKeysRef.current.has(identity)) return;
+
+      pendingSignalKeysRef.current.add(identity);
+      setPendingSignalKeys((current) => [...current, identity]);
+      setSignalError(null);
+      try {
+        await forgetSignal(userId, signalId);
+        setRememberedSignals((current) => current.filter((signal) => signal.id !== signalId));
+      } catch (err) {
+        console.error('Failed to forget signal:', err);
+        setSignalError('Could not forget this signal. Please try again.');
+      } finally {
+        pendingSignalKeysRef.current.delete(identity);
+        setPendingSignalKeys((current) => current.filter((key) => key !== identity));
+      }
+    };
 
     const handleGenerateSummary = async () => {
       const currentRequestId = ++summaryRequestIdRef.current;
@@ -180,6 +256,14 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
           ['Interpretation noted', entry.summary.interpretation],
         ].filter((field) => Boolean(field[1]))
       : [];
+    const candidateSignals = Array.isArray(entry.summary?.candidateSignals)
+      ? entry.summary.candidateSignals.filter((candidate) =>
+          typeof candidate?.text === 'string' &&
+          candidate.text.trim().length > 0 &&
+          typeof candidate?.suggestedAction === 'string' &&
+          candidate.suggestedAction.trim().length > 0
+        )
+      : [];
 
     return (
       <>
@@ -269,6 +353,53 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
                           {entry.summary.subjects.join(', ')}
                         </p>
                       </div>
+                    )}
+                    {candidateSignals.length > 0 && (
+                      <section aria-labelledby="candidate-signals-heading" className="border-t border-border-ai pt-5">
+                        <h5 id="candidate-signals-heading" className="text-sm font-semibold text-accent-primary">
+                          Signals you may want to remember
+                        </h5>
+                        <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                          These are AI suggestions. Nothing is stored as a remembered signal until you choose Remember.
+                        </p>
+                        {signalError && (
+                          <p role="alert" className="mt-3 rounded-control border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                            {signalError}
+                          </p>
+                        )}
+                        <ul className="mt-4 space-y-3">
+                          {candidateSignals.map((candidate, index) => {
+                            const identity = candidateIdentity(candidate);
+                            const rememberedSignal = findRememberedSignal(candidate);
+                            const pending = pendingSignalKeys.includes(identity);
+
+                            return (
+                              <li key={`${identity}-${index}`} className="rounded-card border border-border-ai bg-surface px-4 py-3">
+                                <p className="text-sm font-semibold text-text-primary">{candidate.text}</p>
+                                <p className="mt-1 text-sm leading-relaxed text-text-secondary">{candidate.suggestedAction}</p>
+                                <div className="mt-3 flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    disabled={pending}
+                                    onClick={() => rememberedSignal
+                                      ? handleForgetSignal(candidate, rememberedSignal.id)
+                                      : handleRememberSignal(candidate)}
+                                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-control border border-border bg-surface px-3 text-sm font-semibold text-accent-primary hover:bg-surface-ai disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                                    {pending
+                                      ? rememberedSignal ? 'Forgetting…' : 'Remembering…'
+                                      : rememberedSignal ? 'Forget' : 'Remember'}
+                                  </button>
+                                  {rememberedSignal && !pending && (
+                                    <span className="text-xs font-medium text-positive">Remembered</span>
+                                  )}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </section>
                     )}
                   </div>
                 ) : (

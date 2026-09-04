@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   BookOpen,
@@ -10,8 +10,10 @@ import {
   Search,
   Sparkles,
 } from 'lucide-react';
-import { importSampleEntries } from '../lib/firebase';
-import { JournalEntry } from '../types';
+import { importSampleEntries, subscribeUserRememberedSignals } from '../lib/firebase';
+import { selectNextMove } from '../lib/signals';
+import { JournalEntry, RememberedSignal } from '../types';
+import { NextMoveCard } from './NextMoveCard';
 import { SignalGlyph } from './SignalGlyph';
 import { SignalMark } from './SignalMark';
 
@@ -212,6 +214,16 @@ export const JournalList: React.FC<JournalListProps> = ({
     type: 'success' | 'info' | 'error';
     message: string;
   } | null>(null);
+  const [rememberedSignals, setRememberedSignals] = useState<RememberedSignal[]>([]);
+
+  useEffect(() => {
+    setRememberedSignals([]);
+    if (!userId) return;
+
+    return subscribeUserRememberedSignals(userId, setRememberedSignals);
+  }, [userId]);
+
+  const nextMove = useMemo(() => selectNextMove(rememberedSignals), [rememberedSignals]);
 
   const handleImportSamples = async () => {
     if (!userId || importing) return;
@@ -309,6 +321,8 @@ export const JournalList: React.FC<JournalListProps> = ({
               {searchQuery && filteredEntries.length !== entries.length ? ' matching ' + entries.length + ' total' : ''}
             </p>
           </div>
+
+          {nextMove && <NextMoveCard nextMove={nextMove} />}
 
           <div className="mt-10 sm:mt-12">
             {entries.length === 0 ? (

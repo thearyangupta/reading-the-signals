@@ -11,6 +11,8 @@ import { JournalEditorPage } from './components/JournalEditorPage';
 import { EntryDetailModal } from './components/EntryDetailModal';
 import { EntryDetailPage } from './components/EntryDetailPage';
 import { PatternAnalysisSection } from './components/PatternAnalysisSection';
+import { DailyReminderSettings } from './components/DailyReminderSettings';
+import { DailyReminderRuntime } from './components/DailyReminderRuntime';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 type EntriesSubscriptionStatus = 'loading' | 'ready' | 'error';
@@ -287,6 +289,13 @@ export default function App() {
       {skipLink}
       {routeRedirects}
 
+      <DailyReminderRuntime
+        userId={user.uid}
+        entries={entries}
+        entriesReady={entriesSubscriptionStatus === 'ready'}
+        onWrite={() => navigate('/write')}
+      />
+
       {/* Top Navbar */}
       <Navbar
         user={user}
@@ -389,16 +398,19 @@ export default function App() {
           ) : (
           <div className={activeView === 'journal' ? 'w-full' : 'w-full space-y-6'}>
             {activeView === 'journal' ? (
-              <JournalList
-                entries={entries}
-                loading={entriesSubscriptionStatus === 'loading'}
-                userId={user.uid}
-                onSelectEntry={(entry) => {
-                  journalDetailNavigationRef.current = entry.id;
-                  navigate(`/journal/${encodeURIComponent(entry.id)}`, { state: { fromJournal: true } });
-                }}
-                onNewEntry={handleOpenNewEntry}
-              />
+              <>
+                <DailyReminderSettings userId={user.uid} />
+                <JournalList
+                  entries={entries}
+                  loading={entriesSubscriptionStatus === 'loading'}
+                  userId={user.uid}
+                  onSelectEntry={(entry) => {
+                    journalDetailNavigationRef.current = entry.id;
+                    navigate(`/journal/${encodeURIComponent(entry.id)}`, { state: { fromJournal: true } });
+                  }}
+                  onNewEntry={handleOpenNewEntry}
+                />
+              </>
             ) : (
               <>
                 <div className="border-b border-border pb-4">

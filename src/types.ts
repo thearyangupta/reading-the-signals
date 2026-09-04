@@ -1,3 +1,8 @@
+export interface CandidateSignal {
+  text: string;
+  suggestedAction: string;
+}
+
 export interface StructuredSummary {
   situation: string;
   behaviorOrEvent: string;
@@ -7,6 +12,21 @@ export interface StructuredSummary {
   theme?: string;
   emotionalTone?: string;
   interpretation?: string;
+  candidateSignals?: CandidateSignal[];
+}
+
+export interface RememberedSignal {
+  id: string;
+  sourceEntryId: string;
+  text: string;
+  suggestedAction: string;
+  createdAt: number;
+}
+
+export interface DailyReminderSettings {
+  enabled: boolean;
+  time: string;
+  timeZone: string;
 }
 
 export interface PatternSupportingEntry {

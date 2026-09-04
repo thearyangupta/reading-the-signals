@@ -23,8 +23,16 @@ import {
   Firestore,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { JournalEntry, StructuredSummary, ChatMessage } from '../types';
+import {
+  CandidateSignal,
+  ChatMessage,
+  DailyReminderSettings,
+  JournalEntry,
+  RememberedSignal,
+  StructuredSummary,
+} from '../types';
 import { SAMPLE_ENTRIES } from '../data/sampleEntries';
+import { isValidReminderTime, isValidTimeZone } from './reminders';
 
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -136,6 +144,160 @@ export function subscribeUserEntries(
       if (onError) onError(err);
     }
   );
+}
+
+/**
+ * Subscribes to remembered signals for the authenticated user, newest first.
+ * Isolated strictly at path: /users/{userId}/rememberedSignals
+ */
+export function subscribeUserRememberedSignals(
+  userId: string,
+  onUpdate: (signals: RememberedSignal[]) => void,
+  onError?: (error: Error) => void
+): () => void {
+  if (!userId) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  const signalsRef = collection(db, 'users', userId, 'rememberedSignals');
+  const q = query(signalsRef, orderBy('createdAt', 'desc'));
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const signals: RememberedSignal[] = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          sourceEntryId: data.sourceEntryId || '',
+          text: data.text || '',
+          suggestedAction: data.suggestedAction || '',
+          createdAt: data.createdAt || 0,
+        };
+      });
+      onUpdate(signals);
+    },
+    (err) => {
+      console.error('Remembered signals subscription error:', err);
+      if (onError) onError(err);
+    }
+  );
+}
+
+export function normalizeCandidateSignalText(signalText: string): string {
+  return signalText.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+async function createRememberedSignalId(sourceEntryId: string, signalText: string): Promise<string> {
+  const normalizedText = normalizeCandidateSignalText(signalText);
+  const identity = `${sourceEntryId.length}:${sourceEntryId}|${normalizedText}`;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(identity));
+  const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `signal_${hash}`;
+}
+
+/**
+ * Remembers one candidate signal. The deterministic document ID makes repeated
+ * writes for the same source entry and normalized candidate text idempotent.
+ */
+export async function rememberSignal(
+  userId: string,
+  sourceEntryId: string,
+  signal: CandidateSignal
+): Promise<string> {
+  if (!userId || !sourceEntryId) throw new Error('Missing userId or sourceEntryId for remembered signal.');
+
+  const text = signal.text.trim();
+  const suggestedAction = signal.suggestedAction.trim();
+  if (!text || !suggestedAction) throw new Error('Remembered signal text and suggested action are required.');
+
+  const signalId = await createRememberedSignalId(sourceEntryId, text);
+  const signalRef = doc(db, 'users', userId, 'rememberedSignals', signalId);
+  const payload = cleanPayload({
+    sourceEntryId,
+    text,
+    suggestedAction,
+    createdAt: Date.now(),
+  });
+
+  await setDoc(signalRef, payload);
+  return signalId;
+}
+
+/**
+ * Forgets exactly one remembered signal owned by the authenticated user path.
+ */
+export async function forgetSignal(userId: string, signalId: string): Promise<void> {
+  if (!userId || !signalId) throw new Error('Missing userId or signalId for remembered signal deletion.');
+
+  const signalRef = doc(db, 'users', userId, 'rememberedSignals', signalId);
+  await deleteDoc(signalRef);
+}
+
+/**
+ * Subscribes to the authenticated user's single daily reminder setting.
+ * Isolated strictly at path: /users/{userId}/settings/dailyReminder
+ */
+export function subscribeDailyReminderSettings(
+  userId: string,
+  onUpdate: (settings: DailyReminderSettings | null) => void,
+  onError?: (error: Error) => void
+): () => void {
+  if (!userId) {
+    onUpdate(null);
+    return () => {};
+  }
+
+  const settingsRef = doc(db, 'users', userId, 'settings', 'dailyReminder');
+  return onSnapshot(
+    settingsRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onUpdate(null);
+        return;
+      }
+
+      const data = snapshot.data();
+      if (
+        typeof data.enabled !== 'boolean' ||
+        typeof data.time !== 'string' ||
+        typeof data.timeZone !== 'string' ||
+        !isValidReminderTime(data.time) ||
+        !isValidTimeZone(data.timeZone)
+      ) {
+        console.warn('Ignored malformed daily reminder settings.');
+        onUpdate(null);
+        return;
+      }
+
+      onUpdate({
+        enabled: data.enabled,
+        time: data.time,
+        timeZone: data.timeZone,
+      });
+    },
+    (err) => {
+      console.error('Daily reminder settings subscription error:', err);
+      if (onError) onError(err);
+    }
+  );
+}
+
+/**
+ * Saves the authenticated user's single daily reminder setting.
+ */
+export async function saveDailyReminderSettings(
+  userId: string,
+  settings: DailyReminderSettings
+): Promise<void> {
+  if (!userId) throw new Error('Missing userId for daily reminder settings.');
+  if (typeof settings.enabled !== 'boolean') throw new Error('Daily reminder enabled state must be a boolean.');
+  if (!isValidReminderTime(settings.time)) throw new Error('Daily reminder time must use 24-hour HH:mm format.');
+  if (!isValidTimeZone(settings.timeZone)) throw new Error('Daily reminder timezone must be a valid IANA timezone.');
+
+  const settingsRef = doc(db, 'users', userId, 'settings', 'dailyReminder');
+  await setDoc(settingsRef, cleanPayload(settings));
 }
 
 /**

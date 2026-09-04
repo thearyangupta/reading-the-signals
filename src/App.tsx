@@ -24,11 +24,10 @@ export default function App() {
   const routedEntryId = routedEntryMatch?.params.entryId;
   const isWriteRoute = location.pathname === '/write';
   const activeView: AppView = location.pathname === '/insights' ? 'insights' : 'journal';
-  // True only when the Journal archive grid itself is the rendered content
-  // (not Write, not a routed entry, not Insights) — the one screen whose
-  // dark archive background needs to reach the full viewport width rather
-  // than sit inside the normal constrained/padded <main>.
+  // True when the Journal archive grid, Write view, or Insights view is active — keeping the dark
+  // editorial canvas unified across the core authenticated journaling workflows.
   const isJournalGridView = !isWriteRoute && !routedEntryId && activeView === 'journal';
+  const isDarkCanvas = isJournalGridView || isWriteRoute || activeView === 'insights';
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -285,7 +284,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-text-primary flex flex-col font-sans">
+    <div className={`min-h-screen ${isDarkCanvas ? 'bg-journal-bg' : 'bg-background'} text-text-primary flex flex-col font-sans`}>
       {skipLink}
       {routeRedirects}
 
@@ -304,7 +303,7 @@ export default function App() {
         onNavigate={(view) => navigate(`/${view}`)}
         onNewEntry={handleOpenNewEntry}
         onSignOut={handleSignOut}
-        dark={isJournalGridView}
+        dark={isDarkCanvas}
       />
 
       {/* Main Content Area */}
@@ -314,7 +313,9 @@ export default function App() {
         className={
           isJournalGridView
             ? 'w-full flex-1'
-            : 'mx-auto w-full max-w-shell flex-1 px-4 pb-28 pt-6 sm:px-6 sm:pb-28 sm:pt-8 md:pb-8 lg:px-8'
+            : isWriteRoute
+              ? 'mx-auto w-full max-w-shell flex-1 px-4 pt-6 pb-28 sm:px-6 sm:pt-8 sm:pb-28 md:pt-10 md:pb-16 lg:px-8 lg:pt-12'
+              : 'mx-auto w-full max-w-shell flex-1 px-4 pb-28 pt-6 sm:px-6 sm:pb-28 sm:pt-8 md:pb-8 lg:px-8'
         }
       >
         {entriesSyncError && !(routedEntryId || (isWriteRoute && pendingNewEntryId)) && (
@@ -322,7 +323,7 @@ export default function App() {
             role="alert"
             className={
               'mb-6 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-xs text-red-700' +
-              (isJournalGridView ? ' mx-4 mt-6 sm:mx-6 sm:mt-8 lg:mx-8' : '')
+              (isDarkCanvas ? ' mx-4 mt-6 sm:mx-6 sm:mt-8 lg:mx-8' : '')
             }
           >
             <div className="flex items-center space-x-2">
@@ -396,7 +397,7 @@ export default function App() {
               </div>
             )
           ) : (
-          <div className={activeView === 'journal' ? 'w-full' : 'w-full space-y-6'}>
+          <div className={activeView === 'journal' ? '-mx-4 -my-6 sm:-mx-6 sm:-my-8 lg:-mx-8' : 'space-y-6'}>
             {activeView === 'journal' ? (
               <>
                 <DailyReminderSettings userId={user.uid} />
@@ -413,23 +414,23 @@ export default function App() {
               </>
             ) : (
               <>
-                <div className="border-b border-border pb-4">
+                <div className="border-b border-journal-border pb-4">
                   <div>
-                    <h2 className="font-serif text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">Insights</h2>
-                    <p className="mt-1 text-sm text-text-secondary">
+                    <h2 className="font-serif text-2xl font-bold tracking-tight text-journal-ink sm:text-3xl">Insights</h2>
+                    <p className="mt-1 text-sm text-journal-ink-muted">
                       See recurring signals, changes over time, and questions worth exploring.
                     </p>
                   </div>
                 </div>
 
                 {entriesSubscriptionStatus === 'loading' ? (
-                  <p role="status" className="py-12 text-center text-sm text-text-muted">Loading your reflections…</p>
+                  <p role="status" className="py-12 text-center text-sm text-journal-ink-muted">Loading your reflections…</p>
                 ) : entries.length > 0 ? (
                   <PatternAnalysisSection entries={entries} onSelectEntry={(entry) => setSelectedEntry(entry)} />
                 ) : (
-                  <div className="rounded-feature border border-border bg-surface px-6 py-12 text-center">
-                    <h3 className="font-serif text-lg font-semibold text-text-primary">Insights begin with your reflections</h3>
-                    <p className="mx-auto mt-2 max-w-reading text-sm text-text-secondary">
+                  <div className="rounded-feature border border-journal-border bg-journal-panel/40 px-6 py-12 text-center">
+                    <h3 className="font-serif text-lg font-semibold text-journal-ink">Insights begin with your reflections</h3>
+                    <p className="mx-auto mt-2 max-w-reading text-sm text-journal-ink-muted">
                       Write a reflection first, then return here to explore patterns and connections.
                     </p>
                   </div>
@@ -468,10 +469,10 @@ export default function App() {
         />
       )}
 
-      {/* Footer — dark, continuing the archive, only for the Journal grid view. */}
+      {/* Footer — dark, continuing the archive, for the Journal grid and Write views. */}
       <footer
         className={
-          (isJournalGridView ? 'border-t border-journal-border bg-journal-bg text-journal-ink-muted' : 'border-t border-border bg-surface-subtle text-text-muted') +
+          (isDarkCanvas ? 'border-t border-journal-border bg-journal-bg text-journal-ink-muted' : 'border-t border-border bg-surface-subtle text-text-muted') +
           ' py-4 text-center text-xs' +
           (user ? ' mb-[calc(4rem+env(safe-area-inset-bottom))] md:mb-0' : '')
         }

@@ -288,7 +288,7 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
         >
           <div className="mx-auto min-w-0 w-full max-w-[54rem] space-y-10 px-4 py-6 sm:px-8 sm:py-10">
             {error && (
-              <div role="alert" className="rounded-card border border-destructive/40 bg-destructive/15 p-3.5 text-sm text-red-300">
+              <div role="alert" className="rounded-card border border-red-200 bg-red-50 p-3.5 text-sm text-red-700">
                 {error}
               </div>
             )}
@@ -363,7 +363,7 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
                           These are AI suggestions. Nothing is stored as a remembered signal until you choose Remember.
                         </p>
                         {signalError && (
-                          <p role="alert" className="mt-3 rounded-control border border-destructive/40 bg-destructive/15 p-3 text-sm text-red-300">
+                          <p role="alert" className="mt-3 rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                             {signalError}
                           </p>
                         )}
@@ -427,14 +427,14 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
             <section aria-labelledby="entry-actions-heading" className="border-t border-journal-border pt-6">
               <h4 id="entry-actions-heading" className="sr-only">Reflection actions</h4>
               {confirmDelete ? (
-                <div role="group" aria-label={'Delete ' + (entry.title || 'this reflection') + '?'} className="rounded-card border border-destructive/40 bg-destructive/15 p-4">
+                <div role="group" aria-label={'Delete ' + (entry.title || 'this reflection') + '?'} className="rounded-card border border-red-200 bg-red-50 p-4">
                   <p className="font-semibold text-journal-ink">Delete this reflection?</p>
                   <p className="mt-1 text-sm text-journal-ink-muted">This action cannot be undone.</p>
                   <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row">
                     <button ref={cancelDeleteRef} type="button" onClick={cancelDelete} className="min-h-11 rounded-control border border-journal-border bg-journal-panel px-4 text-base font-semibold text-journal-ink hover:bg-journal-panel-2 sm:text-sm">
                       Cancel
                     </button>
-                    <button id="confirm-delete-button" type="button" onClick={handleDeleteEntry} disabled={deleting} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-4 text-base font-semibold text-red-400 hover:bg-red-500/10 disabled:opacity-50 sm:text-sm">
+                    <button id="confirm-delete-button" type="button" onClick={handleDeleteEntry} disabled={deleting} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-4 text-base font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 sm:text-sm">
                       {deleting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                       {deleting ? 'Deleting…' : 'Delete reflection'}
                     </button>
@@ -446,7 +446,7 @@ export const EntryDetailContent = React.forwardRef<EntryDetailContentHandle, Ent
                     <Edit3 className="h-4 w-4" aria-hidden="true" />
                     Edit reflection
                   </button>
-                  <button ref={deleteButtonRef} id="delete-entry-button" type="button" onClick={() => setConfirmDelete(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-3 text-base font-medium text-red-400 hover:bg-red-500/10 sm:text-sm">
+                  <button ref={deleteButtonRef} id="delete-entry-button" type="button" onClick={() => setConfirmDelete(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-3 text-base font-medium text-red-600 hover:bg-red-50 sm:text-sm">
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                     Delete reflection
                   </button>

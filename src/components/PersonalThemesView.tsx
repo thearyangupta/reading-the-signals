@@ -80,12 +80,12 @@ export const PersonalThemesView: React.FC<PersonalThemesViewProps> = ({
       </div>
 
       {error && (
-        <div id="personal-themes-error-banner" role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-500/30 bg-red-950/40 p-4 text-sm text-red-200 sm:flex-row sm:items-center">
+        <div id="personal-themes-error-banner" role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
           <div className="flex min-w-0 items-start gap-3">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden="true" />
             <div><p className="font-semibold">AI observations could not be generated</p><p className="mt-1 leading-relaxed">{error}</p></div>
           </div>
-          <button type="button" onClick={onAnalyzeThemes} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-3 text-sm font-semibold text-red-300 underline underline-offset-2 hover:bg-red-500/10 hover:text-red-100">
+          <button type="button" onClick={onAnalyzeThemes} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-3 text-sm font-semibold text-red-700 underline underline-offset-2 hover:bg-red-100 hover:text-red-900">
             <RefreshCw className="h-4 w-4" aria-hidden="true" /><span>Retry</span>
           </button>
         </div>

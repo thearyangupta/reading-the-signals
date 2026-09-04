@@ -16,8 +16,8 @@
   --color-text-primary: #292722;
   --color-text-secondary: #57534e;
   --color-text-muted: #6b6862;
-  --color-accent-primary: #6d5f8f;
-  --color-accent-primary-hover: #574b73;
+  --color-accent-primary: #a64063;
+  --color-accent-primary-hover: #762d46;
   --color-accent-secondary: #8a654a;
   --color-positive: #2f6b57;
   --color-warning: #8a5a14;
@@ -41,27 +41,42 @@
   --color-on-night-muted: #a7b2b0;
   --color-night-border: #1e2b2a;
 
-  /* Journal dark palette — neutral graphite/charcoal editorial ink,
-     entirely separate from the Auth tokens above. ~85-90% of the Journal
-     surface should read as these neutrals; the dusty-violet accent pair
-     is used deliberately in a handful of places — AI-observation
+  /* Journal LIGHT palette — soft lavender editorial paper with a
+     dusty-rose accent pair, entirely separate from the Auth tokens
+     above. Soft Lavender + Dusty Rose: a light, airy private-journal
+     canvas rather than a dark dashboard. ~85-90% of the Journal surface
+     should read as these lavender/plum neutrals; the dusty-rose accent
+     pair is used deliberately in a handful of places — AI-observation
      label/glyph/rule, the active-nav indicator, title hover, search
      focus, and one small localized edge-light on each card's visual
-     plane — never as a page-wide tint, glow, or gradient. Journal has its
-     own dedicated primary-ink token (rather than reusing Auth's
-     --color-on-night) since this palette specifies its own exact
-     warm-ivory value. Lifted one tuning pass lighter than the initial
-     graphite pass for more breathing room between layers. */
-  --color-journal-bg: #111114;
-  --color-journal-atmo: #151519;
-  --color-journal-panel: #1a1a1f;
-  --color-journal-panel-2: #202027;
-  --color-journal-border: #34343d;
-  --color-journal-ink: #f3efe8;
-  --color-journal-ink-muted: #aaa6a0;
-  --color-journal-ink-faint: #6f6d69;
-  --color-journal-accent: #81739d;
-  --color-journal-accent-bright: #b5a6d3;
+     plane — never as a page-wide tint or gradient.
+
+     --color-journal-accent is reserved for BORDERS/decorative accents
+     only (hover borders, left-accent-stripes, the edge-light) — it never
+     carries text, so it can stay close to the requested dusty-rose hex.
+     --color-journal-accent-bright is the one actually used as TEXT/icon
+     color throughout Insights, Entry Detail, and the active-nav
+     indicator (confirmed by an audit of every "journal-accent-bright"
+     usage), so its lightness was pulled down from the requested
+     "#D89AAF" toward a deeper, equally-dusty rose so that text stays
+     WCAG-AA legible (~4.5:1+) against these very light panels — a pale
+     rose at spec brightness reads as invisible text on paper this
+     light. --color-accent-primary/-hover (the solid-fill CTA buttons,
+     paired with text-white in every button) are set to match, since a
+     button needs the same "readable, not washed out" rose to keep white
+     button text legible; -hover is a further-darkened "pressed" shade,
+     which is the correct hover direction on a light theme (dark
+     theme's brighter-on-hover convention inverts here). */
+  --color-journal-bg: #f5f1ff;
+  --color-journal-atmo: #f0ebfa;
+  --color-journal-panel: #ebe4f7;
+  --color-journal-panel-2: #dccee8;
+  --color-journal-border: #cec1da;
+  --color-journal-ink: #463a54;
+  --color-journal-ink-muted: #746a80;
+  --color-journal-ink-faint: #958a9f;
+  --color-journal-accent: #b1678a;
+  --color-journal-accent-bright: #a64063;
 
   --font-sans: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-serif: "Source Serif 4", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
@@ -269,13 +284,15 @@
   background: var(--color-journal-atmo);
 }
 .journal-atmosphere-glow {
-  /* Neutral light only — no hue at all, just a whisper of warm-ivory
-     brightness in one corner. Deliberately far lower opacity than any
-     previous version so depth reads as "tiny luminance difference," not
-     a colored wash. */
+  /* Neutral light only — no hue at all, just a whisper of extra
+     brightness in one corner (matches --color-surface, the app's
+     near-white paper tone) so depth reads as "tiny luminance
+     difference," not a colored wash. On the light Journal canvas this
+     is a soft highlight rather than the "brightening a dark corner"
+     effect it was on a dark background — same restrained intent. */
   position: absolute;
   inset: -15%;
-  background: radial-gradient(30% 36% at 82% 8%, rgb(243 239 232 / 0.035) 0%, transparent 72%);
+  background: radial-gradient(30% 36% at 82% 8%, rgb(255 254 252 / 0.035) 0%, transparent 72%);
   filter: blur(60px);
   pointer-events: none;
 }
@@ -290,21 +307,26 @@
   pointer-events: none;
 }
 .journal-atmosphere-dots {
+  /* On the light Journal canvas this reads as a faint dark-ink grain
+     dot (matching --color-journal-ink), the same "paper texture"
+     convention already used for the light E-Ink atmosphere in
+     body::before below — dots of near-white would be invisible on
+     paper this light. */
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle at 1px 1px, rgb(243 239 232 / 0.045) 1px, transparent 0);
+  background-image: radial-gradient(circle at 1px 1px, rgb(70 58 84 / 0.045) 1px, transparent 0);
   background-size: 22px 22px;
   pointer-events: none;
 }
 
-/* One small, localized violet edge-light on each card's visual plane
+/* One small, localized dusty-rose edge-light on each card's visual plane
    only — never the page atmosphere. Exists purely to help the eye read
-   depth in that region ("a little violet light in the material," not
-   "a purple card"); kept at very low opacity and confined to one corner. */
+   depth in that region ("a little rose light in the material," not
+   "a pink card"); kept at very low opacity and confined to one corner. */
 .reflection-visual-edge-light {
   position: absolute;
   inset: 0;
-  background: radial-gradient(42% 50% at 88% 92%, rgb(129 115 157 / 0.1) 0%, transparent 68%);
+  background: radial-gradient(42% 50% at 88% 92%, rgb(177 103 138 / 0.1) 0%, transparent 68%);
   pointer-events: none;
 }
 
@@ -374,16 +396,18 @@
 .journal-archive-card {
   transition: transform 300ms var(--ease-enter), box-shadow 300ms var(--ease-enter), opacity 300ms var(--ease-enter);
   transform: perspective(900px) rotateX(0deg) rotateY(0deg) translateY(0) scale(1);
-  /* Resting depth: on a dark card against a dark environment, an external
-     drop shadow barely reads — the real cue is a soft inner top highlight
-     (the card's own "edge catching light") plus a slightly deeper contact
-     shadow than the ambient page. */
-  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.04), 0 1px 3px rgb(0 0 0 / 0.5);
+  /* Resting depth on the light Journal canvas: a light card on a light
+     ground reads depth the conventional way — a soft warm-dark ambient
+     shadow beneath it (same warm-black used by --shadow-low/--shadow-card
+     elsewhere in this file) plus a quiet inner top highlight for a
+     "polished edge" catch-light. Same geometry as the previous
+     dark-card treatment; only the shadow colors/opacities changed. */
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.5), 0 1px 3px rgb(41 39 34 / 0.12);
 }
 .journal-archive-card:hover,
 .journal-archive-card:focus-within {
   transform: perspective(900px) rotateX(1.8deg) rotateY(-1.8deg) translateY(-6px) scale(1.018);
-  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.06), 0 20px 38px rgb(0 0 0 / 0.45), 0 6px 14px rgb(0 0 0 / 0.3);
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.65), 0 20px 38px rgb(41 39 34 / 0.16), 0 6px 14px rgb(41 39 34 / 0.1);
 }
 
 /* Collection-level gallery depth: while hovering anywhere inside the
@@ -401,7 +425,7 @@
   .journal-archive-card:focus-within,
   .journal-archive-grid:hover .journal-archive-card:not(:hover) {
     transform: none;
-    box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.04), 0 1px 3px rgb(0 0 0 / 0.5);
+    box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.5), 0 1px 3px rgb(41 39 34 / 0.12);
   }
   .reflection-layer-back,
   .reflection-layer-mid,

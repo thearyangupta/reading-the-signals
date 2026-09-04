@@ -315,7 +315,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
             : 'min-w-0 overflow-x-clip'}>
             <div className="mx-auto min-w-0 w-full max-w-full space-y-6 px-5 py-6 sm:max-w-editor sm:px-8 sm:py-7">
               {error && (
-                <div id="journal-editor-error" role="alert" className="rounded-card border border-red-500/30 bg-red-950/40 p-3.5 text-sm text-red-200">
+                <div id="journal-editor-error" role="alert" className="rounded-card border border-red-200 bg-red-50 p-3.5 text-sm text-red-700">
                   {error}
                 </div>
               )}
@@ -451,7 +451,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
                 <button ref={continueWritingRef} type="button" onClick={continueWriting} className="min-h-11 rounded-control border border-journal-border bg-journal-panel-2 px-4 text-base font-semibold text-journal-ink hover:bg-journal-bg transition-colors sm:text-sm">
                   Continue writing
                 </button>
-                <button type="button" onClick={discardChanges} className="min-h-11 rounded-control px-4 text-base font-semibold text-red-400 hover:bg-red-500/10 transition-colors sm:text-sm">
+                <button type="button" onClick={discardChanges} className="min-h-11 rounded-control px-4 text-base font-semibold text-red-600 hover:bg-red-50 transition-colors sm:text-sm">
                   Discard changes
                 </button>
               </div>

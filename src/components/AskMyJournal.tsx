@@ -118,7 +118,7 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span
                 id="ask-journal-character-count"
-                className={`text-xs ${question.length > 500 ? 'font-semibold text-red-400' : 'text-journal-ink-faint'}`}
+                className={`text-xs ${question.length > 500 ? 'font-semibold text-red-600' : 'text-journal-ink-faint'}`}
               >
                 {question.length}/500
               </span>
@@ -165,8 +165,8 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
 
       {/* Error */}
       {error && (
-        <div role="alert" className="flex items-start gap-3 rounded-card border border-red-500/30 bg-red-950/40 p-4 text-sm text-red-200">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
+        <div role="alert" className="flex items-start gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden="true" />
           <div>
             <p className="font-semibold">I couldn&rsquo;t answer that</p>
             <p className="mt-1 leading-relaxed">{error}</p>

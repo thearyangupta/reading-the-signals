@@ -138,10 +138,10 @@ const ReflectionVisualSurface: React.FC<{ entry: JournalEntry; formattedDate: st
                 varies — this is the one thing that must stay perfectly
                 consistent across the archive). */}
             <div className="reflection-layer-back absolute right-0 top-0 flex flex-col items-end">
-              <span className="font-serif text-[2.5rem] font-bold leading-none text-journal-ink-faint/70 sm:text-[2.9rem]">
+              <span className="font-serif text-[2.5rem] font-bold leading-none text-journal-ink-muted sm:text-[2.9rem]">
                 {dayNumber}
               </span>
-              <span className="-mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-journal-ink-muted/60">
+              <span className="-mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-journal-ink-muted">
                 {monthLabel}
               </span>
             </div>
@@ -492,10 +492,10 @@ export const JournalList: React.FC<JournalListProps> = ({
               className={
                 'mt-4 flex items-center justify-between rounded-card border p-3.5 text-sm ' +
                 (importFeedback.type === 'error'
-                  ? 'border-destructive/40 bg-destructive/15 text-red-300'
+                  ? 'border-red-200 bg-red-50 text-red-700'
                   : importFeedback.type === 'info'
                     ? 'border-journal-border bg-journal-panel text-journal-ink'
-                    : 'border-positive/40 bg-positive/15 text-emerald-300')
+                    : 'border-positive/40 bg-positive/15 text-positive')
               }
             >
               <div className="flex items-center gap-2">

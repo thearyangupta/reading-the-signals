@@ -323,19 +323,19 @@ export default function App() {
           <div
             role="alert"
             className={
-              'mb-6 p-3.5 bg-red-950/40 border border-red-500/30 rounded-xl flex items-center justify-between text-xs text-red-200' +
+              'mb-6 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between text-xs text-red-700' +
               (isDarkCanvas ? ' mx-4 mt-6 sm:mx-6 sm:mt-8 lg:mx-8' : '')
             }
           >
             <div className="flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
               <span>{entriesSyncError}</span>
             </div>
             <button
               type="button"
               onClick={() => setEntriesSyncError(null)}
               aria-label="Dismiss synchronization error"
-              className="text-red-300 hover:text-red-100 text-xs font-medium cursor-pointer"
+              className="text-red-700 hover:text-red-900 text-xs font-medium cursor-pointer"
             >
               Dismiss
             </button>
@@ -398,7 +398,7 @@ export default function App() {
               </div>
             )
           ) : (
-          <div className={activeView === 'journal' ? '-mx-4 -my-6 sm:-mx-6 sm:-my-8 lg:-mx-8' : 'space-y-6'}>
+          <div className={activeView === 'journal' ? 'w-full' : 'space-y-6'}>
             {activeView === 'journal' ? (
               <>
                 <DailyReminderSettings userId={user.uid} />

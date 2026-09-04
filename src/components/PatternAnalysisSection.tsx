@@ -1144,7 +1144,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                   : 'text-journal-ink-muted hover:text-journal-ink'
               }`}
             >
-              <Filter className="w-3 h-3 text-amber-400" />
+              <Filter className="w-3 h-3 text-amber-600" />
               <span>Selected ({selectedEntryIds.length})</span>
             </button>
           </div>
@@ -1154,7 +1154,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               id="open-scope-selector-modal-btn"
               type="button"
               onClick={handleOpenScopeModal}
-              className="text-[11px] text-amber-300 hover:text-amber-100 font-medium underline underline-offset-2 cursor-pointer"
+              className="text-[11px] text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2 cursor-pointer"
             >
               Edit scope
             </button>
@@ -1163,9 +1163,9 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       </div>
 
       {targetEntries.length < 2 && selectedTool !== 'ask_journal' && (
-        <div className="p-3 bg-amber-500/10 border border-amber-700/40 rounded-xl text-xs text-amber-200 flex items-center justify-between gap-2">
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
             <span>
               {targetEntries.length === 0
                 ? 'Select at least 1 reflection to analyze in active scope.'
@@ -1176,7 +1176,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             <button
               type="button"
               onClick={handleOpenScopeModal}
-              className="text-amber-200 font-semibold underline text-xs cursor-pointer shrink-0"
+              className="text-amber-900 font-semibold underline text-xs cursor-pointer shrink-0"
             >
               Select Reflections
             </button>
@@ -1185,9 +1185,9 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
       )}
 
       {targetEntries.length === 0 && selectedTool === 'ask_journal' && (
-        <div className="p-3 bg-amber-500/10 border border-amber-700/40 rounded-xl text-xs text-amber-200 flex items-center justify-between gap-2">
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
             <span>
               Select at least 1 reflection to ask questions about your journal.
             </span>
@@ -1196,7 +1196,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             <button
               type="button"
               onClick={handleOpenScopeModal}
-              className="text-amber-200 font-semibold underline text-xs cursor-pointer shrink-0"
+              className="text-amber-900 font-semibold underline text-xs cursor-pointer shrink-0"
             >
               Select Reflections
             </button>
@@ -1220,7 +1220,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               >
             <div className="p-4 border-b border-journal-border flex items-center justify-between bg-journal-panel-2/40">
               <div className="flex items-center space-x-2">
-                <Filter className="w-4 h-4 text-amber-400" />
+                <Filter className="w-4 h-4 text-amber-600" />
                 <h3 id="scope-dialog-title" className="font-serif font-bold text-journal-ink text-sm">
                   Select Reflections for Cross-Entry Analysis
                 </h3>
@@ -1244,7 +1244,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                 <button
                   type="button"
                   onClick={handleSelectAllDraftScope}
-                  className="text-amber-300 hover:text-amber-100 font-medium underline text-[11px] cursor-pointer"
+                  className="text-amber-700 hover:text-amber-900 font-medium underline text-[11px] cursor-pointer"
                 >
                   Select All
                 </button>
@@ -1302,11 +1302,11 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
             <div className="p-3.5 border-t border-journal-border bg-journal-panel-2/40 flex items-center justify-between">
               <span className="text-[11px] text-journal-ink-muted">
                 {draftSelectedEntryIds.length === 0 ? (
-                  <span className="text-amber-300 font-medium">Select at least 1 reflection</span>
+                  <span className="text-amber-700 font-medium">Select at least 1 reflection</span>
                 ) : draftSelectedEntryIds.length === 1 ? (
-                  <span className="text-emerald-400 font-medium">✓ 1 reflection selected</span>
+                  <span className="text-emerald-700 font-medium">✓ 1 reflection selected</span>
                 ) : (
-                  <span className="text-emerald-400 font-medium">✓ Ready for cross-entry analysis ({draftSelectedEntryIds.length})</span>
+                  <span className="text-emerald-700 font-medium">✓ Ready for cross-entry analysis ({draftSelectedEntryIds.length})</span>
                 )}
               </span>
               <div className="space-x-2">
@@ -1377,18 +1377,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
           {/* Patterns Error State */}
           {patternsError && (
-            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-500/30 bg-red-950/40 p-4 text-sm text-red-200 sm:flex-row sm:items-center">
+            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
               <div className="flex min-w-0 items-start gap-3">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden="true" />
                 <div>
                   <p className="font-semibold">AI observations could not be generated</p>
-                  <p className="mt-1 leading-relaxed text-red-200">{patternsError}</p>
+                  <p className="mt-1 leading-relaxed text-red-700">{patternsError}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleAnalyzePatterns}
-                className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-sm font-semibold text-red-300 underline underline-offset-2 hover:bg-red-500/10 hover:text-red-100"
+                className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-sm font-semibold text-red-700 underline underline-offset-2 hover:bg-red-100 hover:text-red-900"
               >
                 Retry
               </button>
@@ -1555,18 +1555,18 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
 
           {/* Differences Error State */}
           {contradictionsError && (
-            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-500/30 bg-red-950/40 p-4 text-sm text-red-200 sm:flex-row sm:items-center">
+            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
               <div className="flex min-w-0 items-start gap-3">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden="true" />
                 <div>
                   <p className="font-semibold">AI observations could not be generated</p>
-                  <p className="mt-1 leading-relaxed text-red-200">{contradictionsError}</p>
+                  <p className="mt-1 leading-relaxed text-red-700">{contradictionsError}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleAnalyzeContradictions}
-                className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-sm font-semibold text-red-300 underline underline-offset-2 hover:bg-red-500/10 hover:text-red-100"
+                className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-sm font-semibold text-red-700 underline underline-offset-2 hover:bg-red-100 hover:text-red-900"
               >
                 Retry
               </button>
@@ -1713,9 +1713,9 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
           </div>
 
           {timelineError && (
-            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-500/30 bg-red-950/40 p-4 text-sm text-red-200 sm:flex-row sm:items-center">
+            <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-card border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center">
               <div className="flex min-w-0 items-start gap-3">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden="true" />
                 <div>
                   <p className="font-semibold">AI observations could not be generated</p>
                   <p className="mt-1 leading-relaxed">{timelineError}</p>
@@ -1724,7 +1724,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               <button
                 type="button"
                 onClick={handleAnalyzeTimeline}
-                className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-3 text-sm font-semibold text-red-300 underline underline-offset-2 hover:bg-red-500/10 hover:text-red-100"
+                className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-3 text-sm font-semibold text-red-700 underline underline-offset-2 hover:bg-red-100 hover:text-red-900"
               >
                 <RefreshCw className="h-4 w-4" aria-hidden="true" />
                 <span>Retry</span>

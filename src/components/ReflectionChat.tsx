@@ -310,7 +310,7 @@ export const ReflectionChat: React.FC<ReflectionChatProps> = ({
         )}
 
         {error && (
-          <div role="alert" className="flex items-center space-x-2 rounded-card border border-destructive/40 bg-destructive/15 p-2.5 text-xs text-red-300">
+          <div role="alert" className="flex items-center space-x-2 rounded-card border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="flex-1">{error}</span>
             <button

@@ -117,7 +117,7 @@ export const DailyReminderSettings: React.FC<DailyReminderSettingsProps> = ({ us
   };
 
   return (
-    <div className="border-b border-journal-border bg-journal-bg px-4 py-3 sm:px-6 lg:px-8">
+    <div className="bg-journal-atmo px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <details className="mx-auto max-w-6xl rounded-control border border-journal-border bg-journal-panel">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 text-sm font-semibold text-journal-ink [&::-webkit-details-marker]:hidden">
           <span className="flex items-center gap-2">
@@ -204,7 +204,7 @@ export const DailyReminderSettings: React.FC<DailyReminderSettingsProps> = ({ us
           )}
 
           {feedback && <p role="status" className="mt-3 text-xs font-medium text-positive">{feedback}</p>}
-          {error && <p role="alert" className="mt-3 text-xs font-medium text-red-400">{error}</p>}
+          {error && <p role="alert" className="mt-3 text-xs font-medium text-red-600">{error}</p>}
         </form>
       </details>
     </div>

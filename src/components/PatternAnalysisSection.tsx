@@ -1144,7 +1144,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
                   : 'text-journal-ink-muted hover:text-journal-ink'
               }`}
             >
-              <Filter className="w-3 h-3 text-amber-600" />
+              <Filter className="w-3 h-3 text-journal-accent-bright" />
               <span>Selected ({selectedEntryIds.length})</span>
             </button>
           </div>
@@ -1220,7 +1220,7 @@ export const PatternAnalysisSection: React.FC<PatternAnalysisSectionProps> = ({
               >
             <div className="p-4 border-b border-journal-border flex items-center justify-between bg-journal-panel-2/40">
               <div className="flex items-center space-x-2">
-                <Filter className="w-4 h-4 text-amber-600" />
+                <Filter className="w-4 h-4 text-journal-accent-bright" />
                 <h3 id="scope-dialog-title" className="font-serif font-bold text-journal-ink text-sm">
                   Select Reflections for Cross-Entry Analysis
                 </h3>

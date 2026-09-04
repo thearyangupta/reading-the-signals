@@ -113,7 +113,7 @@ export const AskMyJournal: React.FC<AskMyJournalProps> = ({
               aria-describedby="ask-journal-character-count"
               placeholder="Ask about something in your reflections&hellip;"
               disabled={loading}
-              className="w-full resize-none rounded-control border border-journal-border bg-journal-panel/40 p-3.5 text-base leading-relaxed text-journal-ink placeholder:text-journal-ink-faint transition-colors focus:border-journal-accent-bright focus:outline-none focus:ring-1 focus:ring-journal-accent-bright disabled:opacity-60"
+              className="w-full resize-none rounded-control border border-journal-border bg-journal-panel/40 p-3.5 text-base leading-relaxed text-journal-ink placeholder:text-journal-ink-faint transition-colors focus-visible:border-journal-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-journal-accent disabled:opacity-60"
             />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span

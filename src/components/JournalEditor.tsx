@@ -268,7 +268,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
   };
 
   const inputClass =
-    'box-border min-h-11 min-w-0 w-full max-w-full rounded-control border border-journal-border bg-journal-panel-2/40 px-3.5 py-2.5 text-base text-journal-ink placeholder:text-journal-ink-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-journal-accent-bright focus-visible:border-transparent transition-all sm:text-sm';
+    'box-border min-h-11 min-w-0 w-full max-w-full rounded-control border border-journal-border bg-journal-panel-2/40 px-3.5 py-2.5 text-base text-journal-ink placeholder:text-journal-ink-faint focus-visible:border-journal-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-journal-accent transition-all sm:text-sm';
   const labelClass = 'mb-2 block text-xs font-medium uppercase tracking-wider text-journal-ink-muted';
 
   return (
@@ -330,7 +330,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
                     className={
                       'min-h-10 min-w-0 flex-1 rounded-[7px] px-4 text-sm font-semibold transition-all sm:flex-none ' +
                       (mode === item
-                        ? 'bg-journal-panel text-journal-accent-bright shadow-xs border border-journal-border/60'
+                        ? 'bg-journal-panel text-journal-accent-bright shadow-xs border border-journal-accent'
                         : 'text-journal-ink-muted hover:text-journal-ink')
                     }
                   >
@@ -376,7 +376,7 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
                     value={content}
                     onChange={(event) => setContent(event.target.value)}
                     placeholder="Write freely about what happened, what you noticed, and what stayed with you…"
-                    className="box-border min-h-72 min-w-0 w-full max-w-full resize-y rounded-card border border-journal-border bg-journal-panel-2/30 px-4 py-4 font-serif text-base leading-relaxed text-journal-ink placeholder:font-serif placeholder:text-journal-ink-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-journal-accent-bright focus-visible:border-transparent transition-all sm:min-h-80 sm:p-5 sm:text-lg"
+                    className="box-border min-h-72 min-w-0 w-full max-w-full resize-y rounded-card border border-journal-border bg-journal-panel-2/30 px-4 py-4 font-serif text-base leading-relaxed text-journal-ink placeholder:font-serif placeholder:text-journal-ink-faint focus-visible:border-journal-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-journal-accent transition-all sm:min-h-80 sm:p-5 sm:text-lg"
                   />
                   <p id="entry-content-help" className="mt-2 text-xs text-journal-ink-muted">Your writing can be as brief or detailed as you need.</p>
                 </div>

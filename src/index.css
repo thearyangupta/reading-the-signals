@@ -201,6 +201,18 @@
   outline-offset: 2px;
 }
 
+/* Journal text fields provide their own journal-colored border and ring focus state. */
+#entry-title-input:focus-visible,
+#entry-date-input:focus-visible,
+#entry-content-textarea:focus-visible,
+#ask-journal-question-input:focus-visible,
+#entry-situation-input:focus-visible,
+#entry-behavior-input:focus-visible,
+#entry-feeling-input:focus-visible,
+#entry-context-input:focus-visible {
+  outline: none;
+}
+
 /* Bring legacy arbitrary microcopy sizes up to the approved functional floor. */
 [class~="text-[9px]"],
 [class~="text-[10px]"],

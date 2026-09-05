@@ -1,3 +1,5 @@
+import https from 'node:https';
+import type { ClientRequest, IncomingMessage } from 'node:http';
 import {
   assertValidEmailMessage,
   EmailDeliveryError,
@@ -6,16 +8,21 @@ import {
   type EmailTransport,
 } from './types.ts';
 
-const RESEND_API_URL = 'https://api.resend.com/emails';
+const RESEND_HOSTNAME = 'api.resend.com';
+const RESEND_PATH = '/emails';
+const REQUEST_TIMEOUT_MS = 12_000;
 const MAX_PROVIDER_MESSAGE_LENGTH = 240;
-
-type FetchLike = typeof fetch;
 
 interface ResendErrorPayload {
   name?: string;
   message?: string;
   statusCode?: number | null;
 }
+
+type HttpsRequestLike = (
+  options: https.RequestOptions,
+  callback: (res: IncomingMessage) => void
+) => ClientRequest;
 
 function sanitizeProviderErrorName(name: string | undefined): string {
   return String(name || 'unknown')
@@ -57,25 +64,52 @@ function safeProviderErrorCode(name: string | undefined): string {
   return `RESEND_${suffix || 'REJECTED'}`;
 }
 
-async function parseResendErrorPayload(response: Response): Promise<ResendErrorPayload> {
-  try {
-    const parsed = await response.json();
-    if (parsed && typeof parsed === 'object') {
-      return {
-        name: typeof (parsed as any).name === 'string' ? (parsed as any).name : undefined,
-        message: typeof (parsed as any).message === 'string' ? (parsed as any).message : response.statusText,
-        statusCode: typeof (parsed as any).statusCode === 'number' ? (parsed as any).statusCode : response.status,
-      };
-    }
-  } catch {
-    // Fall through to the generic HTTP-status-derived payload below.
-  }
-  return { name: undefined, message: response.statusText, statusCode: response.status };
+function createNetworkFailureDiagnostic(error: unknown) {
+  const err = error instanceof Error ? error : undefined;
+  const code = err && typeof (err as NodeJS.ErrnoException).code === 'string'
+    ? (err as NodeJS.ErrnoException).code
+    : undefined;
+  return createResendProviderDiagnostic({
+    name: code || err?.name || 'network_error',
+    message: err?.message,
+    statusCode: null,
+  });
+}
+
+function requestResend(
+  requestImpl: HttpsRequestLike,
+  headers: Record<string, string>,
+  payload: string
+): Promise<{ statusCode: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = requestImpl(
+      {
+        hostname: RESEND_HOSTNAME,
+        path: RESEND_PATH,
+        method: 'POST',
+        headers,
+        family: 4,
+        timeout: REQUEST_TIMEOUT_MS,
+      },
+      (res) => {
+        let raw = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk: string) => {
+          raw += chunk;
+        });
+        res.on('end', () => resolve({ statusCode: res.statusCode ?? 0, body: raw }));
+      }
+    );
+    req.on('timeout', () => req.destroy(Object.assign(new Error('Resend request timed out'), { code: 'ETIMEDOUT' })));
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
 }
 
 export function createResendTransport(
   env: NodeJS.ProcessEnv = process.env,
-  fetchImpl: FetchLike = fetch
+  requestImpl: HttpsRequestLike = https.request as unknown as HttpsRequestLike
 ): EmailTransport {
   const apiKey = env.RESEND_API_KEY?.trim();
   if (!apiKey) throw new EmailDeliveryError('EMAIL_CONFIGURATION_ERROR');
@@ -84,45 +118,51 @@ export function createResendTransport(
     async send(message: EmailMessage): Promise<EmailSendResult> {
       assertValidEmailMessage(message);
 
+      const payload = JSON.stringify({
+        from: message.from,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+      });
+
       const headers: Record<string, string> = {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'Content-Length': String(Buffer.byteLength(payload)),
       };
       if (message.idempotencyKey) headers['Idempotency-Key'] = message.idempotencyKey;
 
-      let response: Response;
+      let statusCode: number;
+      let body: string;
       try {
-        response = await fetchImpl(RESEND_API_URL, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            from: message.from,
-            to: message.to,
-            subject: message.subject,
-            text: message.text,
-            html: message.html,
-          }),
-        });
-      } catch {
-        throw new EmailDeliveryError('RESEND_REQUEST_FAILED');
+        ({ statusCode, body } = await requestResend(requestImpl, headers, payload));
+      } catch (error) {
+        throw new EmailDeliveryError('RESEND_REQUEST_FAILED', createNetworkFailureDiagnostic(error));
       }
 
-      if (!response.ok) {
-        const errorPayload = await parseResendErrorPayload(response);
+      let parsed: unknown = null;
+      try {
+        parsed = body ? JSON.parse(body) : null;
+      } catch {
+        parsed = null;
+      }
+
+      if (statusCode < 200 || statusCode >= 300) {
+        const errorPayload: ResendErrorPayload = parsed && typeof parsed === 'object'
+          ? {
+              name: typeof (parsed as any).name === 'string' ? (parsed as any).name : undefined,
+              message: typeof (parsed as any).message === 'string' ? (parsed as any).message : undefined,
+              statusCode: typeof (parsed as any).statusCode === 'number' ? (parsed as any).statusCode : statusCode,
+            }
+          : { name: undefined, message: undefined, statusCode };
         throw new EmailDeliveryError(
           safeProviderErrorCode(errorPayload.name),
           createResendProviderDiagnostic(errorPayload)
         );
       }
 
-      let data: unknown;
-      try {
-        data = await response.json();
-      } catch {
-        throw new EmailDeliveryError('RESEND_REQUEST_FAILED');
-      }
-
-      const messageId = data && typeof data === 'object' ? (data as { id?: unknown }).id : undefined;
+      const messageId = parsed && typeof parsed === 'object' ? (parsed as { id?: unknown }).id : undefined;
       if (typeof messageId !== 'string' || !messageId) throw new EmailDeliveryError('RESEND_MISSING_MESSAGE_ID');
       return { messageId };
     },

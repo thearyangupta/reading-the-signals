@@ -15,13 +15,22 @@ export interface EmailTransport {
   send(message: EmailMessage): Promise<EmailSendResult>;
 }
 
+export interface EmailProviderDiagnostic {
+  provider: 'resend';
+  errorName: string;
+  statusCode: number | null;
+  message: string;
+}
+
 export class EmailDeliveryError extends Error {
   readonly code: string;
+  readonly providerDiagnostic?: EmailProviderDiagnostic;
 
-  constructor(code: string) {
+  constructor(code: string, providerDiagnostic?: EmailProviderDiagnostic) {
     super(code);
     this.name = 'EmailDeliveryError';
     this.code = code;
+    this.providerDiagnostic = providerDiagnostic;
   }
 }
 

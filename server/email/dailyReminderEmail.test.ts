@@ -5,7 +5,11 @@ import {
   createDailyReminderIdempotencyKey,
   DAILY_REMINDER_SUBJECT,
 } from './dailyReminderEmail.ts';
-import { createResendTransport } from './resendTransport.ts';
+import {
+  createResendProviderDiagnostic,
+  createResendTransport,
+  sanitizeProviderMessage,
+} from './resendTransport.ts';
 import { EmailDeliveryError, type EmailMessage, type EmailTransport } from './types.ts';
 
 const baseInput = {
@@ -82,7 +86,7 @@ test('maps fake Resend failures to a safe code without constructing a real clien
         emails: {
           send: async () => ({
             data: null,
-            error: { name: 'rate_limit_exceeded', message: 'sensitive provider detail' },
+            error: { name: 'application_error', message: 'Provider unavailable', statusCode: 503 },
           }),
         },
       };
@@ -93,10 +97,39 @@ test('maps fake Resend failures to a safe code without constructing a real clien
     transport.send(createDailyReminderEmail(baseInput)),
     (error: unknown) =>
       error instanceof EmailDeliveryError &&
-      error.code === 'RESEND_RATE_LIMIT_EXCEEDED' &&
-      !error.message.includes('sensitive provider detail')
+      error.code === 'RESEND_APPLICATION_ERROR' &&
+      error.providerDiagnostic?.statusCode === 503 &&
+      error.providerDiagnostic.message === 'Provider unavailable'
   );
   assert.equal(fakeFactoryCalls, 1);
+});
+
+test('sanitizes and bounds Resend provider diagnostics', () => {
+  const unsafe = 'Bearer token.value api_key=secret-value reader@example.com ' + 'x'.repeat(400);
+  const message = sanitizeProviderMessage(unsafe);
+  assert.ok(message.length <= 240);
+  assert.doesNotMatch(message, /token\.value|secret-value|reader@example\.com/);
+  assert.match(message, /\[REDACTED/);
+  assert.deepEqual(createResendProviderDiagnostic({ name: 'application_error', statusCode: 502, message: 'Safe failure' }), {
+    provider: 'resend',
+    errorName: 'application_error',
+    statusCode: 502,
+    message: 'Safe failure',
+  });
+});
+
+test('keeps request exceptions mapped to RESEND_REQUEST_FAILED without provider diagnostics', async () => {
+  const transport = createResendTransport(
+    { RESEND_API_KEY: 'test-only-placeholder' },
+    () => ({ emails: { send: async () => { throw new Error('network detail'); } } })
+  );
+  await assert.rejects(
+    transport.send(createDailyReminderEmail(baseInput)),
+    (error: unknown) =>
+      error instanceof EmailDeliveryError &&
+      error.code === 'RESEND_REQUEST_FAILED' &&
+      error.providerDiagnostic === undefined
+  );
 });
 
 test('passes idempotency to the Resend SDK options using an injected fake client', async () => {

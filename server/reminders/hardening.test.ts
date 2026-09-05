@@ -2,9 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createDailyReminderEmail, createConfiguredDailyReminderEmailComposer } from '../email/dailyReminderEmail.ts';
 import { createResendTransport } from '../email/resendTransport.ts';
-import type { EmailMessage } from '../email/types.ts';
+import { EmailDeliveryError, type EmailMessage } from '../email/types.ts';
 import { getEligibleReminderRecipient, type ReminderAuthUser } from './authRecipient.ts';
-import { createDailyEmailReminderProcessor } from './processDailyEmailReminders.ts';
+import {
+  createDailyEmailReminderProcessor,
+  createDailyReminderProviderFailureLog,
+} from './processDailyEmailReminders.ts';
 import { createScheduledReminderHandler } from './scheduledRoute.ts';
 import { authenticateSchedulerRequest, type SchedulerOidcClaims } from './schedulerAuth.ts';
 import { createReminderSettingsSource } from './settingsStore.ts';
@@ -20,6 +23,24 @@ const validClaims: SchedulerOidcClaims = {
   email_verified: true,
   iss: 'https://accounts.google.com',
 };
+
+test('builds an identity-free structured provider failure log', () => {
+  const entry = createDailyReminderProviderFailureLog(new EmailDeliveryError('RESEND_APPLICATION_ERROR', {
+    provider: 'resend',
+    errorName: 'application_error',
+    statusCode: 503,
+    message: 'Provider unavailable',
+  }));
+  assert.deepEqual(entry, {
+    event: 'daily_reminder_email_provider_failure',
+    provider: 'resend',
+    errorCode: 'RESEND_APPLICATION_ERROR',
+    providerErrorName: 'application_error',
+    providerStatus: 503,
+    providerMessage: 'Provider unavailable',
+  });
+  assert.doesNotMatch(JSON.stringify(entry), /recipient|uid|email body/i);
+});
 
 test('accepts any verified linked Firebase email user and rejects ineligible recipients', () => {
   const user = (overrides: Partial<ReminderAuthUser> = {}): ReminderAuthUser => ({

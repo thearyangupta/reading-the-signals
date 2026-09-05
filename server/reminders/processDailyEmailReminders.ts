@@ -42,6 +42,18 @@ interface DailyReminderProcessorDependencies {
 const DEFAULT_BATCH_SIZE = 100;
 const DEFAULT_CONCURRENCY = 5;
 
+export function createDailyReminderProviderFailureLog(error: unknown) {
+  if (!(error instanceof EmailDeliveryError) || !error.providerDiagnostic) return null;
+  return {
+    event: 'daily_reminder_email_provider_failure',
+    provider: error.providerDiagnostic.provider,
+    errorCode: error.code,
+    providerErrorName: error.providerDiagnostic.errorName,
+    providerStatus: error.providerDiagnostic.statusCode,
+    providerMessage: error.providerDiagnostic.message,
+  };
+}
+
 function safeFailureCode(error: unknown): string {
   return error instanceof EmailDeliveryError ? error.code : 'REMINDER_PROCESSING_FAILED';
 }
@@ -97,6 +109,8 @@ export function createDailyEmailReminderProcessor(dependencies: DailyReminderPro
                     await dependencies.emailTransport.send(message);
                     providerAccepted = true;
                   } catch (error) {
+                    const diagnostic = createDailyReminderProviderFailureLog(error);
+                    if (diagnostic) console.error(diagnostic);
                     try {
                       await dependencies.deliveryStore.markDailyReminderFailed(identity, safeFailureCode(error));
                     } catch {

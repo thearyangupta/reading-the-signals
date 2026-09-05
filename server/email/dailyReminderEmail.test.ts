@@ -76,21 +76,42 @@ test('passes a deterministic idempotency key through a fake transport once', asy
   assert.doesNotMatch(transport.messages[0].text + transport.messages[0].html, /user-123/);
 });
 
-test('maps fake Resend failures to a safe code without constructing a real client', async () => {
-  let fakeFactoryCalls = 0;
+function fakeJsonResponse(status: number, body: unknown, statusText = ''): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    statusText,
+    json: async () => body,
+  } as unknown as Response;
+}
+
+test('sends via direct fetch to the Resend API, preserving the idempotency header, and returns the message id', async () => {
+  const capturedRequests: Array<{ url: string; init: RequestInit }> = [];
   const transport = createResendTransport(
     { RESEND_API_KEY: 'test-only-placeholder' },
-    () => {
-      fakeFactoryCalls += 1;
-      return {
-        emails: {
-          send: async () => ({
-            data: null,
-            error: { name: 'application_error', message: 'Provider unavailable', statusCode: 503 },
-          }),
-        },
-      };
-    }
+    (async (url: string, init?: RequestInit) => {
+      capturedRequests.push({ url: String(url), init: init! });
+      return fakeJsonResponse(200, { id: 'fake-resend-id' });
+    }) as typeof fetch
+  );
+  const idempotencyKey = createDailyReminderIdempotencyKey('user-123', '2026-09-05');
+  const result = await transport.send(createDailyReminderEmail({ ...baseInput, idempotencyKey }));
+
+  assert.deepEqual(result, { messageId: 'fake-resend-id' });
+  assert.equal(capturedRequests.length, 1);
+  assert.equal(capturedRequests[0].url, 'https://api.resend.com/emails');
+  assert.equal(capturedRequests[0].init.method, 'POST');
+  const headers = capturedRequests[0].init.headers as Record<string, string>;
+  assert.equal(headers['Idempotency-Key'], idempotencyKey);
+  assert.equal(headers['Authorization'], 'Bearer test-only-placeholder');
+  assert.equal(headers['Content-Type'], 'application/json');
+  assert.doesNotMatch(String(capturedRequests[0].init.body), /user-123/);
+});
+
+test('maps a non-2xx Resend HTTP response to a safe code with sanitized diagnostics', async () => {
+  const transport = createResendTransport(
+    { RESEND_API_KEY: 'test-only-placeholder' },
+    (async () => fakeJsonResponse(503, { name: 'application_error', message: 'Provider unavailable', statusCode: 503 })) as typeof fetch
   );
 
   await assert.rejects(
@@ -101,7 +122,35 @@ test('maps fake Resend failures to a safe code without constructing a real clien
       error.providerDiagnostic?.statusCode === 503 &&
       error.providerDiagnostic.message === 'Provider unavailable'
   );
-  assert.equal(fakeFactoryCalls, 1);
+});
+
+test('maps 401/403/422-style Resend HTTP error responses to distinct safe codes', async () => {
+  const cases: Array<{ status: number; name: string; message: string; expectedCode: string }> = [
+    { status: 401, name: 'restricted_api_key', message: 'Invalid API key', expectedCode: 'RESEND_RESTRICTED_API_KEY' },
+    { status: 403, name: 'forbidden', message: 'Not allowed', expectedCode: 'RESEND_FORBIDDEN' },
+    { status: 422, name: 'validation_error', message: 'Invalid `to` field', expectedCode: 'RESEND_VALIDATION_ERROR' },
+  ];
+
+  for (const testCase of cases) {
+    const transport = createResendTransport(
+      { RESEND_API_KEY: 'test-only-placeholder' },
+      (async () =>
+        fakeJsonResponse(testCase.status, {
+          name: testCase.name,
+          message: testCase.message,
+          statusCode: testCase.status,
+        })) as typeof fetch
+    );
+
+    await assert.rejects(
+      transport.send(createDailyReminderEmail(baseInput)),
+      (error: unknown) =>
+        error instanceof EmailDeliveryError &&
+        error.code === testCase.expectedCode &&
+        error.providerDiagnostic?.statusCode === testCase.status &&
+        error.providerDiagnostic.message === testCase.message
+    );
+  }
 });
 
 test('sanitizes and bounds Resend provider diagnostics', () => {
@@ -118,10 +167,32 @@ test('sanitizes and bounds Resend provider diagnostics', () => {
   });
 });
 
-test('keeps request exceptions mapped to RESEND_REQUEST_FAILED without provider diagnostics', async () => {
+test('never leaks the API key into thrown provider diagnostics', async () => {
+  const secretApiKey = 're_super_secret_test_key_do_not_leak';
+  const transport = createResendTransport(
+    { RESEND_API_KEY: secretApiKey },
+    (async () =>
+      fakeJsonResponse(401, {
+        name: 'restricted_api_key',
+        message: `Bearer ${secretApiKey} was rejected`,
+        statusCode: 401,
+      })) as typeof fetch
+  );
+
+  await assert.rejects(
+    transport.send(createDailyReminderEmail(baseInput)),
+    (error: unknown) => {
+      if (!(error instanceof EmailDeliveryError)) return false;
+      const serialized = JSON.stringify(error.providerDiagnostic ?? {});
+      return !serialized.includes(secretApiKey);
+    }
+  );
+});
+
+test('keeps fetch/network rejections mapped to RESEND_REQUEST_FAILED without provider diagnostics', async () => {
   const transport = createResendTransport(
     { RESEND_API_KEY: 'test-only-placeholder' },
-    () => ({ emails: { send: async () => { throw new Error('network detail'); } } })
+    (async () => { throw new Error('network detail'); }) as typeof fetch
   );
   await assert.rejects(
     transport.send(createDailyReminderEmail(baseInput)),
@@ -130,24 +201,4 @@ test('keeps request exceptions mapped to RESEND_REQUEST_FAILED without provider 
       error.code === 'RESEND_REQUEST_FAILED' &&
       error.providerDiagnostic === undefined
   );
-});
-
-test('passes idempotency to the Resend SDK options using an injected fake client', async () => {
-  const capturedOptions: Array<{ idempotencyKey?: string } | undefined> = [];
-  const transport = createResendTransport(
-    { RESEND_API_KEY: 'test-only-placeholder' },
-    () => ({
-      emails: {
-        send: async (_message, options) => {
-          capturedOptions.push(options);
-          return { data: { id: 'fake-resend-id' }, error: null };
-        },
-      },
-    })
-  );
-  const idempotencyKey = createDailyReminderIdempotencyKey('user-123', '2026-09-05');
-  const result = await transport.send(createDailyReminderEmail({ ...baseInput, idempotencyKey }));
-
-  assert.deepEqual(result, { messageId: 'fake-resend-id' });
-  assert.deepEqual(capturedOptions, [{ idempotencyKey }]);
 });

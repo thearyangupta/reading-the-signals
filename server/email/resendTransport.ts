@@ -1,4 +1,3 @@
-import { Resend } from 'resend';
 import {
   assertValidEmailMessage,
   EmailDeliveryError,
@@ -7,21 +6,16 @@ import {
   type EmailTransport,
 } from './types.ts';
 
-interface ResendClient {
-  emails: {
-    send(
-      message: Pick<EmailMessage, 'from' | 'to' | 'subject' | 'text' | 'html'>,
-      options?: { idempotencyKey?: string }
-    ): Promise<{
-      data: { id: string } | null;
-      error: { name?: string; message?: string; statusCode?: number | null } | null;
-    }>;
-  };
-}
-
-type ResendClientFactory = (apiKey: string) => ResendClient;
-
+const RESEND_API_URL = 'https://api.resend.com/emails';
 const MAX_PROVIDER_MESSAGE_LENGTH = 240;
+
+type FetchLike = typeof fetch;
+
+interface ResendErrorPayload {
+  name?: string;
+  message?: string;
+  statusCode?: number | null;
+}
 
 function sanitizeProviderErrorName(name: string | undefined): string {
   return String(name || 'unknown')
@@ -43,11 +37,7 @@ export function sanitizeProviderMessage(message: unknown): string {
     .slice(0, MAX_PROVIDER_MESSAGE_LENGTH);
 }
 
-export function createResendProviderDiagnostic(error: {
-  name?: string;
-  message?: string;
-  statusCode?: number | null;
-}) {
+export function createResendProviderDiagnostic(error: ResendErrorPayload) {
   return {
     provider: 'resend' as const,
     errorName: sanitizeProviderErrorName(error.name),
@@ -67,40 +57,74 @@ function safeProviderErrorCode(name: string | undefined): string {
   return `RESEND_${suffix || 'REJECTED'}`;
 }
 
+async function parseResendErrorPayload(response: Response): Promise<ResendErrorPayload> {
+  try {
+    const parsed = await response.json();
+    if (parsed && typeof parsed === 'object') {
+      return {
+        name: typeof (parsed as any).name === 'string' ? (parsed as any).name : undefined,
+        message: typeof (parsed as any).message === 'string' ? (parsed as any).message : response.statusText,
+        statusCode: typeof (parsed as any).statusCode === 'number' ? (parsed as any).statusCode : response.status,
+      };
+    }
+  } catch {
+    // Fall through to the generic HTTP-status-derived payload below.
+  }
+  return { name: undefined, message: response.statusText, statusCode: response.status };
+}
+
 export function createResendTransport(
   env: NodeJS.ProcessEnv = process.env,
-  createClient: ResendClientFactory = (apiKey) => new Resend(apiKey) as ResendClient
+  fetchImpl: FetchLike = fetch
 ): EmailTransport {
   const apiKey = env.RESEND_API_KEY?.trim();
   if (!apiKey) throw new EmailDeliveryError('EMAIL_CONFIGURATION_ERROR');
-  const client = createClient(apiKey);
 
   return {
     async send(message: EmailMessage): Promise<EmailSendResult> {
       assertValidEmailMessage(message);
+
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      };
+      if (message.idempotencyKey) headers['Idempotency-Key'] = message.idempotencyKey;
+
+      let response: Response;
       try {
-        const { data, error } = await client.emails.send(
-          {
+        response = await fetchImpl(RESEND_API_URL, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
             from: message.from,
             to: message.to,
             subject: message.subject,
             text: message.text,
             html: message.html,
-          },
-          message.idempotencyKey ? { idempotencyKey: message.idempotencyKey } : undefined
-        );
-        if (error) {
-          throw new EmailDeliveryError(
-            safeProviderErrorCode(error.name),
-            createResendProviderDiagnostic(error)
-          );
-        }
-        if (!data?.id) throw new EmailDeliveryError('RESEND_MISSING_MESSAGE_ID');
-        return { messageId: data.id };
-      } catch (error) {
-        if (error instanceof EmailDeliveryError) throw error;
+          }),
+        });
+      } catch {
         throw new EmailDeliveryError('RESEND_REQUEST_FAILED');
       }
+
+      if (!response.ok) {
+        const errorPayload = await parseResendErrorPayload(response);
+        throw new EmailDeliveryError(
+          safeProviderErrorCode(errorPayload.name),
+          createResendProviderDiagnostic(errorPayload)
+        );
+      }
+
+      let data: unknown;
+      try {
+        data = await response.json();
+      } catch {
+        throw new EmailDeliveryError('RESEND_REQUEST_FAILED');
+      }
+
+      const messageId = data && typeof data === 'object' ? (data as { id?: unknown }).id : undefined;
+      if (typeof messageId !== 'string' || !messageId) throw new EmailDeliveryError('RESEND_MISSING_MESSAGE_ID');
+      return { messageId };
     },
   };
 }

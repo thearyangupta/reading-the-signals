@@ -7,6 +7,7 @@ export interface ReminderDeliveryState {
   status: ReminderDeliveryStatus;
   attemptCount: number;
   lastErrorCode?: string;
+  claimedAtMs?: number;
 }
 
 export interface ClaimDailyReminderDeliveryInput {
@@ -35,6 +36,11 @@ const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const REMINDER_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const MAX_ERROR_CODE_LENGTH = 80;
 
+// A process crash or forced redeploy between claiming and marking sent/failed
+// would otherwise strand a user in "claimed" forever, since only "failed" is
+// normally retryable. Treat a claim older than this as abandoned and safe to retry.
+const STALE_CLAIM_TTL_MS = 15 * 60 * 1000;
+
 function assertDeliveryIdentity({ uid, localDate }: ReminderDeliveryIdentity): void {
   if (!uid.trim() || uid.includes('/')) throw new Error('A valid reminder delivery uid is required.');
   if (!LOCAL_DATE_PATTERN.test(localDate)) throw new Error('Reminder delivery localDate must use YYYY-MM-DD.');
@@ -48,10 +54,13 @@ function deliveryDocumentPath({ uid, localDate }: ReminderDeliveryIdentity): str
 function parseDeliveryState(data: DocumentData | undefined): ReminderDeliveryState | null {
   if (!data || !['claimed', 'sent', 'failed'].includes(data.status)) return null;
 
+  const claimedAtMs = typeof data.claimedAt?.toMillis === 'function' ? data.claimedAt.toMillis() : undefined;
+
   return {
     status: data.status as ReminderDeliveryStatus,
     attemptCount: Number.isInteger(data.attemptCount) && data.attemptCount > 0 ? data.attemptCount : 1,
     ...(typeof data.lastErrorCode === 'string' ? { lastErrorCode: data.lastErrorCode } : {}),
+    ...(typeof claimedAtMs === 'number' ? { claimedAtMs } : {}),
   };
 }
 
@@ -65,12 +74,21 @@ export function sanitizeReminderDeliveryErrorCode(errorCode: string): string {
   return sanitized || 'UNKNOWN_ERROR';
 }
 
-export function planDailyReminderClaim(existing: ReminderDeliveryState | null): ClaimDailyReminderDeliveryResult {
+function isStaleClaim(existing: ReminderDeliveryState, nowMs: number): boolean {
+  return existing.status === 'claimed'
+    && typeof existing.claimedAtMs === 'number'
+    && nowMs - existing.claimedAtMs >= STALE_CLAIM_TTL_MS;
+}
+
+export function planDailyReminderClaim(
+  existing: ReminderDeliveryState | null,
+  nowMs: number
+): ClaimDailyReminderDeliveryResult {
   if (!existing) return { claimed: true, attemptCount: 1 };
-  if (existing.status !== 'failed') {
-    return { claimed: false, attemptCount: existing.attemptCount };
+  if (existing.status === 'failed' || isStaleClaim(existing, nowMs)) {
+    return { claimed: true, attemptCount: existing.attemptCount + 1 };
   }
-  return { claimed: true, attemptCount: existing.attemptCount + 1 };
+  return { claimed: false, attemptCount: existing.attemptCount };
 }
 
 export function planDailyReminderSent(existing: ReminderDeliveryState | null): StateTransitionResult {
@@ -111,7 +129,7 @@ export function createReminderDeliveryStore(db: Firestore) {
       return db.runTransaction(async (transaction) => {
         const snapshot = await transaction.get(deliveryRef);
         const existing = snapshot.exists ? parseDeliveryState(snapshot.data()) : null;
-        const claim = planDailyReminderClaim(existing);
+        const claim = planDailyReminderClaim(existing, Date.now());
         if (!claim.claimed) return claim;
 
         const delivery = {

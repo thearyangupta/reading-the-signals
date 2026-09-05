@@ -10,11 +10,11 @@ import type { ReminderDeliveryState } from './deliveryStore.ts';
 class FakeDeliveryStateStore {
   private readonly records = new Map<string, ReminderDeliveryState>();
 
-  claim(uid: string, localDate: string): boolean {
+  claim(uid: string, localDate: string, nowMs = 0): boolean {
     const key = `${uid}:${localDate}`;
-    const claim = planDailyReminderClaim(this.records.get(key) ?? null);
+    const claim = planDailyReminderClaim(this.records.get(key) ?? null, nowMs);
     if (claim.claimed) {
-      this.records.set(key, { status: 'claimed', attemptCount: claim.attemptCount });
+      this.records.set(key, { status: 'claimed', attemptCount: claim.attemptCount, claimedAtMs: nowMs });
     }
     return claim.claimed;
   }
@@ -46,9 +46,32 @@ test('claims each user and local date at most once while active', () => {
 });
 
 test('keeps an existing claimed delivery blocked until explicit reconciliation', () => {
-  assert.deepEqual(planDailyReminderClaim({ status: 'claimed', attemptCount: 3 }), {
+  assert.deepEqual(planDailyReminderClaim({ status: 'claimed', attemptCount: 3, claimedAtMs: 1_000 }, 1_000), {
     claimed: false,
     attemptCount: 3,
+  });
+});
+
+test('recovers a stale claimed delivery after the TTL, but not before it', () => {
+  const claimedAtMs = 1_000;
+  const justUnderTtl = claimedAtMs + 15 * 60 * 1000 - 1;
+  const atTtl = claimedAtMs + 15 * 60 * 1000;
+
+  assert.deepEqual(planDailyReminderClaim({ status: 'claimed', attemptCount: 1, claimedAtMs }, justUnderTtl), {
+    claimed: false,
+    attemptCount: 1,
+  });
+  assert.deepEqual(planDailyReminderClaim({ status: 'claimed', attemptCount: 1, claimedAtMs }, atTtl), {
+    claimed: true,
+    attemptCount: 2,
+  });
+});
+
+test('never reclaims an already-sent delivery, even long after it was claimed', () => {
+  const farFuture = 10_000 * 60 * 60 * 1000;
+  assert.deepEqual(planDailyReminderClaim({ status: 'sent', attemptCount: 1, claimedAtMs: 0 }, farFuture), {
+    claimed: false,
+    attemptCount: 1,
   });
 });
 
@@ -80,5 +103,5 @@ test('failed delivery can be reclaimed and increments attempt count', () => {
     lastErrorCode: 'PROVIDER_TIMEOUT_504',
   });
   assert.equal(store.claim('user-1', '2026-09-04'), true);
-  assert.deepEqual(store.get('user-1', '2026-09-04'), { status: 'claimed', attemptCount: 2 });
+  assert.deepEqual(store.get('user-1', '2026-09-04'), { status: 'claimed', attemptCount: 2, claimedAtMs: 0 });
 });

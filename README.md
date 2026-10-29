@@ -4,7 +4,6 @@ A private, evidence-linked reflection journal that uses Gemini to help you see p
 
 ## Live Demo
 
-- **Live Application:** https://signals.flowpilot-ai.site
 - **Demo Video:** https://drive.google.com/file/d/15VFHujxMJYxZ3325XHtUUZ4eE0xPStmO/view?usp=sharing
 - **Public Repository:** https://github.com/thearyangupta/reading-the-signals
 
